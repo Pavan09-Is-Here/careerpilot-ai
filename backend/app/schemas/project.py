@@ -66,13 +66,17 @@ class ProjectBase(BaseModel):
     @field_validator(
         "name",
         "description",
+        mode="before",
     )
     @classmethod
     def clean_required_text(
         cls,
-        value: str,
-    ) -> str:
-        return value.strip()
+        value: object,
+    ) -> object:
+        if isinstance(value, str):
+            return value.strip()
+
+        return value
 
     @field_validator(
         "role",

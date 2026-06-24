@@ -11,13 +11,13 @@ from app.core.database import Base, engine
 
 # Import all database models before create_all().
 from app.models.candidate_profile import (
-    CandidateProfile,
+    CandidateProfile,  # noqa: F401
 )
-from app.models.certification import Certification
-from app.models.education import Education
-from app.models.experience import Experience
-from app.models.project import Project
-from app.models.skill import Skill
+from app.models.certification import Certification  # noqa: F401
+from app.models.education import Education  # noqa: F401
+from app.models.experience import Experience  # noqa: F401
+from app.models.project import Project  # noqa: F401
+from app.models.skill import Skill  # noqa: F401
 
 
 @asynccontextmanager

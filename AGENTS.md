@@ -551,3 +551,50 @@ When finishing:
 * List validation commands and outcomes.
 * Clearly identify unresolved issues.
 * Do not automatically begin the next phase.
+
+## Development roadmap
+
+**`docs/roadmap.md` is the authoritative development roadmap for CareerPilot AI.**
+
+Before starting any new feature or milestone:
+
+1. Read `docs/roadmap.md` in full.
+2. Identify the current project phase and milestone status.
+3. Check dependencies to ensure required phases are completed.
+4. Confirm the next NOT STARTED milestone.
+5. Implement only the explicitly requested milestone.
+6. Do not automatically proceed to the next phase.
+
+### Roadmap structure
+
+The roadmap includes:
+
+* Executive overview and project positioning
+* Current repository architecture
+* Completed functionality with Git evidence
+* 14 development phases with detailed milestones
+* Dependency map showing phase relationships
+* Risk register with severity and mitigation
+* Validation matrix for change verification
+* Standard milestone workflow
+* Current project position and next steps
+
+### Milestone status rules
+
+A milestone may be marked `COMPLETED` only when:
+
+* Implementation exists in source code
+* Relevant tests pass
+* Required migrations are validated and reversible
+* Work is committed to Git and reachable from `git log`
+* Documented in roadmap with Git revision reference
+
+Uncommitted working code must normally be marked `IN REVIEW` or `IN PROGRESS`.
+
+### Current project status
+
+**Last Completed Milestone:** Phase 3.2 — Alembic Migration Foundation
+**Current Position:** Phase 3.3 (Text Extraction) in review, awaiting commit
+**Immediate Next Action:** Code review and commit of Phase 3.3, then begin Phase 3.4 only upon explicit request
+
+Consult `docs/roadmap.md` **Current Project Position** section for latest status and repository evidence.

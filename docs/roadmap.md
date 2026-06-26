@@ -2,7 +2,7 @@
 
 **Version:** 0.7.0  
 **Last Updated:** 2026-06-26  
-**Status:** Actively in development — Phase 3.3 (Document Text Extraction) in review
+**Status:** Actively in development — Phase 3.3 (Document Text Extraction) completed
 
 ---
 
@@ -68,9 +68,7 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 2: Verified Candidate Facts Vault ✓ (Profile, education, experience, projects, skills, certifications)
 - Phase 3.1: Secure PDF/DOCX Upload ✓ (Validation, hashing, deduplication, storage)
 - Phase 3.2: Alembic Migration Foundation ✓ (Baseline migration, reversible schema versioning)
-
-**In Review:**
-- Phase 3.3: PDF and DOCX Text Extraction (Implementation complete, tests passing, migration prepared, awaiting review and commit)
+- Phase 3.3: PDF and DOCX Text Extraction ✓ (Embedded-text extraction, safe errors, metadata, migration validation)
 
 **Not Started:**
 - Phase 3.4: Deterministic CV Section Detection
@@ -149,7 +147,7 @@ backend/
 │   ├── env.py                     # Alembic configuration
 │   ├── versions/                  # Versioned migrations
 │   │   ├── 6a528be87510_baseline_current_schema.py
-│   │   └── b7a3c8d9e012_add_document_extraction_metadata.py (uncommitted)
+│   │   └── b7a3c8d9e012_add_document_extraction_metadata.py (committed)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -380,67 +378,64 @@ frontend/
 
 **Current Migration Head:**
 - `6a528be87510_baseline_current_schema` (Phase 1, 2 schema)
-- `b7a3c8d9e012_add_document_extraction_metadata` (Phase 3.3, prepared but uncommitted)
+- `b7a3c8d9e012_add_document_extraction_metadata` (Phase 3.3, committed and validated)
 
 **Validation:** ✓ Baseline migration tested; reversible structure confirmed  
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
 ---
 
-### Phase 3.3 — PDF and DOCX Text Extraction (IN REVIEW) 📋
+### Phase 3.3 — PDF and DOCX Text Extraction (COMPLETED) ✅
 
-**Status:** IN REVIEW (Code complete, tests passing, migration prepared, awaiting commit)
+**Status:** COMPLETED (Committed — commit `7b48890`)
 
 **Implemented:**
-- **PDF Text Extraction** (`extract_from_pdf()`):
+- **PDF Text Extraction** (`extract_document_text()`):
   - Uses `pypdf.PdfReader` to extract embedded text
-  - Handles encrypted PDFs (raises `FileNotDecryptedError`)
+  - Handles encrypted PDFs safely
   - Handles malformed PDFs gracefully
-  - Returns page-by-page text; joins with newlines
-  - Supports PDF 1.0 through 2.0
-  - **Limitation:** No OCR for image-only or scanned PDFs
+  - Records page count and extracted character count
+  - Returns `no_text` for textless or image-only PDFs
+  - **OCR remains intentionally out of scope**
 
-- **DOCX Text Extraction** (`extract_from_docx()`):
-  - Validates DOCX structure (must be ZIP with `word/document.xml`)
-  - Extracts from `word/document.xml` using ElementTree
-  - Handles malformed or incomplete DOCX files
-  - **Limitation:** No images, headers, footers, or advanced formatting
+- **DOCX Text Extraction** (`extract_docx_text()`):
+  - Validates DOCX structure and extracts paragraphs from `word/document.xml`
+  - Handles malformed or incomplete DOCX files safely
+  - Preserves paragraph boundaries in extracted plain text
 
 - **Text Normalization** (`normalize_text()`):
   - Converts `\r\n` and `\r` to `\n`
   - Replaces tabs with spaces
-  - Compresses multiple spaces to single space
-  - Strips leading/trailing whitespace per line
-  - Collapses 3+ blank lines to 2
+  - Collapses repeated whitespace and blank lines
   - Returns clean, readable text
 
 - **Extraction Status Tracking**:
   - `pending` — Document uploaded, not yet extracted
   - `processing` — Extraction in progress
-  - `succeeded` — Text extracted successfully
-  - `failed` — Extraction failed with error recorded
+  - `completed` — Text extracted successfully
+  - `no_text` — No embedded text found
+  - `failed` — Extraction failed with a safe error recorded
 
 - **Metadata Captured**:
-  - `extracted_text` — Full document text (NULL if failed or pending)
+  - `extracted_text` — Full document text (available only in detail responses)
   - `extraction_error` — Safe error message for failed extractions
   - `extracted_at` — Timestamp of extraction attempt
-  - `page_count` — Number of pages (PDF) or NULL (DOCX, single document)
+  - `page_count` — Number of pages for PDF documents
   - `extracted_character_count` — Character count of extracted text
 
 - **Safe Error Handling**:
-  - Encrypted PDFs: Record error "PDF is encrypted and cannot be extracted."
-  - Malformed files: "Document could not be parsed."
-  - Empty documents: "No text found in document."
-  - Missing file: "Stored document file could not be found."
-  - Text size limit exceeded: "Document text exceeds the maximum allowed size."
+  - Encrypted PDFs: recorded as unsupported
+  - Malformed files: recorded as invalid or corrupted
+  - Missing files: recorded as missing without exposing paths
+  - Text size limit exceeded: recorded as configured-size violation
 
 - **Re-extraction Support**:
-  - Re-extract via `POST /documents/{id}/extract` (no limit on attempts)
-  - Previous extraction cleared; new status set to "processing"
-  - Error count not tracked (can improve in future)
+  - Re-extract via `POST /api/documents/{document_id}/extract`
+  - Previous errors are cleared on success
+  - No OCR or external document service is used
 
 **API Endpoint:**
-- `POST /documents/{id}/extract` — Trigger text extraction for validated document
+- `POST /api/documents/{document_id}/extract` — Trigger text extraction for validated document
 
 **Document Model Extension (Migration `b7a3c8d9e012`):**
 ```python
@@ -453,38 +448,22 @@ op.add_column("documents", sa.Column("extracted_character_count", sa.Integer(), 
 ```
 
 **Tests** (`test_document_extraction.py`):
-- ✓ PDF text extraction (valid PDF, multiple pages)
-- ✓ DOCX text extraction (valid DOCX)
-- ✓ Encrypted PDF error handling
-- ✓ Malformed PDF error handling
-- ✓ Malformed DOCX error handling
-- ✓ Empty file handling
-- ✓ Text normalization correctness
-- ✓ Page count accuracy (PDF)
-- ✓ Character count accuracy
-- ✓ Safe error messages (no stack traces, file paths)
-- ✓ Size limit enforcement (max extracted text size)
-- ✓ API endpoint response shape
+- ✓ PDF text extraction and DOCX text extraction
+- ✓ PDF page count and DOCX paragraph preservation
+- ✓ Character-count storage and status transitions
+- ✓ Missing document, missing file, corrupt PDF, corrupt DOCX, encrypted PDF, and `no_text` cases
+- ✓ Safe re-extraction, path traversal protection, list/detail response behavior, and extraction-size limit enforcement
 
 **Validation:**
-- ✓ 41 tests passing (including new extraction tests)
-- ✓ `python -m compileall app` — No syntax errors
-- ✓ Migration prepared and reversible
-- ✓ Extraction metadata columns added to Document model
+- ✓ 43 backend tests passed
+- ✓ `python -m compileall app` passed
+- ✓ Alembic has one head: `b7a3c8d9e012`
+- ✓ Upgrade, downgrade, and re-upgrade validated using an isolated temporary SQLite database
+- ✓ The real development database remained unchanged during the final validation
 
 **Known Limitations:**
-- ❌ No OCR — Scanned PDFs or image-only documents cannot be extracted
-- ❌ No advanced formatting — DOCX headers, footers, images, tables not extracted
-- ❌ No headers/footers — PDF headers and footers may be missing from extraction
-- ❌ No text boxes — DOCX text boxes not extracted (only main document text)
-- ❌ Character count limit — Enforced at 5 MB to prevent memory issues (configurable)
-
-**Next Steps:**
-1. Code review of `document_extraction.py` and route changes
-2. Review migration `b7a3c8d9e012` for reversibility and compatibility
-3. Commit both implementation and migration to `master`
-4. Update document model status to COMPLETED
-5. Proceed to Phase 3.4 (Section Detection)
+- ❌ OCR remains intentionally out of scope for scanned PDFs or image-only documents
+- ❌ Advanced formatting elements such as tables, images, headers, and footers are not extracted
 
 ---
 
@@ -747,7 +726,7 @@ alembic current               # Show database's current revision
 
 #### Phase 3.3 — PDF and DOCX Text Extraction
 
-**Milestone Status:** 📋 IN REVIEW
+**Milestone Status:** ✅ COMPLETED
 
 **Goal:** Extract embedded text from uploaded PDFs and DOCX files; normalize and store for analysis.
 
@@ -763,8 +742,8 @@ alembic current               # Show database's current revision
 **Required Backend Work:**
 - Document extraction service (`document_extraction.py`):
   - `extract_document_text(document: Document) -> ExtractionResult`
-  - `extract_from_pdf(path: Path) -> str`
-  - `extract_from_docx(path: Path) -> str`
+  - PDF embedded-text extraction with page and character counts
+  - DOCX paragraph extraction with safe malformed-file handling
   - `normalize_text(text: str) -> str`
   - Safe error handling with `DocumentExtractionError`
 - Document API route: `POST /api/documents/{id}/extract`
@@ -778,7 +757,7 @@ alembic current               # Show database's current revision
 
 **Database Schema Changes:**
 - New Document columns (migration `b7a3c8d9e012`):
-  - `extraction_status` (String, default "pending"): pending, processing, succeeded, failed
+  - `extraction_status` (String, default "pending"): pending, processing, completed, no_text, failed
   - `extracted_text` (Text, nullable): Extracted document text (NULL if failed)
   - `extraction_error` (Text, nullable): Safe error message if extraction failed
   - `extracted_at` (DateTime, nullable): Extraction timestamp
@@ -818,7 +797,7 @@ alembic current               # Show database's current revision
 
 **Definition of Done:**
 - `document_extraction.py` service written and tested
-- Migration `b7a3c8d9e012` prepared and reversible
+- Migration `b7a3c8d9e012` committed, validated, and reversible
 - API route correctly handles extraction request
 - Extraction status and metadata stored in database
 - All extraction tests pass
@@ -2072,29 +2051,20 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 3.2 — Alembic Migration Foundation (Committed)
+**Last Completed Milestone:** Phase 3.3 — PDF and DOCX Text Extraction (Committed)
 
-**Current Status (In Review):** Phase 3.3 — PDF and DOCX Text Extraction
+**First Not-Started Milestone:** Phase 3.4 — Deterministic CV Section Detection
 
-**Uncommitted/In-Review Work:**
-- `backend/app/services/document_extraction.py` — Text extraction service
-- `backend/app/services/document_extraction.py` — Updated routes for extraction endpoint
-- `backend/app/models/document.py` — Extended with extraction metadata columns
-- `backend/app/core/config.py` — Configuration updates
-- `backend/tests/test_document_extraction.py` — Extraction tests
-- `backend/alembic/versions/b7a3c8d9e012_add_document_extraction_metadata.py` — Migration file (prepared but not yet applied)
+**Immediate Next Action:** Phase 3.4 — Deterministic CV Section Detection
 
-**Test Status:** ✓ All 41 tests passing (including new extraction tests)
+**Validation Summary:**
+- ✓ 43 backend tests passed
+- ✓ Python compilation passed
+- ✓ Alembic head: `b7a3c8d9e012`
+- ✓ Upgrade, downgrade, and re-upgrade validated on an isolated temporary SQLite database
+- ✓ The real development database remained unchanged during the final validation
 
-**Validation Status:** ✓ Code compiles, no syntax errors
-
-**Next Steps:**
-1. Code review of document extraction implementation
-2. Review and validate extraction migration reversibility
-3. Commit extraction implementation and migration
-4. Begin Phase 3.4 (Deterministic CV Section Detection) — requires explicit request
-
-**Immediate Blockers:** None — Phase 3.3 ready for review and commit
+**Immediate Blockers:** None
 
 ---
 

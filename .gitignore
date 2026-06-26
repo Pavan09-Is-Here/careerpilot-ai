@@ -35,3 +35,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .DS_Store
+
+# Uploaded and generated candidate documents
+backend/data/documents/

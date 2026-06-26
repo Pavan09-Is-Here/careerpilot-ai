@@ -14,6 +14,7 @@ from app.models.candidate_profile import (
     CandidateProfile,  # noqa: F401
 )
 from app.models.certification import Certification  # noqa: F401
+from app.models.document import Document  # noqa: F401
 from app.models.education import Education  # noqa: F401
 from app.models.experience import Experience  # noqa: F401
 from app.models.project import Project  # noqa: F401

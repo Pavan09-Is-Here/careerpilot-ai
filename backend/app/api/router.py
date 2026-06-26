@@ -18,6 +18,9 @@ from app.api.routes.project import (
 from app.api.routes.skill import (
     router as skill_router,
 )
+from app.api.routes.document import (
+    router as document_router,
+)
 
 
 api_router = APIRouter(
@@ -46,4 +49,8 @@ api_router.include_router(
 
 api_router.include_router(
     certification_router,
+)
+
+api_router.include_router(
+    document_router,
 )

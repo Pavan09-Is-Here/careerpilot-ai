@@ -15,6 +15,13 @@ UploadStatus = Literal[
     "rejected",
     "processing_failed",
 ]
+ExtractionStatus = Literal[
+    "pending",
+    "processing",
+    "completed",
+    "no_text",
+    "failed",
+]
 
 
 class DocumentBase(BaseModel):
@@ -46,12 +53,32 @@ class DocumentBase(BaseModel):
     document_type: DocumentType
     upload_status: UploadStatus
     is_primary: bool = False
+    extraction_status: ExtractionStatus
+    extraction_error: str | None = None
+    extracted_at: datetime | None = None
+    page_count: int | None = None
+    extracted_character_count: int | None = None
 
 
-class DocumentResponse(DocumentBase):
+class DocumentListResponse(DocumentBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     candidate_profile_id: int
     created_at: datetime
     updated_at: datetime
+
+
+class DocumentResponse(DocumentListResponse):
+    extracted_text: str | None = None
+
+
+class DocumentExtractionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    extraction_status: ExtractionStatus
+    extraction_error: str | None = None
+    extracted_at: datetime | None = None
+    page_count: int | None = None
+    extracted_character_count: int | None = None

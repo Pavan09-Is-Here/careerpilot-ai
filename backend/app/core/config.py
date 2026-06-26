@@ -12,3 +12,4 @@ class Settings(BaseSettings):
         Path(__file__).resolve().parents[2] / "data" / "documents"
     )
     max_document_upload_size_bytes: int = 10 * 1024 * 1024
+    max_document_extracted_text_characters: int = 200_000

@@ -1,4 +1,6 @@
 from logging.config import fileConfig
+from pathlib import Path
+import sys
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -14,21 +16,16 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-from pathlib import Path
-import sys
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.core.database import Base
-from app.models.candidate_profile import CandidateProfile  # noqa: F401
-from app.models.certification import Certification  # noqa: F401
-from app.models.document import Document  # noqa: F401
-from app.models.education import Education  # noqa: F401
-from app.models.experience import Experience  # noqa: F401
-from app.models.project import Project  # noqa: F401
-from app.models.skill import Skill  # noqa: F401
+from app.core.database import Base  # noqa: E402
+from app.models.candidate_profile import CandidateProfile  # noqa: E402,F401
+from app.models.certification import Certification  # noqa: E402,F401
+from app.models.document import Document  # noqa: E402,F401
+from app.models.education import Education  # noqa: E402,F401
+from app.models.experience import Experience  # noqa: E402,F401
+from app.models.project import Project  # noqa: E402,F401
+from app.models.skill import Skill  # noqa: E402,F401
 
 # target_metadata should include all model metadata
 target_metadata = Base.metadata

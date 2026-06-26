@@ -3,7 +3,7 @@ import os
 import zipfile
 from hashlib import sha256
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -42,7 +42,7 @@ def profile_payload(**overrides: object) -> dict[str, object]:
 def create_profile(client: TestClient) -> dict[str, Any]:
     response = client.put("/api/profile", json=profile_payload())
     assert response.status_code == 200
-    return response.json()
+    return cast(dict[str, Any], response.json())
 
 
 def make_pdf_bytes() -> bytes:

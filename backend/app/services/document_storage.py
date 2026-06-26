@@ -177,7 +177,7 @@ def prepare_upload(
     storage_dir = get_storage_dir()
     settings = get_settings()
 
-    original_filename = sanitize_filename(upload_file.filename)
+    original_filename = sanitize_filename(upload_file.filename or "document")
     declared_extension = get_declared_extension(original_filename)
 
     temp_path, size_bytes, sha256_hash = write_upload_to_temp_file(

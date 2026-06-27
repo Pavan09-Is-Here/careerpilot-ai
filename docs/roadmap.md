@@ -2,7 +2,7 @@
 
 **Version:** 0.7.0  
 **Last Updated:** 2026-06-27
-**Status:** Actively in development — Phase 3.4 (Deterministic CV Section Detection) completed; Phase 3.5 next
+**Status:** Actively in development — Phase 3.5 (Verified Facts Comparison) in review; Phase 3.6 not started
 
 ---
 
@@ -72,10 +72,9 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.4: Deterministic CV Section Detection ✓ (Structured section storage, deterministic parser, API endpoints, migration validation)
 
 **In Review:**
-- None
+- Phase 3.5: Verified Facts Comparison
 
 **Not Started:**
-- Phase 3.5: Verified Facts Comparison
 - Phase 3.6: CV Version Management
 - Phase 3.7: Verified Master CV Generation
 - Phase 3.8: Document Management Frontend
@@ -121,7 +120,8 @@ backend/
 │   │       ├── project.py
 │   │       ├── skill.py
 │   │       ├── certification.py
-│   │       └── document.py        # Document upload, extraction, management
+│   │       ├── document.py        # Document upload, extraction, comparison
+│   │       └── fact_comparison.py # Comparison run retrieval
 │   ├── core/
 │   │   ├── config.py              # Settings (document storage path, etc.)
 │   │   └── database.py            # SQLAlchemy engine, session, Base
@@ -133,7 +133,8 @@ backend/
 │   │   ├── skill.py
 │   │   ├── certification.py
 │   │   ├── document.py
-│   │   └── cv_section.py          # Detected CV sections
+│   │   ├── cv_section.py          # Detected CV sections
+│   │   └── fact_comparison.py     # Comparison runs and findings
 │   ├── schemas/                   # Pydantic request/response schemas
 │   │   ├── candidate_profile.py
 │   │   ├── education.py
@@ -141,11 +142,13 @@ backend/
 │   │   ├── project.py
 │   │   ├── skill.py
 │   │   ├── certification.py
-│   │   └── document.py
+│   │   ├── document.py
+│   │   └── fact_comparison.py
 │   ├── services/                  # Business logic
 │   │   ├── document_storage.py    # File validation, safe storage
 │   │   ├── document_extraction.py # PDF/DOCX text extraction
-│   │   └── document_section_detection.py # Deterministic CV section detection
+│   │   ├── document_section_detection.py # Deterministic section detection
+│   │   └── fact_comparison.py     # Deterministic verified-fact comparison
 │   ├── repositories/              # Database access layer (extensible)
 │   └── utils/
 ├── alembic/
@@ -154,14 +157,16 @@ backend/
 │   │   ├── 6a528be87510_baseline_current_schema.py
 │   │   ├── b7a3c8d9e012_add_document_extraction_metadata.py (committed)
 │   │   ├── d8e9f0a1b2c3_add_missing_facts_vault_tables.py (committed repair)
-│   │   └── c4e7d9a1b2c3_add_cv_section_detection.py (committed)
+│   │   ├── c4e7d9a1b2c3_add_cv_section_detection.py (committed)
+│   │   └── e5f6a7b8c9d0_add_fact_comparison.py (in review)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
 │   ├── test_profile_resources.py  # Candidate facts vault tests
 │   ├── test_documents.py          # Upload and document tests
 │   ├── test_document_extraction.py # Text extraction tests
-│   └── test_document_section_detection.py # Section detection tests
+│   ├── test_document_section_detection.py # Section detection tests
+│   └── test_fact_comparison.py # Verified facts comparison tests
 ├── .venv/                         # Virtual environment
 ├── pyproject.toml                 # Tool config (pytest, ruff, mypy)
 ├── requirements.txt               # Production dependencies
@@ -374,7 +379,7 @@ frontend/
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (currently one head: `c4e7d9a1b2c3`)
+  - `alembic heads` — Check current migration head (currently one head: `e5f6a7b8c9d0`)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -391,8 +396,9 @@ frontend/
 - `b7a3c8d9e012_add_document_extraction_metadata` (Phase 3.3, committed and validated)
 - `d8e9f0a1b2c3_add_missing_facts_vault_tables` (committed repair for Facts Vault tables)
 - `c4e7d9a1b2c3_add_cv_section_detection` (Phase 3.4, committed and validated)
+- `e5f6a7b8c9d0_add_fact_comparison` (Phase 3.5, in review)
 
-**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `c4e7d9a1b2c3`
+**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `e5f6a7b8c9d0`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
 **Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3` and applying only the Phase 3.4 migration `c4e7d9a1b2c3`. Database integrity passed; `cv_sections` exists; document section-detection metadata exists; the database schema matches the SQLAlchemy models.
@@ -918,7 +924,7 @@ alembic current               # Show database's current revision
 
 #### Phase 3.5 — Verified Facts Comparison
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** IN REVIEW
 
 **Goal:** Compare extracted CV text and detected sections against verified candidate facts; identify matches, mismatches, and unverified claims.
 
@@ -934,40 +940,68 @@ alembic current               # Show database's current revision
 - Flag uncertain matches for manual review
 
 **Database Schema Changes:**
-- New table `cv_fact_matches`:
-  - id, document_id, section_id, fact_type (education, experience, skill, etc.), verified_fact_id, match_status (confirmed, possible_mismatch, unverified, missing)
-  - Match confidence score
-  - Discrepancies noted (date mismatch, org mismatch, etc.)
-  - Manual_review_required (boolean)
+- New migration `e5f6a7b8c9d0_add_fact_comparison.py` follows committed revision `c4e7d9a1b2c3`
+- New table `fact_comparison_runs`:
+  - id, document_id, status, started_at, completed_at, error
+  - total_findings, confirmed_count, mismatch_count, missing_verified_count, unverified_claim_count, manual_review_count
+  - comparison_version, is_latest_successful, created_at
+- New table `fact_comparison_findings`:
+  - id, comparison_run_id, document_section_id, sort_order
+  - entity_type, verified_entity_id, field_name, finding_type
+  - bounded CV evidence, bounded verified evidence, normalized values
+  - confidence, severity, explanation, requires_manual_review, dedupe_key, created_at
+- Foreign keys:
+  - `fact_comparison_runs.document_id` → `documents.id` with cascade delete
+  - `fact_comparison_findings.comparison_run_id` → `fact_comparison_runs.id` with cascade delete
+  - `fact_comparison_findings.document_section_id` → `cv_sections.id` with set-null on section deletion
+- Unique constraint prevents duplicate findings within a run: `(comparison_run_id, dedupe_key)`
 
 **Match Results:**
 - `confirmed` — CV text closely matches verified fact
-- `possible_mismatch` — CV text differs from verified fact (date, organization, detail)
-- `unverified` — CV claims something not in vault (requires review)
-- `missing` — Verified fact not found in CV (potential CV gap)
+- `possible_mismatch` — CV text differs from verified fact and needs review
+- `missing_verified_fact` — Verified fact not found in CV; absence is not treated as false
+- `unverified_claim` — CV claims something not matched to the verified vault
+- `date_conflict`, `organisation_conflict`, `skill_conflict` — Deterministic conflict categories requiring review where applicable
+- `manual_review` — Ambiguous or weak match that must not be confirmed automatically
 
 **Important Matching Rules:**
 - **Never assume absence is falsity** — If a skill is not in the CV but is in the vault, the candidate may have omitted it intentionally for brevity or relevance
 - **Flag, don't conclude** — Uncertain matches marked for review, never treated as proof of false claims
+- **Only eligible vault truth is used** — Candidate profile fields require `facts_verified=True`; education, work experience, projects, skills, and certifications require `verified=True`
+- **No automatic vault changes** — Comparison runs never modify, verify, reject, or delete Candidate Facts Vault records
+- **Bounded evidence only** — Findings store bounded excerpts and explanations, not full CV content
 - **Manual review required for:**
   - Date discrepancies (e.g., CV says 2020–2022, vault says 2019–2023)
   - Organization name variations (e.g., "Microsoft" vs "Microsoft Corp")
   - Role title variations (e.g., "Senior Engineer" vs "Software Engineer III")
   - New claims not in vault (potential new facts to add)
 
-**API Endpoints (Planned):**
-- `POST /api/documents/{id}/compare-facts` — Trigger comparison
-- `GET /api/documents/{id}/fact-matches` — Retrieve all matches
-- `PATCH /api/fact-matches/{id}` — Mark as manually reviewed
+**API Endpoints:**
+- `POST /api/documents/{document_id}/compare-facts` — Trigger deterministic comparison
+- `GET /api/documents/{document_id}/fact-comparison` — Retrieve latest successful comparison, falling back to latest run when no success exists
+- `GET /api/fact-comparisons/{comparison_id}` — Retrieve a specific comparison run and findings
+- `GET /api/documents/{document_id}` — Includes concise `fact_comparison_summary`
+- `GET /api/documents` — Excludes findings and comparison summary by design
 
 **Testing Requirements:**
-- Exact matches detected (experience, education, skills)
-- Date mismatches flagged
-- Organization name variations identified
-- Unverified claims flagged
-- Missing vault facts detected
-- Manual review items correct
-- No false positives
+- ✓ Confirmed profile facts and harmless formatting differences
+- ✓ Profile mismatch detection
+- ✓ Education matching and date conflicts
+- ✓ Work-experience company matching, organisation suffix variants, and date conflicts
+- ✓ Project matching
+- ✓ Skill confirmation, unverified skill claims, and ambiguous manual review
+- ✓ Certification matching
+- ✓ Missing verified facts and unverified CV claims
+- ✓ Only verified/eligible vault records treated as truth
+- ✓ Precondition rejection before extraction and section detection
+- ✓ Missing document returns 404
+- ✓ Stable deterministic ordering
+- ✓ Safe re-comparison, no duplicate active findings, previous success preserved after failure
+- ✓ Status does not remain `processing`
+- ✓ Safe error responses without internal paths or raw exceptions
+- ✓ Evidence and explanation length limits
+- ✓ Findings excluded from document-list responses; summary included in document detail
+- ✓ Alembic metadata parity and migration upgrade/downgrade/re-upgrade
 
 **Dependencies:**
 - Requires Phase 2 (Facts Vault) ✓
@@ -975,11 +1009,24 @@ alembic current               # Show database's current revision
 - Requires Phase 3.4 (Section Detection) ✓
 
 **Definition of Done:**
-- Matching algorithm implemented
-- All comparison tests pass
-- Database schema for fact_matches created and migrated
-- API endpoints created
-- No false CV claims marked as confirmed
+- Deterministic matching algorithm implemented with no AI, embeddings, OCR, internet requests, or external services
+- Comparison run/finding schema created and reversible
+- API endpoints created and registered
+- All backend tests pass
+- Isolated migration upgrade, downgrade to `c4e7d9a1b2c3`, and re-upgrade pass
+- Real development database fingerprint remains unchanged during validation
+- No false CV claims are marked as confirmed
+- Pending review and commit before milestone can be marked `COMPLETED`
+
+**Validation Evidence (In Review):**
+- ✓ 69 backend tests passed
+- ✓ `python -m compileall app` passed
+- ✓ FastAPI import and OpenAPI route registration passed (`openapi_paths=23`)
+- ✓ `alembic heads` reports one head: `e5f6a7b8c9d0`
+- ✓ Alembic metadata parity test passed
+- ✓ Temporary migration target: `/private/tmp/careerpilot-phase35-ack69xh4/migration-validation.db`
+- ✓ Isolated upgrade to `e5f6a7b8c9d0`, downgrade to `c4e7d9a1b2c3`, and re-upgrade to `e5f6a7b8c9d0` passed
+- ✓ Real database fingerprint unchanged: SHA-256 `93599da2b9fa075e2b58bf613815a04843ecf7c4bc5a24ff1780debea27ac6f5`, size `98304`, mtime `1782561068255861641`
 
 ---
 
@@ -1036,7 +1083,7 @@ alembic current               # Show database's current revision
 
 **Dependencies:**
 - Requires Phase 2 (Facts Vault) ✓
-- Requires Phase 3.5 (Facts Comparison) ✓
+- Requires Phase 3.5 (Facts Comparison) — IN REVIEW
 - Requires Phase 4 (Job Discovery) for job-specific tailoring
 
 **Definition of Done:**
@@ -1159,7 +1206,8 @@ alembic current               # Show database's current revision
 - POST /api/documents/{id}/detect-sections
 - GET /api/documents/{id}/sections
 - POST /api/documents/{id}/compare-facts
-- GET /api/documents/{id}/fact-matches
+- GET /api/documents/{id}/fact-comparison
+- GET /api/fact-comparisons/{comparison_id}
 - POST /api/documents/generate-verified-master
 - GET /api/documents/{id}/download
 - DELETE /api/documents/{id}
@@ -1180,7 +1228,7 @@ alembic current               # Show database's current revision
 - Requires Phase 3.1 (Upload Backend) ✓
 - Requires Phase 3.3 (Extraction) ✓
 - Requires Phase 3.4 (Section Detection) ✓
-- Requires Phase 3.5 (Facts Comparison) ✓
+- Requires Phase 3.5 (Facts Comparison) — IN REVIEW
 - Requires Phase 3.7 (Master CV Generation) ✓
 
 **Definition of Done:**
@@ -2091,27 +2139,25 @@ Follow this workflow for every milestone:
 
 **Last Completed Milestone:** Phase 3.4 — Deterministic CV Section Detection (Committed)
 
-**Current Status:** Phase 3.5 — Verified Facts Comparison is ready to begin upon explicit request
+**Current Status:** Phase 3.5 — Verified Facts Comparison is IN REVIEW, awaiting user review and commit
 
-**First Not-Started Milestone:** Phase 3.5 — Verified Facts Comparison
+**First Not-Started Milestone:** Phase 3.6 — CV Version Management
 
-**Immediate Next Action:** Phase 3.5 — Verified Facts Comparison
+**Immediate Next Action:** Review and commit Phase 3.5 only; begin Phase 3.6 only upon explicit request
 
 **Validation Summary:**
-- ✓ 55 backend tests passed
+- ✓ 69 backend tests passed
 - ✓ Python compilation passed
-- ✓ FastAPI import and OpenAPI route registration passed
-- ✓ Alembic has one head: `c4e7d9a1b2c3`
-- ✓ Repaired migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3`
+- ✓ FastAPI import and OpenAPI route registration passed (`openapi_paths=23`)
+- ✓ Alembic has one head: `e5f6a7b8c9d0`
+- ✓ Repaired migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0`
 - ✓ Alembic metadata parity test passed against an isolated temporary SQLite database
-- ✓ Upgrade to repair revision, upgrade to head, downgrade to repair, and re-upgrade validated on an isolated temporary SQLite database
-- ✓ The real development database was safely adopted by stamping the verified repair revision and applying only the Phase 3.4 migration
-- ✓ Database integrity passed
-- ✓ `cv_sections` exists
-- ✓ Document section-detection metadata exists
+- ✓ Isolated upgrade to `e5f6a7b8c9d0`, downgrade to `c4e7d9a1b2c3`, and re-upgrade to `e5f6a7b8c9d0` passed
+- ✓ Real development database fingerprint remained unchanged during Phase 3.5 migration validation
+- ✓ `fact_comparison_runs` and `fact_comparison_findings` schema exists in isolated head migration validation
 - ✓ The database schema matches the SQLAlchemy models
-- ✓ Deterministic section detection, contact inference, aliases, ordering, character ranges, confidence, safe re-detection, and failure recovery are complete
-- ✓ No AI, OCR, embeddings, or external services are used
+- ✓ Deterministic verified-fact comparison, bounded evidence, latest-successful run preservation, stable finding ordering, and safe failed-run recording are complete
+- ✓ No AI, OCR, embeddings, internet requests, browser automation, or external services are used
 
 **Immediate Blockers:** None
 

@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
 **Version:** 0.7.0  
-**Last Updated:** 2026-06-26  
-**Status:** Actively in development — Phase 3.4 (Deterministic CV Section Detection) in review
+**Last Updated:** 2026-06-27
+**Status:** Actively in development — Phase 3.4 (Deterministic CV Section Detection) completed; Phase 3.5 next
 
 ---
 
@@ -69,9 +69,10 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.1: Secure PDF/DOCX Upload ✓ (Validation, hashing, deduplication, storage)
 - Phase 3.2: Alembic Migration Foundation ✓ (Baseline migration, reversible schema versioning)
 - Phase 3.3: PDF and DOCX Text Extraction ✓ (Embedded-text extraction, safe errors, metadata, migration validation)
+- Phase 3.4: Deterministic CV Section Detection ✓ (Structured section storage, deterministic parser, API endpoints, migration validation)
 
 **In Review:**
-- Phase 3.4: Deterministic CV Section Detection (Structured section storage, local deterministic parser, API endpoints, migration and tests implemented; awaiting review and commit)
+- None
 
 **Not Started:**
 - Phase 3.5: Verified Facts Comparison
@@ -152,7 +153,8 @@ backend/
 │   ├── versions/                  # Versioned migrations
 │   │   ├── 6a528be87510_baseline_current_schema.py
 │   │   ├── b7a3c8d9e012_add_document_extraction_metadata.py (committed)
-│   │   └── c4e7d9a1b2c3_add_cv_section_detection.py (in review)
+│   │   ├── d8e9f0a1b2c3_add_missing_facts_vault_tables.py (committed repair)
+│   │   └── c4e7d9a1b2c3_add_cv_section_detection.py (committed)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -368,11 +370,11 @@ frontend/
 - **Alembic Setup**: `alembic init` completed, `env.py` configured
 - **Baseline Migration** (`6a528be87510_baseline_current_schema.py`):
   - Original committed baseline creates the `documents` table
-  - A Phase 3.4 in-review forward repair migration (`d8e9f0a1b2c3_add_missing_facts_vault_tables.py`) creates the missing Facts Vault tables without rewriting committed migration history
+  - Committed forward repair migration `d8e9f0a1b2c3_add_missing_facts_vault_tables.py` creates the missing Facts Vault tables without rewriting committed migration history
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (currently `c4e7d9a1b2c3` while Phase 3.4 is in review)
+  - `alembic heads` — Check current migration head (currently one head: `c4e7d9a1b2c3`)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -384,16 +386,16 @@ frontend/
 - Alembic is the authoritative schema mechanism for application databases; app startup must not rely on `Base.metadata.create_all()`
 - Local setup requires running `alembic upgrade head` from `backend/` before starting the API against a new database
 
-**Current Migration Head:**
+**Current Repaired Migration Chain:**
 - `6a528be87510_baseline_current_schema` (committed baseline; creates `documents`)
 - `b7a3c8d9e012_add_document_extraction_metadata` (Phase 3.3, committed and validated)
-- `d8e9f0a1b2c3_add_missing_facts_vault_tables` (Phase 3.4 in-review repair for Facts Vault tables)
-- `c4e7d9a1b2c3_add_cv_section_detection` (Phase 3.4, in review and validated)
+- `d8e9f0a1b2c3_add_missing_facts_vault_tables` (committed repair for Facts Vault tables)
+- `c4e7d9a1b2c3_add_cv_section_detection` (Phase 3.4, committed and validated)
 
-**Validation:** ✓ Baseline migration tested; reversible structure confirmed  
+**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `c4e7d9a1b2c3`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
-**Existing Database Adoption Note:** The local `backend/careerpilot.db` may already contain Facts Vault tables created before Alembic was authoritative. Before advancing that real database, compare its schema with the repair migration and consider safely stamping the repair revision rather than executing duplicate table creation. Do not stamp or migrate the real database without explicit review.
+**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3` and applying only the Phase 3.4 migration `c4e7d9a1b2c3`. Database integrity passed; `cv_sections` exists; document section-detection metadata exists; the database schema matches the SQLAlchemy models.
 
 ---
 
@@ -824,7 +826,7 @@ alembic current               # Show database's current revision
 
 #### Phase 3.4 — Deterministic CV Section Detection
 
-**Milestone Status:** 📋 IN REVIEW
+**Milestone Status:** ✓ COMPLETED
 
 **Goal:** Automatically detect and segment CV sections (contact, experience, education, skills, etc.) from extracted text.
 
@@ -837,7 +839,12 @@ alembic current               # Show database's current revision
 - Support re-detection on updated text
 
 **Database Schema Changes:**
-- Phase 3.4 depends on the in-review repair migration `d8e9f0a1b2c3`, which creates missing Facts Vault tables while preserving committed migration history.
+- Phase 3.4 depends on the committed repair migration `d8e9f0a1b2c3`, which creates missing Facts Vault tables while preserving committed migration history.
+- Repaired migration chain:
+  - `6a528be87510`
+  - `b7a3c8d9e012`
+  - `d8e9f0a1b2c3`
+  - `c4e7d9a1b2c3`
 - New table `cv_sections`:
   - id, document_id (fk), section_order, section_type, title, start_char, end_char, content_text, confidence, detection_method, created_at
   - Unique constraint: (document_id, section_type, start_char)
@@ -866,11 +873,15 @@ alembic current               # Show database's current revision
 
 **Algorithm Approach:**
 - Heading detection: Look for all-caps lines, numbered lines, common section keywords
-- Heading aliases: Support variations ("Work History" → "Work Experience", "Technical Skills" → "Skills")
-- Contact block inference: Parse text at document start for phone, email, location patterns
-- Section ordering: Most CVs follow standard order (contact, summary, experience, education, skills)
-- Character ranges: Each section has approximate character positions
-- Confidence scoring: Based on heading match quality, section completeness, known patterns
+- Heading aliases: Support appropriate UK and US variants ("Work History" → "Work Experience", "Technical Skills" → "Skills")
+- Contact block inference: Deterministic parsing of document-start phone, email, location, and profile-link patterns
+- Section ordering: Preserves source order, including non-standard ordering and repeated genuine section types
+- Character ranges: Deterministic, non-overlapping ranges that preserve paragraph and bullet boundaries
+- Confidence scoring: Deterministic scores based on heading match quality, section completeness, and known patterns
+- Safe fallback handling: Unknown or missing sections are handled without inventing facts
+- Safe re-detection: Replaces prior sections without duplicates; failed re-detection preserves previously valid sections and cannot leave status permanently `processing`
+- External services: No AI, OCR, embeddings, internet requests, or external services are used
+- Candidate Facts Vault: Candidate facts are not modified by section detection
 
 **API Endpoints:**
 - `POST /api/documents/{id}/detect-sections` — Trigger section detection
@@ -889,11 +900,19 @@ alembic current               # Show database's current revision
 - Requires Phase 3.3 (Text Extraction) ✓
 
 **Definition of Done:**
-- Section detection algorithm implemented
-- API endpoints created
-- Database migration for cv_sections table
-- All detection tests pass
-- Confidence scoring calibrated
+- Section detection algorithm implemented, deterministic, and committed
+- API endpoints created and registered
+- Database migration for `cv_sections` table and document metadata committed, validated, and applied locally
+- 55 backend tests passed
+- Python compilation passed
+- Alembic has one head: `c4e7d9a1b2c3`
+- The real development database was safely adopted by stamping the verified repair revision and applying only the Phase 3.4 migration
+- Database integrity passed
+- `cv_sections` exists
+- Document section-detection metadata exists
+- The database schema matches the SQLAlchemy models
+- Deterministic section detection, contact inference, aliases, ordering, character ranges, confidence, safe re-detection, and failure recovery are complete
+- No AI, OCR, embeddings, or external services are used
 
 ---
 
@@ -2070,22 +2089,29 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 3.3 — PDF and DOCX Text Extraction (Committed)
+**Last Completed Milestone:** Phase 3.4 — Deterministic CV Section Detection (Committed)
 
-**Current Status (In Review):** Phase 3.4 — Deterministic CV Section Detection
+**Current Status:** Phase 3.5 — Verified Facts Comparison is ready to begin upon explicit request
 
 **First Not-Started Milestone:** Phase 3.5 — Verified Facts Comparison
 
-**Immediate Next Action:** Review and commit Phase 3.4, then begin Phase 3.5 only upon explicit request
+**Immediate Next Action:** Phase 3.5 — Verified Facts Comparison
 
 **Validation Summary:**
 - ✓ 55 backend tests passed
 - ✓ Python compilation passed
 - ✓ FastAPI import and OpenAPI route registration passed
-- ✓ Alembic head: `c4e7d9a1b2c3`
+- ✓ Alembic has one head: `c4e7d9a1b2c3`
+- ✓ Repaired migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3`
 - ✓ Alembic metadata parity test passed against an isolated temporary SQLite database
 - ✓ Upgrade to repair revision, upgrade to head, downgrade to repair, and re-upgrade validated on an isolated temporary SQLite database
-- ✓ The real development database remained unchanged during the final validation
+- ✓ The real development database was safely adopted by stamping the verified repair revision and applying only the Phase 3.4 migration
+- ✓ Database integrity passed
+- ✓ `cv_sections` exists
+- ✓ Document section-detection metadata exists
+- ✓ The database schema matches the SQLAlchemy models
+- ✓ Deterministic section detection, contact inference, aliases, ordering, character ranges, confidence, safe re-detection, and failure recovery are complete
+- ✓ No AI, OCR, embeddings, or external services are used
 
 **Immediate Blockers:** None
 
@@ -2112,7 +2138,7 @@ Follow this workflow for every milestone:
 ---
 
 **Roadmap Version:** 0.7.0  
-**Last Updated:** 2026-06-26  
+**Last Updated:** 2026-06-27
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
 **Status:** Actively maintained — in development phase 3

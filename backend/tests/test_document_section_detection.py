@@ -459,7 +459,7 @@ def test_section_detection_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["c4e7d9a1b2c3"]
+    assert script.get_heads() == ["e5f6a7b8c9d0"]
     assert script.get_revision(REPAIR_REVISION).down_revision == (
         "b7a3c8d9e012"
     )

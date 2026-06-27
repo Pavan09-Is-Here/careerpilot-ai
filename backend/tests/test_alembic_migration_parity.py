@@ -13,6 +13,8 @@ from app.models.cv_section import CVSection  # noqa: F401
 from app.models.document import Document  # noqa: F401
 from app.models.education import Education  # noqa: F401
 from app.models.experience import Experience  # noqa: F401
+from app.models.fact_comparison import FactComparisonFinding  # noqa: F401
+from app.models.fact_comparison import FactComparisonRun  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.skill import Skill  # noqa: F401
 
@@ -26,6 +28,8 @@ EXPECTED_APPLICATION_TABLES = {
     "certifications",
     "documents",
     "cv_sections",
+    "fact_comparison_runs",
+    "fact_comparison_findings",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -50,6 +54,18 @@ EXPECTED_FOREIGN_KEYS = {
     "cv_sections": {
         ("document_id", "documents", "id", "CASCADE"),
     },
+    "fact_comparison_runs": {
+        ("document_id", "documents", "id", "CASCADE"),
+    },
+    "fact_comparison_findings": {
+        (
+            "comparison_run_id",
+            "fact_comparison_runs",
+            "id",
+            "CASCADE",
+        ),
+        ("document_section_id", "cv_sections", "id", "SET NULL"),
+    },
 }
 
 EXPECTED_INDEXES = {
@@ -60,6 +76,17 @@ EXPECTED_INDEXES = {
     "certifications": {"ix_certifications_candidate_profile_id"},
     "documents": {"ix_documents_candidate_profile_id"},
     "cv_sections": {"ix_cv_sections_document_id"},
+    "fact_comparison_runs": {
+        "ix_fact_comparison_runs_document_id",
+        "ix_fact_comparison_runs_is_latest_successful",
+        "ix_fact_comparison_runs_status",
+    },
+    "fact_comparison_findings": {
+        "ix_fact_comparison_findings_comparison_run_id",
+        "ix_fact_comparison_findings_document_section_id",
+        "ix_fact_comparison_findings_entity_type",
+        "ix_fact_comparison_findings_finding_type",
+    },
 }
 
 
@@ -92,7 +119,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["c4e7d9a1b2c3"]
+    assert script.get_heads() == ["e5f6a7b8c9d0"]
 
     command.upgrade(config, "head")
 

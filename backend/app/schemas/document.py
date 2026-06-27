@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.fact_comparison import FactComparisonSummary
+
 
 DocumentType = Literal[
     "original_cv",
@@ -98,6 +100,7 @@ class DocumentListResponse(DocumentBase):
 
 class DocumentResponse(DocumentListResponse):
     extracted_text: str | None = None
+    fact_comparison_summary: FactComparisonSummary | None = None
 
 
 class DocumentExtractionResponse(BaseModel):

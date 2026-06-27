@@ -12,6 +12,9 @@ from app.api.routes.education import (
 from app.api.routes.experience import (
     router as experience_router,
 )
+from app.api.routes.fact_comparison import (
+    router as fact_comparison_router,
+)
 from app.api.routes.project import (
     router as project_router,
 )
@@ -53,4 +56,8 @@ api_router.include_router(
 
 api_router.include_router(
     document_router,
+)
+
+api_router.include_router(
+    fact_comparison_router,
 )

@@ -15,8 +15,21 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.candidate_profile import CandidateProfile
+from app.models.certification import Certification
 from app.models.cv_section import CVSection
 from app.models.document import Document
+from app.models.education import Education
+from app.models.experience import Experience
+from app.models.fact_comparison import (
+    FactComparisonFinding,
+    FactComparisonRun,
+)
+from app.models.project import Project
+from app.models.skill import Skill
+from app.api.routes.fact_comparison import (
+    build_fact_comparison_response,
+    get_latest_fact_comparison_run,
+)
 from app.schemas.document import (
     CVSectionResponse,
     DocumentExtractionResponse,
@@ -24,6 +37,13 @@ from app.schemas.document import (
     DocumentResponse,
     DocumentSectionDetectionResponse,
     DocumentType,
+)
+from app.schemas.fact_comparison import FactComparisonRunResponse
+from app.services.fact_comparison import (
+    COMPARISON_VERSION,
+    ComparisonResult,
+    FactComparisonError,
+    compare_document_to_verified_facts,
 )
 from app.services.document_extraction import (
     DocumentExtractionError,
@@ -119,6 +139,168 @@ def build_section_detection_response(
         "section_detection_method": document.section_detection_method,
         "sections": sections,
     }
+
+
+def build_document_response(
+    document: Document,
+    database: Session,
+) -> dict[str, object]:
+    payload = DocumentResponse.model_validate(document).model_dump()
+    payload["fact_comparison_summary"] = get_latest_fact_comparison_run(
+        document.id,
+        database,
+    )
+
+    return payload
+
+
+def validate_fact_comparison_ready(
+    document: Document,
+    sections: list[CVSection],
+) -> None:
+    if document.upload_status != "validated":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Only validated documents can be compared to verified facts."
+            ),
+        )
+
+    if document.extraction_status != "completed" or not document.extracted_text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Only documents with completed text extraction can be "
+                "compared."
+            ),
+        )
+
+    if document.section_detection_status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Only documents with completed section detection can be "
+                "compared."
+            ),
+        )
+
+    if not sections:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Detected CV sections are required before fact comparison."
+            ),
+        )
+
+
+def record_fact_comparison_failure(
+    document_id: int,
+    message: str,
+    database: Session,
+    *,
+    started_at: datetime | None = None,
+) -> FactComparisonRun:
+    now = datetime.now(timezone.utc)
+    failed_run = FactComparisonRun(
+        document_id=document_id,
+        status="failed",
+        started_at=started_at or now,
+        completed_at=now,
+        error=message,
+        total_findings=0,
+        confirmed_count=0,
+        mismatch_count=0,
+        missing_verified_count=0,
+        unverified_claim_count=0,
+        manual_review_count=0,
+        comparison_version=COMPARISON_VERSION,
+        is_latest_successful=False,
+        created_at=now,
+    )
+
+    try:
+        database.add(failed_run)
+        database.commit()
+        database.refresh(failed_run)
+    except Exception:
+        database.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to record fact comparison failure.",
+        )
+
+    return failed_run
+
+
+def persist_fact_comparison_result(
+    document_id: int,
+    result: ComparisonResult,
+    database: Session,
+    *,
+    started_at: datetime,
+) -> FactComparisonRun:
+    completed_at = datetime.now(timezone.utc)
+    comparison_run = FactComparisonRun(
+        document_id=document_id,
+        status=result.status,
+        started_at=started_at,
+        completed_at=completed_at,
+        error=None,
+        total_findings=result.total_findings,
+        confirmed_count=result.confirmed_count,
+        mismatch_count=result.mismatch_count,
+        missing_verified_count=result.missing_verified_count,
+        unverified_claim_count=result.unverified_claim_count,
+        manual_review_count=result.manual_review_count,
+        comparison_version=result.comparison_version,
+        is_latest_successful=result.status == "completed",
+        created_at=completed_at,
+    )
+
+    try:
+        database.execute(
+            update(FactComparisonRun)
+            .where(
+                FactComparisonRun.document_id == document_id,
+                FactComparisonRun.is_latest_successful.is_(True),
+            )
+            .values(is_latest_successful=False)
+        )
+        database.add(comparison_run)
+        database.flush()
+
+        for finding in result.findings:
+            database.add(
+                FactComparisonFinding(
+                    comparison_run_id=comparison_run.id,
+                    document_section_id=finding.document_section_id,
+                    sort_order=finding.sort_order,
+                    entity_type=finding.entity_type,
+                    verified_entity_id=finding.verified_entity_id,
+                    field_name=finding.field_name,
+                    finding_type=finding.finding_type,
+                    cv_value=finding.cv_value,
+                    verified_value=finding.verified_value,
+                    normalized_cv_value=finding.normalized_cv_value,
+                    normalized_verified_value=(
+                        finding.normalized_verified_value
+                    ),
+                    confidence=finding.confidence,
+                    severity=finding.severity,
+                    explanation=finding.explanation,
+                    requires_manual_review=finding.requires_manual_review,
+                    dedupe_key=finding.dedupe_key,
+                    created_at=completed_at,
+                )
+            )
+
+        database.commit()
+        database.refresh(comparison_run)
+    except Exception:
+        database.rollback()
+        raise
+
+    return comparison_run
 
 
 def record_section_detection_failure(
@@ -314,8 +496,143 @@ def list_documents(
 def get_document(
     document_id: int,
     database: Session = Depends(get_db),
-) -> Document:
-    return get_document_or_404(document_id, database)
+) -> dict[str, object]:
+    document = get_document_or_404(document_id, database)
+
+    return build_document_response(document, database)
+
+
+def list_candidate_education(database: Session) -> list[Education]:
+    return list(
+        database.scalars(
+            select(Education)
+            .where(Education.candidate_profile_id == 1)
+            .order_by(Education.start_date.desc(), Education.id.asc())
+        ).all()
+    )
+
+
+def list_candidate_experience(database: Session) -> list[Experience]:
+    return list(
+        database.scalars(
+            select(Experience)
+            .where(Experience.candidate_profile_id == 1)
+            .order_by(Experience.start_date.desc(), Experience.id.asc())
+        ).all()
+    )
+
+
+def list_candidate_projects(database: Session) -> list[Project]:
+    return list(
+        database.scalars(
+            select(Project)
+            .where(Project.candidate_profile_id == 1)
+            .order_by(Project.start_date.desc(), Project.id.asc())
+        ).all()
+    )
+
+
+def list_candidate_skills(database: Session) -> list[Skill]:
+    return list(
+        database.scalars(
+            select(Skill)
+            .where(Skill.candidate_profile_id == 1)
+            .order_by(Skill.name.asc(), Skill.id.asc())
+        ).all()
+    )
+
+
+def list_candidate_certifications(database: Session) -> list[Certification]:
+    return list(
+        database.scalars(
+            select(Certification)
+            .where(Certification.candidate_profile_id == 1)
+            .order_by(
+                Certification.issue_date.desc(),
+                Certification.id.asc(),
+            )
+        ).all()
+    )
+
+
+@router.post(
+    "/{document_id}/compare-facts",
+    response_model=FactComparisonRunResponse,
+)
+def compare_document_facts(
+    document_id: int,
+    database: Session = Depends(get_db),
+) -> dict[str, object]:
+    document = get_document_or_404(document_id, database)
+    sections = list_document_sections(document.id, database)
+    validate_fact_comparison_ready(document, sections)
+    started_at = datetime.now(timezone.utc)
+
+    try:
+        comparison_result = compare_document_to_verified_facts(
+            document=document,
+            sections=sections,
+            profile=database.get(CandidateProfile, 1),
+            education_records=list_candidate_education(database),
+            experience_records=list_candidate_experience(database),
+            project_records=list_candidate_projects(database),
+            skill_records=list_candidate_skills(database),
+            certification_records=list_candidate_certifications(database),
+        )
+    except FactComparisonError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.safe_message,
+        ) from exc
+    except Exception:
+        failed_run = record_fact_comparison_failure(
+            document.id,
+            "Fact comparison failed.",
+            database,
+            started_at=started_at,
+        )
+        return build_fact_comparison_response(failed_run, database)
+
+    try:
+        comparison_run = persist_fact_comparison_result(
+            document.id,
+            comparison_result,
+            database,
+            started_at=started_at,
+        )
+    except Exception:
+        failed_run = record_fact_comparison_failure(
+            document.id,
+            "Fact comparison failed.",
+            database,
+            started_at=started_at,
+        )
+        return build_fact_comparison_response(failed_run, database)
+
+    return build_fact_comparison_response(comparison_run, database)
+
+
+@router.get(
+    "/{document_id}/fact-comparison",
+    response_model=FactComparisonRunResponse,
+)
+def get_document_fact_comparison(
+    document_id: int,
+    database: Session = Depends(get_db),
+) -> dict[str, object]:
+    document = get_document_or_404(document_id, database)
+    comparison_run = get_latest_fact_comparison_run(
+        document.id,
+        database,
+    )
+
+    if comparison_run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fact comparison was not found.",
+        )
+
+    return build_fact_comparison_response(comparison_run, database)
 
 
 @router.post(

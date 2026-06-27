@@ -25,6 +25,8 @@ from app.models.cv_section import CVSection  # noqa: E402,F401
 from app.models.document import Document  # noqa: E402,F401
 from app.models.education import Education  # noqa: E402,F401
 from app.models.experience import Experience  # noqa: E402,F401
+from app.models.fact_comparison import FactComparisonFinding  # noqa: E402,F401
+from app.models.fact_comparison import FactComparisonRun  # noqa: E402,F401
 from app.models.project import Project  # noqa: E402,F401
 from app.models.skill import Skill  # noqa: E402,F401
 

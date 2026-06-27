@@ -122,6 +122,33 @@ class Document(Base):
         nullable=True,
     )
 
+    section_detection_status: Mapped[str] = mapped_column(
+        String(50),
+        default="pending",
+        nullable=False,
+    )
+
+    section_detection_error: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    section_detected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    section_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    section_detection_method: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=current_utc_time,

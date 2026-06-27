@@ -528,7 +528,8 @@ def test_document_extraction_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["b7a3c8d9e012"]
+    assert script.get_heads() == ["c4e7d9a1b2c3"]
+    assert script.get_revision("b7a3c8d9e012").revision == "b7a3c8d9e012"
 
     command.upgrade(config, "head")
     engine = create_engine(f"sqlite:///{migration_db}")

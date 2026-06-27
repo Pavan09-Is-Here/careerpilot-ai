@@ -22,6 +22,28 @@ ExtractionStatus = Literal[
     "no_text",
     "failed",
 ]
+SectionDetectionStatus = Literal[
+    "pending",
+    "processing",
+    "completed",
+    "failed",
+]
+CVSectionType = Literal[
+    "contact",
+    "summary",
+    "work_experience",
+    "education",
+    "skills",
+    "projects",
+    "certifications",
+    "awards",
+    "publications",
+    "volunteering",
+    "languages",
+    "interests",
+    "references",
+    "additional",
+]
 
 
 class DocumentBase(BaseModel):
@@ -58,6 +80,11 @@ class DocumentBase(BaseModel):
     extracted_at: datetime | None = None
     page_count: int | None = None
     extracted_character_count: int | None = None
+    section_detection_status: SectionDetectionStatus
+    section_detection_error: str | None = None
+    section_detected_at: datetime | None = None
+    section_count: int = 0
+    section_detection_method: str | None = None
 
 
 class DocumentListResponse(DocumentBase):
@@ -82,3 +109,32 @@ class DocumentExtractionResponse(BaseModel):
     extracted_at: datetime | None = None
     page_count: int | None = None
     extracted_character_count: int | None = None
+
+
+class CVSectionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    document_id: int
+    section_order: int
+    section_type: CVSectionType
+    title: str | None = None
+    start_char: int
+    end_char: int
+    content_text: str
+    confidence: float = Field(
+        ge=0,
+        le=1,
+    )
+    detection_method: str
+    created_at: datetime
+
+
+class DocumentSectionDetectionResponse(BaseModel):
+    id: int
+    section_detection_status: SectionDetectionStatus
+    section_detection_error: str | None = None
+    section_detected_at: datetime | None = None
+    section_count: int
+    section_detection_method: str | None = None
+    sections: list[CVSectionResponse]

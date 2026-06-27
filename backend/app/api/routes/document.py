@@ -10,22 +10,30 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.candidate_profile import CandidateProfile
+from app.models.cv_section import CVSection
 from app.models.document import Document
 from app.schemas.document import (
+    CVSectionResponse,
     DocumentExtractionResponse,
     DocumentListResponse,
     DocumentResponse,
+    DocumentSectionDetectionResponse,
     DocumentType,
 )
 from app.services.document_extraction import (
     DocumentExtractionError,
     ExtractionResult,
     extract_document_text,
+)
+from app.services.document_section_detection import (
+    CVSectionDetectionError,
+    SectionDetectionResult,
+    detect_document_sections,
 )
 from app.services.document_storage import (
     ALLOWED_EXTENSIONS,
@@ -83,6 +91,96 @@ def apply_extraction_result(
     document.extracted_at = result.extracted_at
     document.page_count = result.page_count
     document.extracted_character_count = result.extracted_character_count
+
+
+def list_document_sections(
+    document_id: int,
+    database: Session,
+) -> list[CVSection]:
+    sections = database.scalars(
+        select(CVSection)
+        .where(CVSection.document_id == document_id)
+        .order_by(CVSection.section_order.asc(), CVSection.start_char.asc())
+    ).all()
+
+    return list(sections)
+
+
+def build_section_detection_response(
+    document: Document,
+    sections: list[CVSection],
+) -> dict[str, object]:
+    return {
+        "id": document.id,
+        "section_detection_status": document.section_detection_status,
+        "section_detection_error": document.section_detection_error,
+        "section_detected_at": document.section_detected_at,
+        "section_count": document.section_count,
+        "section_detection_method": document.section_detection_method,
+        "sections": sections,
+    }
+
+
+def record_section_detection_failure(
+    document_id: int,
+    message: str,
+    database: Session,
+) -> dict[str, object]:
+    try:
+        document = get_document_or_404(document_id, database)
+        preserved_sections = list_document_sections(document.id, database)
+        document.section_detection_status = "failed"
+        document.section_detection_error = message
+        document.section_detected_at = datetime.now(timezone.utc)
+        document.section_count = len(preserved_sections)
+
+        database.commit()
+        database.refresh(document)
+    except HTTPException:
+        raise
+    except Exception:
+        database.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to record CV section detection failure.",
+        )
+
+    sections = list_document_sections(document.id, database)
+    return build_section_detection_response(document, sections)
+
+
+def replace_document_sections(
+    document: Document,
+    result: SectionDetectionResult,
+    database: Session,
+) -> None:
+    database.execute(
+        delete(CVSection).where(CVSection.document_id == document.id)
+    )
+
+    for section in result.sections:
+        database.add(
+            CVSection(
+                document_id=document.id,
+                section_order=section.section_order,
+                section_type=section.section_type,
+                title=section.title,
+                start_char=section.start_char,
+                end_char=section.end_char,
+                content_text=section.content_text,
+                confidence=section.confidence,
+                detection_method=section.detection_method,
+                created_at=result.section_detected_at,
+            )
+        )
+
+    document.section_detection_status = result.status
+    document.section_detection_error = result.section_detection_error
+    document.section_detected_at = result.section_detected_at
+    document.section_count = result.section_count
+    document.section_detection_method = result.section_detection_method
+
+    database.flush()
 
 
 def failed_extraction_result(
@@ -262,6 +360,66 @@ def extract_document(
     commit_document_update(document, database)
 
     return document
+
+
+@router.post(
+    "/{document_id}/detect-sections",
+    response_model=DocumentSectionDetectionResponse,
+)
+def detect_document_cv_sections(
+    document_id: int,
+    database: Session = Depends(get_db),
+) -> dict[str, object]:
+    document = get_document_or_404(document_id, database)
+
+    if document.extraction_status != "completed" or not document.extracted_text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Only documents with completed text extraction can be "
+                "section-detected."
+            ),
+        )
+
+    document.section_detection_status = "processing"
+    document.section_detection_error = None
+
+    try:
+        database.flush()
+        detection_result = detect_document_sections(document)
+        replace_document_sections(document, detection_result, database)
+        database.commit()
+        database.refresh(document)
+    except CVSectionDetectionError as exc:
+        database.rollback()
+        return record_section_detection_failure(
+            document_id,
+            exc.safe_message,
+            database,
+        )
+    except Exception:
+        database.rollback()
+        return record_section_detection_failure(
+            document_id,
+            "CV section detection failed.",
+            database,
+        )
+
+    sections = list_document_sections(document.id, database)
+    return build_section_detection_response(document, sections)
+
+
+@router.get(
+    "/{document_id}/sections",
+    response_model=list[CVSectionResponse],
+)
+def get_document_cv_sections(
+    document_id: int,
+    database: Session = Depends(get_db),
+) -> list[CVSection]:
+    document = get_document_or_404(document_id, database)
+
+    return list_document_sections(document.id, database)
 
 
 @router.patch(

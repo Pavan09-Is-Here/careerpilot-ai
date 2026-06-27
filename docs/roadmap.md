@@ -2,7 +2,7 @@
 
 **Version:** 0.7.0  
 **Last Updated:** 2026-06-26  
-**Status:** Actively in development — Phase 3.3 (Document Text Extraction) completed
+**Status:** Actively in development — Phase 3.4 (Deterministic CV Section Detection) in review
 
 ---
 
@@ -70,8 +70,10 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.2: Alembic Migration Foundation ✓ (Baseline migration, reversible schema versioning)
 - Phase 3.3: PDF and DOCX Text Extraction ✓ (Embedded-text extraction, safe errors, metadata, migration validation)
 
+**In Review:**
+- Phase 3.4: Deterministic CV Section Detection (Structured section storage, local deterministic parser, API endpoints, migration and tests implemented; awaiting review and commit)
+
 **Not Started:**
-- Phase 3.4: Deterministic CV Section Detection
 - Phase 3.5: Verified Facts Comparison
 - Phase 3.6: CV Version Management
 - Phase 3.7: Verified Master CV Generation
@@ -129,7 +131,8 @@ backend/
 │   │   ├── project.py
 │   │   ├── skill.py
 │   │   ├── certification.py
-│   │   └── document.py
+│   │   ├── document.py
+│   │   └── cv_section.py          # Detected CV sections
 │   ├── schemas/                   # Pydantic request/response schemas
 │   │   ├── candidate_profile.py
 │   │   ├── education.py
@@ -140,20 +143,23 @@ backend/
 │   │   └── document.py
 │   ├── services/                  # Business logic
 │   │   ├── document_storage.py    # File validation, safe storage
-│   │   └── document_extraction.py # PDF/DOCX text extraction
+│   │   ├── document_extraction.py # PDF/DOCX text extraction
+│   │   └── document_section_detection.py # Deterministic CV section detection
 │   ├── repositories/              # Database access layer (extensible)
 │   └── utils/
 ├── alembic/
 │   ├── env.py                     # Alembic configuration
 │   ├── versions/                  # Versioned migrations
 │   │   ├── 6a528be87510_baseline_current_schema.py
-│   │   └── b7a3c8d9e012_add_document_extraction_metadata.py (committed)
+│   │   ├── b7a3c8d9e012_add_document_extraction_metadata.py (committed)
+│   │   └── c4e7d9a1b2c3_add_cv_section_detection.py (in review)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
 │   ├── test_profile_resources.py  # Candidate facts vault tests
 │   ├── test_documents.py          # Upload and document tests
-│   └── test_document_extraction.py # Text extraction tests
+│   ├── test_document_extraction.py # Text extraction tests
+│   └── test_document_section_detection.py # Section detection tests
 ├── .venv/                         # Virtual environment
 ├── pyproject.toml                 # Tool config (pytest, ruff, mypy)
 ├── requirements.txt               # Production dependencies
@@ -361,12 +367,12 @@ frontend/
 **Implemented:**
 - **Alembic Setup**: `alembic init` completed, `env.py` configured
 - **Baseline Migration** (`6a528be87510_baseline_current_schema.py`):
-  - Creates baseline schema for all Phase 1 and 2 tables
-  - Includes candidate_profiles, education, experience, projects, skills, certifications, documents
+  - Original committed baseline creates the `documents` table
+  - A Phase 3.4 in-review forward repair migration (`d8e9f0a1b2c3_add_missing_facts_vault_tables.py`) creates the missing Facts Vault tables without rewriting committed migration history
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (currently `6a528be87510`)
+  - `alembic heads` — Check current migration head (currently `c4e7d9a1b2c3` while Phase 3.4 is in review)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -375,13 +381,19 @@ frontend/
 - Schema creation verified with `alembic upgrade head`
 - Downgrade path verified with `alembic downgrade base`
 - Existing candidate data preserved across upgrade/downgrade
+- Alembic is the authoritative schema mechanism for application databases; app startup must not rely on `Base.metadata.create_all()`
+- Local setup requires running `alembic upgrade head` from `backend/` before starting the API against a new database
 
 **Current Migration Head:**
-- `6a528be87510_baseline_current_schema` (Phase 1, 2 schema)
+- `6a528be87510_baseline_current_schema` (committed baseline; creates `documents`)
 - `b7a3c8d9e012_add_document_extraction_metadata` (Phase 3.3, committed and validated)
+- `d8e9f0a1b2c3_add_missing_facts_vault_tables` (Phase 3.4 in-review repair for Facts Vault tables)
+- `c4e7d9a1b2c3_add_cv_section_detection` (Phase 3.4, in review and validated)
 
 **Validation:** ✓ Baseline migration tested; reversible structure confirmed  
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
+
+**Existing Database Adoption Note:** The local `backend/careerpilot.db` may already contain Facts Vault tables created before Alembic was authoritative. Before advancing that real database, compare its schema with the repair migration and consider safely stamping the repair revision rather than executing duplicate table creation. Do not stamp or migrate the real database without explicit review.
 
 ---
 
@@ -497,8 +509,8 @@ op.add_column("documents", sa.Column("extracted_character_count", sa.Integer(), 
 - Set up TypeScript types for API responses
 
 **Database Work:**
-- SQLite `.db` file created at startup
-- Tables auto-created via `Base.metadata.create_all()`
+- SQLite development database managed through Alembic migrations
+- New local databases require `alembic upgrade head` before API startup
 
 **API Endpoints:**
 - `GET /` — Root status message
@@ -812,7 +824,7 @@ alembic current               # Show database's current revision
 
 #### Phase 3.4 — Deterministic CV Section Detection
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** 📋 IN REVIEW
 
 **Goal:** Automatically detect and segment CV sections (contact, experience, education, skills, etc.) from extracted text.
 
@@ -825,9 +837,16 @@ alembic current               # Show database's current revision
 - Support re-detection on updated text
 
 **Database Schema Changes:**
+- Phase 3.4 depends on the in-review repair migration `d8e9f0a1b2c3`, which creates missing Facts Vault tables while preserving committed migration history.
 - New table `cv_sections`:
-  - id, document_id (fk), section_type, title, start_char, end_char, content_text, confidence, created_at
+  - id, document_id (fk), section_order, section_type, title, start_char, end_char, content_text, confidence, detection_method, created_at
   - Unique constraint: (document_id, section_type, start_char)
+- New document section-detection metadata:
+  - `section_detection_status`: pending, processing, completed, failed
+  - `section_detection_error`: Safe failure message, if any
+  - `section_detected_at`: Timestamp of latest detection attempt
+  - `section_count`: Number of currently stored detected sections
+  - `section_detection_method`: Deterministic parser method version
 
 **Supported Sections:**
 - Contact / Personal Information
@@ -853,7 +872,7 @@ alembic current               # Show database's current revision
 - Character ranges: Each section has approximate character positions
 - Confidence scoring: Based on heading match quality, section completeness, known patterns
 
-**API Endpoints (Planned):**
+**API Endpoints:**
 - `POST /api/documents/{id}/detect-sections` — Trigger section detection
 - `GET /api/documents/{id}/sections` — Retrieve detected sections
 
@@ -2053,15 +2072,19 @@ Follow this workflow for every milestone:
 
 **Last Completed Milestone:** Phase 3.3 — PDF and DOCX Text Extraction (Committed)
 
-**First Not-Started Milestone:** Phase 3.4 — Deterministic CV Section Detection
+**Current Status (In Review):** Phase 3.4 — Deterministic CV Section Detection
 
-**Immediate Next Action:** Phase 3.4 — Deterministic CV Section Detection
+**First Not-Started Milestone:** Phase 3.5 — Verified Facts Comparison
+
+**Immediate Next Action:** Review and commit Phase 3.4, then begin Phase 3.5 only upon explicit request
 
 **Validation Summary:**
-- ✓ 43 backend tests passed
+- ✓ 55 backend tests passed
 - ✓ Python compilation passed
-- ✓ Alembic head: `b7a3c8d9e012`
-- ✓ Upgrade, downgrade, and re-upgrade validated on an isolated temporary SQLite database
+- ✓ FastAPI import and OpenAPI route registration passed
+- ✓ Alembic head: `c4e7d9a1b2c3`
+- ✓ Alembic metadata parity test passed against an isolated temporary SQLite database
+- ✓ Upgrade to repair revision, upgrade to head, downgrade to repair, and re-upgrade validated on an isolated temporary SQLite database
 - ✓ The real development database remained unchanged during the final validation
 
 **Immediate Blockers:** None

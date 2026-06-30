@@ -28,6 +28,7 @@ from app.models.skill import Skill
 
 PREVIOUS_HEAD = "c4e7d9a1b2c3"
 NEW_HEAD = "e5f6a7b8c9d0"
+CURRENT_HEAD = "f6a7b8c9d0e1"
 
 
 def profile_payload(**overrides: object) -> dict[str, object]:
@@ -1176,7 +1177,7 @@ def test_fact_comparison_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == [NEW_HEAD]
+    assert script.get_heads() == [CURRENT_HEAD]
     assert script.get_revision(NEW_HEAD).down_revision == PREVIOUS_HEAD
 
     command.upgrade(config, "head")

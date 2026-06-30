@@ -6,6 +6,9 @@ from app.api.routes.candidate_profile import (
 from app.api.routes.certification import (
     router as certification_router,
 )
+from app.api.routes.cv_version import (
+    router as cv_version_router,
+)
 from app.api.routes.education import (
     router as education_router,
 )
@@ -60,4 +63,8 @@ api_router.include_router(
 
 api_router.include_router(
     fact_comparison_router,
+)
+
+api_router.include_router(
+    cv_version_router,
 )

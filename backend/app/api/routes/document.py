@@ -39,11 +39,19 @@ from app.schemas.document import (
     DocumentType,
 )
 from app.schemas.fact_comparison import FactComparisonRunResponse
+from app.schemas.cv_version import (
+    CVVersionAdoptRequest,
+    CVVersionResponse,
+)
 from app.services.fact_comparison import (
     COMPARISON_VERSION,
     ComparisonResult,
     FactComparisonError,
     compare_document_to_verified_facts,
+)
+from app.services.cv_version import (
+    CVVersionServiceError,
+    adopt_original_version_from_document,
 )
 from app.services.document_extraction import (
     DocumentExtractionError,
@@ -500,6 +508,29 @@ def get_document(
     document = get_document_or_404(document_id, database)
 
     return build_document_response(document, database)
+
+
+@router.post(
+    "/{document_id}/cv-version",
+    response_model=CVVersionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def adopt_document_as_cv_version(
+    document_id: int,
+    request: CVVersionAdoptRequest | None = None,
+    database: Session = Depends(get_db),
+) -> CVVersionResponse:
+    try:
+        return adopt_original_version_from_document(
+            document_id,
+            request or CVVersionAdoptRequest(),
+            database,
+        )
+    except CVVersionServiceError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
 
 
 def list_candidate_education(database: Session) -> list[Education]:

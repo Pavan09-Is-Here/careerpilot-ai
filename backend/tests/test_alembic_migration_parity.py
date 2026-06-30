@@ -10,6 +10,7 @@ from app.core.database import Base
 from app.models.candidate_profile import CandidateProfile  # noqa: F401
 from app.models.certification import Certification  # noqa: F401
 from app.models.cv_section import CVSection  # noqa: F401
+from app.models.cv_version import CVVersion  # noqa: F401
 from app.models.document import Document  # noqa: F401
 from app.models.education import Education  # noqa: F401
 from app.models.experience import Experience  # noqa: F401
@@ -30,6 +31,7 @@ EXPECTED_APPLICATION_TABLES = {
     "cv_sections",
     "fact_comparison_runs",
     "fact_comparison_findings",
+    "cv_versions",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -66,6 +68,11 @@ EXPECTED_FOREIGN_KEYS = {
         ),
         ("document_section_id", "cv_sections", "id", "SET NULL"),
     },
+    "cv_versions": {
+        ("candidate_profile_id", "candidate_profiles", "id", "CASCADE"),
+        ("source_document_id", "documents", "id", "SET NULL"),
+        ("parent_version_id", "cv_versions", "id", "RESTRICT"),
+    },
 }
 
 EXPECTED_INDEXES = {
@@ -86,6 +93,16 @@ EXPECTED_INDEXES = {
         "ix_fact_comparison_findings_document_section_id",
         "ix_fact_comparison_findings_entity_type",
         "ix_fact_comparison_findings_finding_type",
+    },
+    "cv_versions": {
+        "ix_cv_versions_candidate_profile_id",
+        "ix_cv_versions_source_document_id",
+        "ix_cv_versions_parent_version_id",
+        "ix_cv_versions_version_type",
+        "ix_cv_versions_status",
+        "ix_cv_versions_is_primary",
+        "ix_cv_versions_candidate_type",
+        "uq_cv_versions_primary_per_type",
     },
 }
 
@@ -119,7 +136,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["e5f6a7b8c9d0"]
+    assert script.get_heads() == ["f6a7b8c9d0e1"]
 
     command.upgrade(config, "head")
 

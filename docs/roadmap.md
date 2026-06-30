@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
 **Version:** 0.7.0  
-**Last Updated:** 2026-06-27
-**Status:** Actively in development — Phase 3.5 (Verified Facts Comparison) in review; Phase 3.6 not started
+**Last Updated:** 2026-06-29
+**Status:** Actively in development — Phase 3.5 (Verified Facts Comparison) completed; Phase 3.6 next
 
 ---
 
@@ -70,9 +70,10 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.2: Alembic Migration Foundation ✓ (Baseline migration, reversible schema versioning)
 - Phase 3.3: PDF and DOCX Text Extraction ✓ (Embedded-text extraction, safe errors, metadata, migration validation)
 - Phase 3.4: Deterministic CV Section Detection ✓ (Structured section storage, deterministic parser, API endpoints, migration validation)
+- Phase 3.5: Verified Facts Comparison ✓ (Deterministic vault comparison, safe review findings, migration validation)
 
 **In Review:**
-- Phase 3.5: Verified Facts Comparison
+- None
 
 **Not Started:**
 - Phase 3.6: CV Version Management
@@ -158,7 +159,7 @@ backend/
 │   │   ├── b7a3c8d9e012_add_document_extraction_metadata.py (committed)
 │   │   ├── d8e9f0a1b2c3_add_missing_facts_vault_tables.py (committed repair)
 │   │   ├── c4e7d9a1b2c3_add_cv_section_detection.py (committed)
-│   │   └── e5f6a7b8c9d0_add_fact_comparison.py (in review)
+│   │   └── e5f6a7b8c9d0_add_fact_comparison.py (committed)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -396,12 +397,12 @@ frontend/
 - `b7a3c8d9e012_add_document_extraction_metadata` (Phase 3.3, committed and validated)
 - `d8e9f0a1b2c3_add_missing_facts_vault_tables` (committed repair for Facts Vault tables)
 - `c4e7d9a1b2c3_add_cv_section_detection` (Phase 3.4, committed and validated)
-- `e5f6a7b8c9d0_add_fact_comparison` (Phase 3.5, in review)
+- `e5f6a7b8c9d0_add_fact_comparison` (Phase 3.5, committed and validated)
 
 **Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `e5f6a7b8c9d0`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
-**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3` and applying only the Phase 3.4 migration `c4e7d9a1b2c3`. Database integrity passed; `cv_sections` exists; document section-detection metadata exists; the database schema matches the SQLAlchemy models.
+**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, and safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, and `fact_comparison_findings` exist; the database schema matches the SQLAlchemy models.
 
 ---
 
@@ -924,7 +925,7 @@ alembic current               # Show database's current revision
 
 #### Phase 3.5 — Verified Facts Comparison
 
-**Milestone Status:** IN REVIEW
+**Milestone Status:** ✓ COMPLETED
 
 **Goal:** Compare extracted CV text and detected sections against verified candidate facts; identify matches, mismatches, and unverified claims.
 
@@ -1014,19 +1015,33 @@ alembic current               # Show database's current revision
 - API endpoints created and registered
 - All backend tests pass
 - Isolated migration upgrade, downgrade to `c4e7d9a1b2c3`, and re-upgrade pass
-- Real development database fingerprint remains unchanged during validation
+- Real development database safely upgraded from `c4e7d9a1b2c3` to `e5f6a7b8c9d0`
 - No false CV claims are marked as confirmed
-- Pending review and commit before milestone can be marked `COMPLETED`
+- Implementation committed and documented with Git revision `50af2b1`
 
-**Validation Evidence (In Review):**
-- ✓ 69 backend tests passed
+**Validation Evidence (Completed):**
+- ✓ 77 backend tests passed
+- ✓ Targeted Phase 3.5 tests passed
 - ✓ `python -m compileall app` passed
 - ✓ FastAPI import and OpenAPI route registration passed (`openapi_paths=23`)
-- ✓ `alembic heads` reports one head: `e5f6a7b8c9d0`
+- ✓ `alembic heads` reports exactly one head: `e5f6a7b8c9d0`
 - ✓ Alembic metadata parity test passed
 - ✓ Temporary migration target: `/private/tmp/careerpilot-phase35-ack69xh4/migration-validation.db`
 - ✓ Isolated upgrade to `e5f6a7b8c9d0`, downgrade to `c4e7d9a1b2c3`, and re-upgrade to `e5f6a7b8c9d0` passed
-- ✓ Real database fingerprint unchanged: SHA-256 `93599da2b9fa075e2b58bf613815a04843ecf7c4bc5a24ff1780debea27ac6f5`, size `98304`, mtime `1782561068255861641`
+- ✓ Real development database safely upgraded from `c4e7d9a1b2c3` to `e5f6a7b8c9d0`
+- ✓ Database integrity passed
+- ✓ `fact_comparison_runs` and `fact_comparison_findings` tables were created successfully
+- ✓ Deterministic verified-facts comparison is complete
+- ✓ Comparison history and latest-successful-run handling are complete
+- ✓ Stable finding ordering and deduplication are complete
+- ✓ Safe re-comparison and failure recovery are complete
+- ✓ Verified work responsibilities, achievements, and descriptions are not incorrectly reported as unverified claims
+- ✓ Verified project features, achievements, and descriptions are not incorrectly reported as unverified claims
+- ✓ Descriptive years do not create false date conflicts
+- ✓ Genuine unmatched claims and genuine date conflicts remain detectable
+- ✓ Ambiguous date evidence is sent for manual review
+- ✓ Candidate Facts Vault records remain read-only
+- ✓ No AI, embeddings, OCR, external services, or network requests are used
 
 ---
 
@@ -1083,7 +1098,7 @@ alembic current               # Show database's current revision
 
 **Dependencies:**
 - Requires Phase 2 (Facts Vault) ✓
-- Requires Phase 3.5 (Facts Comparison) — IN REVIEW
+- Requires Phase 3.5 (Facts Comparison) ✓
 - Requires Phase 4 (Job Discovery) for job-specific tailoring
 
 **Definition of Done:**
@@ -1228,7 +1243,7 @@ alembic current               # Show database's current revision
 - Requires Phase 3.1 (Upload Backend) ✓
 - Requires Phase 3.3 (Extraction) ✓
 - Requires Phase 3.4 (Section Detection) ✓
-- Requires Phase 3.5 (Facts Comparison) — IN REVIEW
+- Requires Phase 3.5 (Facts Comparison) ✓
 - Requires Phase 3.7 (Master CV Generation) ✓
 
 **Definition of Done:**
@@ -2137,27 +2152,38 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 3.4 — Deterministic CV Section Detection (Committed)
+**Last Completed Milestone:** Phase 3.5 — Verified Facts Comparison (Committed)
 
-**Current Status:** Phase 3.5 — Verified Facts Comparison is IN REVIEW, awaiting user review and commit
+**Current Status:** Phase 3.6 — CV Version Management is NOT STARTED
 
 **First Not-Started Milestone:** Phase 3.6 — CV Version Management
 
-**Immediate Next Action:** Review and commit Phase 3.5 only; begin Phase 3.6 only upon explicit request
+**Immediate Next Action:** Phase 3.6 — CV Version Management
 
 **Validation Summary:**
-- ✓ 69 backend tests passed
+- ✓ 77 backend tests passed
+- ✓ Targeted Phase 3.5 tests passed
 - ✓ Python compilation passed
 - ✓ FastAPI import and OpenAPI route registration passed (`openapi_paths=23`)
-- ✓ Alembic has one head: `e5f6a7b8c9d0`
+- ✓ Alembic has exactly one head: `e5f6a7b8c9d0`
 - ✓ Repaired migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0`
 - ✓ Alembic metadata parity test passed against an isolated temporary SQLite database
 - ✓ Isolated upgrade to `e5f6a7b8c9d0`, downgrade to `c4e7d9a1b2c3`, and re-upgrade to `e5f6a7b8c9d0` passed
-- ✓ Real development database fingerprint remained unchanged during Phase 3.5 migration validation
-- ✓ `fact_comparison_runs` and `fact_comparison_findings` schema exists in isolated head migration validation
+- ✓ Real development database safely upgraded from `c4e7d9a1b2c3` to `e5f6a7b8c9d0`
+- ✓ Database integrity passed
+- ✓ `fact_comparison_runs` and `fact_comparison_findings` tables were created successfully
 - ✓ The database schema matches the SQLAlchemy models
-- ✓ Deterministic verified-fact comparison, bounded evidence, latest-successful run preservation, stable finding ordering, and safe failed-run recording are complete
-- ✓ No AI, OCR, embeddings, internet requests, browser automation, or external services are used
+- ✓ Deterministic verified-facts comparison is complete
+- ✓ Comparison history and latest-successful-run handling are complete
+- ✓ Stable finding ordering and deduplication are complete
+- ✓ Safe re-comparison and failure recovery are complete
+- ✓ Verified work responsibilities, achievements, and descriptions are not incorrectly reported as unverified claims
+- ✓ Verified project features, achievements, and descriptions are not incorrectly reported as unverified claims
+- ✓ Descriptive years do not create false date conflicts
+- ✓ Genuine unmatched claims and genuine date conflicts remain detectable
+- ✓ Ambiguous date evidence is sent for manual review
+- ✓ Candidate Facts Vault records remain read-only
+- ✓ No AI, embeddings, OCR, external services, or network requests are used
 
 **Immediate Blockers:** None
 
@@ -2184,7 +2210,7 @@ Follow this workflow for every milestone:
 ---
 
 **Roadmap Version:** 0.7.0  
-**Last Updated:** 2026-06-27
+**Last Updated:** 2026-06-29
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
 **Status:** Actively maintained — in development phase 3

@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.7.0  
-**Last Updated:** 2026-06-29
-**Status:** Actively in development — Phase 3.5 (Verified Facts Comparison) completed; Phase 3.6 next
+**Version:** 0.8.0
+**Last Updated:** 2026-06-30
+**Status:** Actively in development — Phase 3.6 (CV Version Management) in review; Phase 3.7 next after approval
 
 ---
 
@@ -73,10 +73,9 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.5: Verified Facts Comparison ✓ (Deterministic vault comparison, safe review findings, migration validation)
 
 **In Review:**
-- None
+- Phase 3.6: CV Version Management
 
 **Not Started:**
-- Phase 3.6: CV Version Management
 - Phase 3.7: Verified Master CV Generation
 - Phase 3.8: Document Management Frontend
 - Phase 4–14: Job discovery, analysis, matching, tailoring, salary recommendations, application answers, browser automation, tracking, authentication, production deployment
@@ -121,8 +120,9 @@ backend/
 │   │       ├── project.py
 │   │       ├── skill.py
 │   │       ├── certification.py
-│   │       ├── document.py        # Document upload, extraction, comparison
-│   │       └── fact_comparison.py # Comparison run retrieval
+│   │       ├── document.py        # Document upload, extraction, comparison, original-version adoption
+│   │       ├── fact_comparison.py # Comparison run retrieval
+│   │       └── cv_version.py      # CV version metadata and lifecycle
 │   ├── core/
 │   │   ├── config.py              # Settings (document storage path, etc.)
 │   │   └── database.py            # SQLAlchemy engine, session, Base
@@ -135,7 +135,8 @@ backend/
 │   │   ├── certification.py
 │   │   ├── document.py
 │   │   ├── cv_section.py          # Detected CV sections
-│   │   └── fact_comparison.py     # Comparison runs and findings
+│   │   ├── fact_comparison.py     # Comparison runs and findings
+│   │   └── cv_version.py          # CV version metadata and lineage
 │   ├── schemas/                   # Pydantic request/response schemas
 │   │   ├── candidate_profile.py
 │   │   ├── education.py
@@ -144,12 +145,14 @@ backend/
 │   │   ├── skill.py
 │   │   ├── certification.py
 │   │   ├── document.py
-│   │   └── fact_comparison.py
+│   │   ├── fact_comparison.py
+│   │   └── cv_version.py
 │   ├── services/                  # Business logic
 │   │   ├── document_storage.py    # File validation, safe storage
 │   │   ├── document_extraction.py # PDF/DOCX text extraction
 │   │   ├── document_section_detection.py # Deterministic section detection
-│   │   └── fact_comparison.py     # Deterministic verified-fact comparison
+│   │   ├── fact_comparison.py     # Deterministic verified-fact comparison
+│   │   └── cv_version.py          # CV version lifecycle rules
 │   ├── repositories/              # Database access layer (extensible)
 │   └── utils/
 ├── alembic/
@@ -159,7 +162,8 @@ backend/
 │   │   ├── b7a3c8d9e012_add_document_extraction_metadata.py (committed)
 │   │   ├── d8e9f0a1b2c3_add_missing_facts_vault_tables.py (committed repair)
 │   │   ├── c4e7d9a1b2c3_add_cv_section_detection.py (committed)
-│   │   └── e5f6a7b8c9d0_add_fact_comparison.py (committed)
+│   │   ├── e5f6a7b8c9d0_add_fact_comparison.py (committed)
+│   │   └── f6a7b8c9d0e1_add_cv_version_management.py (in review)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -167,7 +171,8 @@ backend/
 │   ├── test_documents.py          # Upload and document tests
 │   ├── test_document_extraction.py # Text extraction tests
 │   ├── test_document_section_detection.py # Section detection tests
-│   └── test_fact_comparison.py # Verified facts comparison tests
+│   ├── test_fact_comparison.py # Verified facts comparison tests
+│   └── test_cv_version.py      # CV version management tests
 ├── .venv/                         # Virtual environment
 ├── pyproject.toml                 # Tool config (pytest, ruff, mypy)
 ├── requirements.txt               # Production dependencies
@@ -380,7 +385,7 @@ frontend/
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (currently one head: `e5f6a7b8c9d0`)
+  - `alembic heads` — Check current migration head (currently one head in the working tree: `f6a7b8c9d0e1`)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -398,11 +403,12 @@ frontend/
 - `d8e9f0a1b2c3_add_missing_facts_vault_tables` (committed repair for Facts Vault tables)
 - `c4e7d9a1b2c3_add_cv_section_detection` (Phase 3.4, committed and validated)
 - `e5f6a7b8c9d0_add_fact_comparison` (Phase 3.5, committed and validated)
+- `f6a7b8c9d0e1_add_cv_version_management` (Phase 3.6, in review and validated against a temporary database)
 
-**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `e5f6a7b8c9d0`
+**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head in the working tree: `f6a7b8c9d0e1`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
-**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, and safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, and `fact_comparison_findings` exist; the database schema matches the SQLAlchemy models.
+**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, and safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, and `fact_comparison_findings` exist. Phase 3.6 was validated only against a temporary SQLite database; the real development database remains at `e5f6a7b8c9d0` until explicitly upgraded.
 
 ---
 
@@ -1047,65 +1053,126 @@ alembic current               # Show database's current revision
 
 #### Phase 3.6 — CV Version Management
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** IN REVIEW
 
-**Goal:** Support multiple CV versions (original, parsed, verified, tailored) with parent/source relationships and version history.
+**Goal:** Support multiple CV version metadata records with safe source relationships, parent/child lineage, lifecycle status, primary-version selection, and version history.
 
 **Scope:**
-- Track original uploaded CV
-- Track parsed/extracted text version
-- Maintain verified master CV (generated from vault facts)
-- Support job-specific tailored CVs
-- Store parent/source document relationships
-- Manage version statuses and lifecycle
+- Track original uploaded CV documents as adoptable `original` CV versions
+- Track parsed, verified master, and tailored version metadata without generating new content
+- Store source document relationships, parent version relationships, and candidate ownership
+- Maintain lifecycle status, archive state, and primary selection per candidate/version type
+- Provide concise API responses with metadata only
+- Preserve uploaded source documents, detected sections, fact-comparison history, and Candidate Facts Vault records
 
 **Database Schema Changes:**
-- Extend `documents` table with:
-  - `version_type` (original, parsed, verified_master, tailored)
-  - `parent_document_id` (fk to parent version)
-  - `version_status` (active, archived, superseded)
-  - `version_number` (1, 2, 3...)
-  - `job_id` (fk to job if tailored, nullable)
+- New migration `f6a7b8c9d0e1_add_cv_version_management.py` follows committed revision `e5f6a7b8c9d0`
+- New table `cv_versions`:
+  - id, candidate_profile_id, source_document_id, parent_version_id
+  - version_type, status, display_name, description, job_reference
+  - is_primary, storage_path, mime_type, file_size, sha256
+  - created_at, updated_at, archived_at
+- Foreign keys:
+  - `cv_versions.candidate_profile_id` → `candidate_profiles.id` with cascade delete
+  - `cv_versions.source_document_id` → `documents.id` with set-null on source document deletion
+  - `cv_versions.parent_version_id` → `cv_versions.id` with restrict semantics for deliberate history preservation
+- Constraints and indexes:
+  - Validated version types: `original`, `parsed`, `verified_master`, `tailored`
+  - Validated statuses: `draft`, `ready`, `archived`, `failed`
+  - Unique source-document relationship prevents duplicate original CV versions for the same uploaded document
+  - Partial unique primary index allows only one primary version per candidate and version type
+  - Candidate, source-document, parent-version, status, version-type, and candidate/type indexes
 
 **Version Types:**
-- `original_cv` — User-uploaded document (PDF/DOCX)
-- `parsed_cv` — Extracted text representation (for reference)
-- `verified_master_cv` — Generated DOCX/PDF from verified facts vault only
-- `tailored_cv` — Job-specific CV (Verified Master + tailoring)
+- `original` — Metadata record for an uploaded original CV document
+- `parsed` — Metadata record derived from an original version
+- `verified_master` — Metadata record derived from a parsed or earlier verified-master version
+- `tailored` — Metadata record derived from a verified-master version, with optional safe job reference text
 
 **Version Relationships:**
-- Original → Parsed (1-to-1)
-- Parsed → Verified Master (1-to-1)
-- Verified Master → Tailored (1-to-many, one per job)
+- `original` versions may reference validated uploaded original CV documents
+- `parsed` versions require an `original` parent
+- `verified_master` versions require a `parsed` or earlier `verified_master` parent
+- `tailored` versions require a `verified_master` parent
+- Parent and child versions must belong to the same candidate
+- Source documents and versions must belong to the same candidate
+- Self-parent and circular ancestry are rejected
+- Deleting versions with child history is rejected by default
+- Archiving preserves children and ancestry
 
 **Primary Version:**
-- Only one `is_primary` original CV
-- Only one active verified master CV
-- Multiple tailored CVs, one per job
+- Only one primary CV version per candidate and version type
+- Setting a version primary unsets the prior primary of the same type in the same transaction
+- Different version types may each have their own primary
+- Archived versions cannot remain primary
+- Failed versions cannot become primary
+- Failed primary-switch writes roll back to the prior valid state
 
-**API Endpoints (Planned):**
-- `GET /api/documents?version_type=verified_master` — Get verified master CV
-- `POST /api/documents/{id}/create-verified-master` — Generate master from vault
-- `GET /api/documents?version_type=tailored&job_id={job_id}` — Get tailored CV for job
+**API Endpoints:**
+- `POST /api/documents/{document_id}/cv-version` — Adopt a validated uploaded original CV document as an original CV version
+- `POST /api/cv-versions` — Create CV version metadata
+- `GET /api/cv-versions` — List candidate CV versions in stable order
+- `GET /api/cv-versions/{version_id}` — Retrieve one CV version metadata record
+- `PATCH /api/cv-versions/{version_id}` — Update allowed metadata fields
+- `PATCH /api/cv-versions/{version_id}/primary` — Set a CV version as primary
+- `PATCH /api/cv-versions/{version_id}/archive` — Archive a CV version safely
+- `DELETE /api/cv-versions/{version_id}` — Hard-delete only when no child history exists
+- `GET /api/cv-versions/{version_id}/history` — Retrieve ancestry and immediate children
 
 **Testing Requirements:**
-- Version hierarchy correct
-- Parent-child relationships maintained
-- Only one primary original CV
-- Verified master generation from vault facts
-- Tailored CV creation with job reference
-- Version status transitions (active → archived)
+- ✓ Adopt original version from validated document
+- ✓ Adoption is idempotent
+- ✓ Missing and invalid source documents are rejected
+- ✓ Parsed, verified-master, and tailored parent rules are enforced
+- ✓ Invalid parent type, self-parent, circular ancestry, cross-candidate parent, and cross-candidate source document are rejected
+- ✓ List ordering is stable
+- ✓ Retrieve, update allowed metadata, and reject immutable relationship-field mutation
+- ✓ Primary selection, primary switching, separate per-type primaries, archived/failed primary rejection, archive clearing, and failed-switch rollback are covered
+- ✓ Archive preserves children and history
+- ✓ Unsafe deletion with children is rejected
+- ✓ Safe deletion without children succeeds
+- ✓ Uploaded source document, detected sections, comparison history, and Candidate Facts Vault records survive CV version deletion/lifecycle changes
+- ✓ API responses exclude absolute storage paths, binary content, extracted text, and stored filenames
+- ✓ Alembic metadata parity and temporary migration upgrade/downgrade/re-upgrade are validated
 
 **Dependencies:**
 - Requires Phase 2 (Facts Vault) ✓
 - Requires Phase 3.5 (Facts Comparison) ✓
-- Requires Phase 4 (Job Discovery) for job-specific tailoring
+- Future job-specific tailoring depends on Phase 4+ job records; Phase 3.6 stores only a nullable `job_reference` metadata placeholder
 
 **Definition of Done:**
-- Document model extended with version tracking
-- Migration for version fields created
-- Version management routes implemented
-- API supports querying by version type
+- Dedicated `CVVersion` model, schemas, service, API routes, and migration implemented
+- Version management routes registered and typed
+- Source-document adoption implemented and idempotent
+- Parent/child history, archive/delete safety, primary selection, and failure rollback implemented
+- Migration `f6a7b8c9d0e1` created, reversible, and validated against a temporary SQLite database
+- Targeted Phase 3.6 tests passed
+- Complete backend suite passed
+- Python compilation, FastAPI import, OpenAPI route validation, Alembic metadata parity, `alembic history`, and `alembic heads` passed
+- No CV content generation, DOCX/PDF generation, AI, embeddings, OCR, external services, or network requests are introduced
+- Candidate Facts Vault records remain read-only
+- Implementation remains uncommitted and in review; the real development database remains at `e5f6a7b8c9d0`
+
+**Validation Evidence (In Review):**
+- ✓ 39 targeted Phase 3.6 tests passed
+- ✓ 116 backend tests passed
+- ✓ `python -m compileall app` passed
+- ✓ FastAPI import validation passed
+- ✓ OpenAPI route validation confirmed all Phase 3.6 endpoints
+- ✓ Alembic metadata parity test passed
+- ✓ `alembic history` includes `e5f6a7b8c9d0 -> f6a7b8c9d0e1`
+- ✓ `alembic heads` reports exactly one head: `f6a7b8c9d0e1`
+- ✓ Temporary migration target: `/private/tmp/careerpilot-phase36-0qte3qno/phase36-migration.db`
+- ✓ Isolated upgrade to `f6a7b8c9d0e1`, downgrade to `e5f6a7b8c9d0`, and re-upgrade to `f6a7b8c9d0e1` passed
+- ✓ Metadata parity validation passed after temporary upgrade
+- ✓ Downgrade removed only Phase 3.6 CV version objects; Phase 3.5 fact-comparison tables remained
+- ✓ Re-upgrade restored the `cv_versions` table and indexes
+- ✓ Real development database remained unchanged during validation:
+  - SHA-256 `c7c8c10d85dd2bb1115fccabf1318f8580d185d49f9c47254bf422c917ccc45a`
+  - Size `143360` bytes
+  - Modified `Jun 27 14:11:43 2026`
+  - Alembic revision `e5f6a7b8c9d0`
+- ✓ No Phase 3.7 verified-master CV generation, document generation, or tailoring content was implemented
 
 ---
 
@@ -2154,36 +2221,31 @@ Follow this workflow for every milestone:
 
 **Last Completed Milestone:** Phase 3.5 — Verified Facts Comparison (Committed)
 
-**Current Status:** Phase 3.6 — CV Version Management is NOT STARTED
+**Current Status:** Phase 3.6 — CV Version Management is IN REVIEW
 
-**First Not-Started Milestone:** Phase 3.6 — CV Version Management
+**First Not-Started Milestone:** Phase 3.7 — Verified Master CV Generation
 
-**Immediate Next Action:** Phase 3.6 — CV Version Management
+**Immediate Next Action:** Final review and commit of Phase 3.6, then begin Phase 3.7 only upon explicit request
 
 **Validation Summary:**
-- ✓ 77 backend tests passed
-- ✓ Targeted Phase 3.5 tests passed
+- ✓ 39 targeted Phase 3.6 tests passed
+- ✓ 116 backend tests passed
 - ✓ Python compilation passed
-- ✓ FastAPI import and OpenAPI route registration passed (`openapi_paths=23`)
-- ✓ Alembic has exactly one head: `e5f6a7b8c9d0`
-- ✓ Repaired migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0`
+- ✓ FastAPI import and OpenAPI route registration passed for all Phase 3.6 routes
+- ✓ Alembic has exactly one head: `f6a7b8c9d0e1`
+- ✓ Repaired migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1`
 - ✓ Alembic metadata parity test passed against an isolated temporary SQLite database
-- ✓ Isolated upgrade to `e5f6a7b8c9d0`, downgrade to `c4e7d9a1b2c3`, and re-upgrade to `e5f6a7b8c9d0` passed
-- ✓ Real development database safely upgraded from `c4e7d9a1b2c3` to `e5f6a7b8c9d0`
-- ✓ Database integrity passed
-- ✓ `fact_comparison_runs` and `fact_comparison_findings` tables were created successfully
+- ✓ Isolated upgrade to `f6a7b8c9d0e1`, downgrade to `e5f6a7b8c9d0`, and re-upgrade to `f6a7b8c9d0e1` passed
+- ✓ Real development database was not modified and remains at `e5f6a7b8c9d0`
+- ✓ Real development database fingerprint remained unchanged: SHA-256 `c7c8c10d85dd2bb1115fccabf1318f8580d185d49f9c47254bf422c917ccc45a`, size `143360` bytes, modified `Jun 27 14:11:43 2026`
+- ✓ Temporary migration validation created, removed, and restored the `cv_versions` table and indexes
 - ✓ The database schema matches the SQLAlchemy models
-- ✓ Deterministic verified-facts comparison is complete
-- ✓ Comparison history and latest-successful-run handling are complete
-- ✓ Stable finding ordering and deduplication are complete
-- ✓ Safe re-comparison and failure recovery are complete
-- ✓ Verified work responsibilities, achievements, and descriptions are not incorrectly reported as unverified claims
-- ✓ Verified project features, achievements, and descriptions are not incorrectly reported as unverified claims
-- ✓ Descriptive years do not create false date conflicts
-- ✓ Genuine unmatched claims and genuine date conflicts remain detectable
-- ✓ Ambiguous date evidence is sent for manual review
+- ✓ CV version metadata lifecycle, parent/child history, primary selection, archive/delete safety, and failure rollback are complete
+- ✓ Original document adoption is idempotent and preserves uploaded source documents
+- ✓ Detected sections and fact-comparison history remain intact across CV version deletion
 - ✓ Candidate Facts Vault records remain read-only
 - ✓ No AI, embeddings, OCR, external services, or network requests are used
+- ✓ No Phase 3.7 verified-master CV generation, document generation, or tailoring content was implemented
 
 **Immediate Blockers:** None
 

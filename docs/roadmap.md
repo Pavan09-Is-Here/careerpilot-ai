@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.8.0
+**Version:** 0.8.1
 **Last Updated:** 2026-06-30
-**Status:** Actively in development — Phase 3.6 (CV Version Management) in review; Phase 3.7 next after approval
+**Status:** Actively in development — Phase 3.6 (CV Version Management) completed; Phase 3.7 next
 
 ---
 
@@ -71,9 +71,10 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.3: PDF and DOCX Text Extraction ✓ (Embedded-text extraction, safe errors, metadata, migration validation)
 - Phase 3.4: Deterministic CV Section Detection ✓ (Structured section storage, deterministic parser, API endpoints, migration validation)
 - Phase 3.5: Verified Facts Comparison ✓ (Deterministic vault comparison, safe review findings, migration validation)
+- Phase 3.6: CV Version Management ✓ (Version metadata, lineage, lifecycle, primary selection, migration validation)
 
 **In Review:**
-- Phase 3.6: CV Version Management
+- None
 
 **Not Started:**
 - Phase 3.7: Verified Master CV Generation
@@ -163,7 +164,7 @@ backend/
 │   │   ├── d8e9f0a1b2c3_add_missing_facts_vault_tables.py (committed repair)
 │   │   ├── c4e7d9a1b2c3_add_cv_section_detection.py (committed)
 │   │   ├── e5f6a7b8c9d0_add_fact_comparison.py (committed)
-│   │   └── f6a7b8c9d0e1_add_cv_version_management.py (in review)
+│   │   └── f6a7b8c9d0e1_add_cv_version_management.py (committed)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -385,7 +386,7 @@ frontend/
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (currently one head in the working tree: `f6a7b8c9d0e1`)
+  - `alembic heads` — Check current migration head (currently one head: `f6a7b8c9d0e1`)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -403,12 +404,12 @@ frontend/
 - `d8e9f0a1b2c3_add_missing_facts_vault_tables` (committed repair for Facts Vault tables)
 - `c4e7d9a1b2c3_add_cv_section_detection` (Phase 3.4, committed and validated)
 - `e5f6a7b8c9d0_add_fact_comparison` (Phase 3.5, committed and validated)
-- `f6a7b8c9d0e1_add_cv_version_management` (Phase 3.6, in review and validated against a temporary database)
+- `f6a7b8c9d0e1_add_cv_version_management` (Phase 3.6, committed, safely migrated, and validated)
 
-**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head in the working tree: `f6a7b8c9d0e1`
+**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `f6a7b8c9d0e1`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
-**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, and safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, and `fact_comparison_findings` exist. Phase 3.6 was validated only against a temporary SQLite database; the real development database remains at `e5f6a7b8c9d0` until explicitly upgraded.
+**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`, and safely upgrading to the Phase 3.6 migration `f6a7b8c9d0e1`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, `fact_comparison_findings`, and `cv_versions` exist.
 
 ---
 
@@ -1053,7 +1054,7 @@ alembic current               # Show database's current revision
 
 #### Phase 3.6 — CV Version Management
 
-**Milestone Status:** IN REVIEW
+**Milestone Status:** COMPLETED
 
 **Goal:** Support multiple CV version metadata records with safe source relationships, parent/child lineage, lifecycle status, primary-version selection, and version history.
 
@@ -1145,34 +1146,39 @@ alembic current               # Show database's current revision
 - Version management routes registered and typed
 - Source-document adoption implemented and idempotent
 - Parent/child history, archive/delete safety, primary selection, and failure rollback implemented
-- Migration `f6a7b8c9d0e1` created, reversible, and validated against a temporary SQLite database
+- Migration `f6a7b8c9d0e1` created, reversible, validated, and safely applied to the real development database
 - Targeted Phase 3.6 tests passed
 - Complete backend suite passed
 - Python compilation, FastAPI import, OpenAPI route validation, Alembic metadata parity, `alembic history`, and `alembic heads` passed
 - No CV content generation, DOCX/PDF generation, AI, embeddings, OCR, external services, or network requests are introduced
 - Candidate Facts Vault records remain read-only
-- Implementation remains uncommitted and in review; the real development database remains at `e5f6a7b8c9d0`
+- Implementation committed and documented with Git revision `c3e738f`
+- Real development database safely upgraded from `e5f6a7b8c9d0` to `f6a7b8c9d0e1`
 
-**Validation Evidence (In Review):**
+**Validation Evidence (Completed):**
 - ✓ 39 targeted Phase 3.6 tests passed
-- ✓ 116 backend tests passed
+- ✓ 116 complete backend tests passed
 - ✓ `python -m compileall app` passed
-- ✓ FastAPI import validation passed
-- ✓ OpenAPI route validation confirmed all Phase 3.6 endpoints
+- ✓ FastAPI import and OpenAPI route validation passed
 - ✓ Alembic metadata parity test passed
 - ✓ `alembic history` includes `e5f6a7b8c9d0 -> f6a7b8c9d0e1`
 - ✓ `alembic heads` reports exactly one head: `f6a7b8c9d0e1`
-- ✓ Temporary migration target: `/private/tmp/careerpilot-phase36-0qte3qno/phase36-migration.db`
 - ✓ Isolated upgrade to `f6a7b8c9d0e1`, downgrade to `e5f6a7b8c9d0`, and re-upgrade to `f6a7b8c9d0e1` passed
 - ✓ Metadata parity validation passed after temporary upgrade
 - ✓ Downgrade removed only Phase 3.6 CV version objects; Phase 3.5 fact-comparison tables remained
 - ✓ Re-upgrade restored the `cv_versions` table and indexes
-- ✓ Real development database remained unchanged during validation:
-  - SHA-256 `c7c8c10d85dd2bb1115fccabf1318f8580d185d49f9c47254bf422c917ccc45a`
-  - Size `143360` bytes
-  - Modified `Jun 27 14:11:43 2026`
-  - Alembic revision `e5f6a7b8c9d0`
-- ✓ No Phase 3.7 verified-master CV generation, document generation, or tailoring content was implemented
+- ✓ Real development database safely upgraded from `e5f6a7b8c9d0` to `f6a7b8c9d0e1`
+- ✓ Database integrity passed
+- ✓ `cv_versions` was created successfully
+- ✓ Original, parsed, verified-master, and tailored version types are supported
+- ✓ Parent-type validation, self-parent prevention, circular-ancestry prevention, and candidate ownership checks are complete
+- ✓ Original-document adoption is idempotent
+- ✓ Primary switching is atomic and limited to one primary per candidate and version type
+- ✓ Archived and failed versions cannot become primary
+- ✓ Archiving preserves children, source documents, and version history
+- ✓ Unsafe deletion of versions with children is rejected
+- ✓ Metadata-only API responses do not expose full CV text, binary data, stored filenames, or absolute storage paths
+- ✓ No CV generation, PDF generation, DOCX generation, AI, OCR, embeddings, network requests, or external services were introduced
 
 ---
 
@@ -2219,33 +2225,37 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 3.5 — Verified Facts Comparison (Committed)
+**Last Completed Milestone:** Phase 3.6 — CV Version Management (Committed)
 
-**Current Status:** Phase 3.6 — CV Version Management is IN REVIEW
+**Current Status:** Phase 3.7 — Verified Master CV Generation is NOT STARTED
 
 **First Not-Started Milestone:** Phase 3.7 — Verified Master CV Generation
 
-**Immediate Next Action:** Final review and commit of Phase 3.6, then begin Phase 3.7 only upon explicit request
+**Immediate Next Action:** Phase 3.7 — Verified Master CV Generation
 
 **Validation Summary:**
 - ✓ 39 targeted Phase 3.6 tests passed
-- ✓ 116 backend tests passed
+- ✓ 116 complete backend tests passed
 - ✓ Python compilation passed
-- ✓ FastAPI import and OpenAPI route registration passed for all Phase 3.6 routes
+- ✓ FastAPI import and OpenAPI route validation passed
 - ✓ Alembic has exactly one head: `f6a7b8c9d0e1`
 - ✓ Repaired migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1`
 - ✓ Alembic metadata parity test passed against an isolated temporary SQLite database
 - ✓ Isolated upgrade to `f6a7b8c9d0e1`, downgrade to `e5f6a7b8c9d0`, and re-upgrade to `f6a7b8c9d0e1` passed
-- ✓ Real development database was not modified and remains at `e5f6a7b8c9d0`
-- ✓ Real development database fingerprint remained unchanged: SHA-256 `c7c8c10d85dd2bb1115fccabf1318f8580d185d49f9c47254bf422c917ccc45a`, size `143360` bytes, modified `Jun 27 14:11:43 2026`
+- ✓ Real development database safely upgraded from `e5f6a7b8c9d0` to `f6a7b8c9d0e1`
+- ✓ Database integrity passed
 - ✓ Temporary migration validation created, removed, and restored the `cv_versions` table and indexes
+- ✓ `cv_versions` was created successfully
 - ✓ The database schema matches the SQLAlchemy models
-- ✓ CV version metadata lifecycle, parent/child history, primary selection, archive/delete safety, and failure rollback are complete
+- ✓ Original, parsed, verified-master, and tailored version types are supported
+- ✓ Parent-type validation, self-parent prevention, circular-ancestry prevention, and candidate ownership checks are complete
 - ✓ Original document adoption is idempotent and preserves uploaded source documents
-- ✓ Detected sections and fact-comparison history remain intact across CV version deletion
-- ✓ Candidate Facts Vault records remain read-only
-- ✓ No AI, embeddings, OCR, external services, or network requests are used
-- ✓ No Phase 3.7 verified-master CV generation, document generation, or tailoring content was implemented
+- ✓ Primary switching is atomic and limited to one primary per candidate and version type
+- ✓ Archived and failed versions cannot become primary
+- ✓ Archiving preserves children, source documents, and version history
+- ✓ Unsafe deletion of versions with children is rejected
+- ✓ Metadata-only API responses do not expose full CV text, binary data, stored filenames, or absolute storage paths
+- ✓ No CV generation, PDF generation, DOCX generation, AI, OCR, embeddings, network requests, or external services were introduced
 
 **Immediate Blockers:** None
 

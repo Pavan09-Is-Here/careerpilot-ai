@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.8.2
+**Version:** 0.8.3
 **Last Updated:** 2026-06-30
-**Status:** Actively in development — Phase 3.7 (Verified Master CV Generation) in review
+**Status:** Actively in development — Phase 3.7 (Verified Master CV Generation) completed; Phase 3.8 next
 
 ---
 
@@ -72,9 +72,10 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.4: Deterministic CV Section Detection ✓ (Structured section storage, deterministic parser, API endpoints, migration validation)
 - Phase 3.5: Verified Facts Comparison ✓ (Deterministic vault comparison, safe review findings, migration validation)
 - Phase 3.6: CV Version Management ✓ (Version metadata, lineage, lifecycle, primary selection, migration validation)
+- Phase 3.7: Verified Master CV Generation ✓ (Truthful DOCX/PDF generation, artifact validation, Unicode PDF rendering)
 
 **In Review:**
-- Phase 3.7: Verified Master CV Generation
+- None
 
 **Not Started:**
 - Phase 3.8: Document Management Frontend
@@ -168,7 +169,7 @@ backend/
 │   │   ├── c4e7d9a1b2c3_add_cv_section_detection.py (committed)
 │   │   ├── e5f6a7b8c9d0_add_fact_comparison.py (committed)
 │   │   ├── f6a7b8c9d0e1_add_cv_version_management.py (committed)
-│   │   └── a7b8c9d0e1f2_add_verified_master_cv_generation.py (in review)
+│   │   └── a7b8c9d0e1f2_add_verified_master_cv_generation.py (committed)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -393,7 +394,7 @@ frontend/
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (currently one head: `f6a7b8c9d0e1`)
+  - `alembic heads` — Check current migration head (currently one head: `a7b8c9d0e1f2`)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -412,11 +413,12 @@ frontend/
 - `c4e7d9a1b2c3_add_cv_section_detection` (Phase 3.4, committed and validated)
 - `e5f6a7b8c9d0_add_fact_comparison` (Phase 3.5, committed and validated)
 - `f6a7b8c9d0e1_add_cv_version_management` (Phase 3.6, committed, safely migrated, and validated)
+- `a7b8c9d0e1f2_add_verified_master_cv_generation` (Phase 3.7, committed, safely migrated, and validated)
 
-**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `f6a7b8c9d0e1`
+**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `a7b8c9d0e1f2`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
-**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`, and safely upgrading to the Phase 3.6 migration `f6a7b8c9d0e1`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, `fact_comparison_findings`, and `cv_versions` exist.
+**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`, safely upgrading to the Phase 3.6 migration `f6a7b8c9d0e1`, and safely upgrading to the Phase 3.7 migration `a7b8c9d0e1f2`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, `fact_comparison_findings`, `cv_versions`, and `cv_version_artifacts` exist.
 
 ---
 
@@ -1191,7 +1193,7 @@ alembic current               # Show database's current revision
 
 #### Phase 3.7 — Verified Master CV Generation
 
-**Milestone Status:** IN REVIEW
+**Milestone Status:** COMPLETED
 
 **Goal:** Generate truthful, ATS-friendly CV in DOCX and PDF formats from verified candidate facts only.
 
@@ -1216,6 +1218,7 @@ alembic current               # Show database's current revision
 - No inferred or generated content
 
 **Implementation Evidence:**
+- Implementation committed and reachable from Git history at revision `e52f837`
 - New Alembic revision: `a7b8c9d0e1f2` after `f6a7b8c9d0e1`
 - New `cv_version_artifacts` table stores DOCX/PDF artifact metadata with one artifact per format per generated version
 - `cv_versions` now records safe generation metadata: idempotency key, generation version, source summary, and generation timestamp
@@ -1264,30 +1267,50 @@ alembic current               # Show database's current revision
 
 **Validation Evidence:**
 - ✓ 33 targeted Phase 3.7 tests passed, 1 sandbox-blocked Quick Look raster test skipped
+- ✓ Focused CV-version and Phase 3.7 tests passed
 - ✓ 148 complete backend tests passed, 1 sandbox-blocked Quick Look raster test skipped
 - ✓ `python -m compileall app` passed
 - ✓ FastAPI import validation passed
-- ✓ OpenAPI route validation passed for all Phase 3.7 endpoints
+- ✓ OpenAPI route validation passed with 33 paths and all required Phase 3.7 routes
 - ✓ Alembic metadata parity test passed
 - ✓ `alembic history` includes `f6a7b8c9d0e1 -> a7b8c9d0e1f2`
 - ✓ `alembic heads` reports exactly one head: `a7b8c9d0e1f2`
 - ✓ Isolated temporary-database upgrade to `a7b8c9d0e1f2`, downgrade to `f6a7b8c9d0e1`, and re-upgrade to `a7b8c9d0e1f2` passed
 - ✓ Downgrade removed only Phase 3.7 artifact objects and generation metadata; Phase 3.6 `cv_versions` remained
 - ✓ Re-upgrade restored Phase 3.7 artifact table and generation metadata
-- ✓ DOCX structure validation passed
-- ✓ DOCX text re-extraction validation passed
-- ✓ PDF structure validation passed
-- ✓ PDF selectable-text re-extraction validation passed
-- ✓ PDF font-resource validation confirms embedded `/FontFile2` subsets and ToUnicode mappings for packaged Noto Sans and Noto Sans SC
-- ✓ Mixed Latin Extended and CJK PDF Unicode round-trip validation passed
-- ✓ Line-level PDF pagination correction passed for long single-paragraph fields, long bullets, long project descriptions, mixed Unicode across page boundaries, extraction continuity, and bottom-margin geometry
-- ✓ Long-document pagination validation passed
-- ✓ Long Unicode pagination validation passed
+- ✓ Real development database safely upgraded from `f6a7b8c9d0e1` to `a7b8c9d0e1f2`
+- ✓ Database integrity passed
+- ✓ CV version artifact storage schema was created successfully
+- ✓ Verified Master CV generation creates DOCX and PDF artifacts from one canonical representation
+- ✓ Generated content uses verified Candidate Facts Vault records only
+- ✓ Unverified facts, uploaded CV claims, and fact-comparison findings are excluded
+- ✓ No facts, dates, achievements, metrics, technologies, qualifications, responsibilities, or summaries are invented
+- ✓ Candidate Facts Vault records remain read-only during generation
+- ✓ Canonical section order is Contact, Professional Summary, Work Experience, Education, Skills, Projects, Certifications
+- ✓ DOCX output is selectable, ATS-friendly, structurally valid, and re-extractable
+- ✓ PDF output is selectable, ATS-friendly, structurally valid, and re-extractable
+- ✓ Packaged Noto Sans and Noto Sans SC fonts are embedded using installed dependencies
+- ✓ PDF resources contain embedded font streams and ToUnicode mappings
+- ✓ Mixed Latin Extended, Polish, punctuation, and CJK text is preserved
+- ✓ Unsupported characters fail safely instead of being silently replaced
+- ✓ No font binaries are stored in Git
+- ✓ PDF pagination checks page capacity before every wrapped visual line
+- ✓ Long summaries, project descriptions, paragraphs, and bullets paginate without clipping, omission, duplication, or overlap
+- ✓ Long pagination probe used approximately 8,525 characters and approximately 95 wrapped lines over two pages
+- ✓ Every rendered text baseline remained above the configured bottom margin
 - ✓ Generated artifact path, hash, size, filename, and cleanup tests passed
 - ✓ Ready/primary lifecycle validates physical generated artifacts before allowing ready or primary status
+- ✓ One valid DOCX and one valid PDF are required before a verified master can become ready or primary
+- ✓ Artifact file existence, ownership, path safety, MIME type, size, SHA-256, structure, and PDF page count are validated
+- ✓ Generic CV-version creation cannot bypass the verified-master generation lifecycle
 - ✓ Database-first deletion leaves artifact files untouched on database commit failure and records safe post-commit cleanup warnings without restoring deleted metadata
-- ✓ Real development database remained unchanged at `f6a7b8c9d0e1`
-- ✓ Unsupported PDF characters fail safely without creating a ready version or orphan artifacts
+- ✓ Post-commit cleanup failure may leave only inaccessible orphan files, not database metadata pointing to missing files
+- ✓ Uploaded source documents, extracted text, detected sections, fact comparisons, and Facts Vault records remain untouched
+- ✓ Generated files use safe UUID-based physical filenames
+- ✓ Download filenames and headers are sanitized
+- ✓ No absolute storage paths, physical stored filenames, full CV content, secrets, database URLs, or stack traces are exposed
+- ✓ No AI, OCR, browser automation, LibreOffice, hosted conversion, runtime font download, or external network service is used
+- ✓ The single skipped test is the sandbox-restricted Quick Look raster check; separate local raster validation and automated geometry, embedding, ToUnicode, and extraction checks passed
 - ✓ Generated test artifacts remained in temporary or ignored storage and were not added to Git
 
 **Dependencies:**
@@ -1303,7 +1326,8 @@ alembic current               # Show database's current revision
 - Download endpoints secure
 - All generation tests pass
 - ATS compatibility verified
-- Work committed and reachable from Git history before marking `COMPLETED`
+- Implementation committed and documented with Git revision `e52f837`
+- Real development database safely upgraded from `f6a7b8c9d0e1` to `a7b8c9d0e1f2`
 
 ---
 
@@ -2278,43 +2302,55 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 3.6 — CV Version Management (Committed)
+**Last Completed Milestone:** Phase 3.7 — Verified Master CV Generation (Committed)
 
-**Current Status:** Phase 3.7 — Verified Master CV Generation is IN REVIEW
+**Current Status:** Phase 3.8 — Document Management Frontend is NOT STARTED
 
 **First Not-Started Milestone:** Phase 3.8 — Document Management Frontend
 
-**Immediate Next Action:** Final review and commit of Phase 3.7, then begin Phase 3.8 only upon explicit request
+**Immediate Next Action:** Phase 3.8 — Document Management Frontend
 
 **Validation Summary:**
 - ✓ 33 targeted Phase 3.7 tests passed, 1 sandbox-blocked Quick Look raster test skipped
+- ✓ Focused CV-version and Phase 3.7 tests passed
 - ✓ 148 complete backend tests passed, 1 sandbox-blocked Quick Look raster test skipped
 - ✓ Python compilation passed
-- ✓ FastAPI import and OpenAPI route validation passed
+- ✓ FastAPI import and OpenAPI route validation passed with 33 paths and all required Phase 3.7 routes
 - ✓ Alembic metadata parity test passed
 - ✓ Alembic has exactly one head: `a7b8c9d0e1f2`
 - ✓ Migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1` → `a7b8c9d0e1f2`
 - ✓ Isolated upgrade to `a7b8c9d0e1f2`, downgrade to `f6a7b8c9d0e1`, and re-upgrade to `a7b8c9d0e1f2` passed
 - ✓ Temporary migration validation created, removed, and restored the Phase 3.7 artifact table and generation metadata
+- ✓ Real development database safely upgraded from `f6a7b8c9d0e1` to `a7b8c9d0e1f2`
+- ✓ Database integrity passed
+- ✓ CV version artifact storage schema was created successfully
 - ✓ DOCX structure validation and text re-extraction passed
 - ✓ PDF structure validation and selectable-text re-extraction passed
 - ✓ PDF font-resource validation confirms embedded `/FontFile2` subsets and ToUnicode mappings for packaged Noto Sans and Noto Sans SC
-- ✓ Mixed Latin Extended and CJK PDF Unicode round-trip validation passed
+- ✓ Mixed Latin Extended, Polish, punctuation, and CJK PDF Unicode round-trip validation passed
 - ✓ Line-level PDF pagination correction passed for long single-paragraph fields, long bullets, long project descriptions, mixed Unicode across page boundaries, extraction continuity, and bottom-margin geometry
+- ✓ Long pagination probe used approximately 8,525 characters and approximately 95 wrapped lines over two pages
+- ✓ Every rendered text baseline remained above the configured bottom margin
 - ✓ Long-document pagination validation passed
 - ✓ Long Unicode pagination validation passed
 - ✓ Generated artifact path, hash, size, filename, and cleanup tests passed
 - ✓ Ready/primary lifecycle validates physical generated artifacts before allowing ready or primary status
 - ✓ Database-first deletion leaves artifact files untouched on database commit failure and records safe post-commit cleanup warnings without restoring deleted metadata
-- ✓ Real development database remained unchanged at `f6a7b8c9d0e1`
+- ✓ Post-commit cleanup failure may leave only inaccessible orphan files, not database metadata pointing to missing files
 - ✓ Deterministic verified-master CV generation from verified Facts Vault records is complete
 - ✓ Verified-only filtering excludes unverified candidate facts and uploaded CV text
+- ✓ Fact-comparison findings are excluded as generation source facts
+- ✓ No facts, dates, achievements, metrics, technologies, qualifications, responsibilities, or summaries are invented
 - ✓ Candidate Facts Vault records remain read-only during generation
+- ✓ Canonical section order is Contact, Professional Summary, Work Experience, Education, Skills, Projects, Certifications
 - ✓ Safe idempotency, failure cleanup, archive preservation, and leaf deletion cleanup are implemented
 - ✓ Generic CV-version metadata creation cannot create artifact-less verified-master versions
 - ✓ Unsupported PDF characters fail safely without creating a ready version or orphan artifacts
-- ✓ Metadata and download APIs do not expose full CV text, binary data, stored filenames, absolute paths, stack traces, database URLs, or secrets
-- ✓ No job tailoring, frontend document management, AI, OCR, embeddings, browser automation, network requests, external converters, or hosted generation services were introduced
+- ✓ Uploaded source documents, extracted text, detected sections, fact comparisons, and Facts Vault records remain untouched
+- ✓ Generated files use safe UUID-based physical filenames; download filenames and headers are sanitized
+- ✓ Metadata and download APIs do not expose full CV text, binary data, physical stored filenames, absolute storage paths, stack traces, database URLs, or secrets
+- ✓ No job tailoring, frontend document management, AI, OCR, embeddings, browser automation, LibreOffice, runtime font downloads, network requests, external converters, or hosted generation services were introduced
+- ✓ Single skipped test is the sandbox-restricted Quick Look raster check; separate local raster validation and automated geometry, embedding, ToUnicode, and extraction checks passed
 
 **Immediate Blockers:** None
 
@@ -2340,7 +2376,7 @@ Follow this workflow for every milestone:
 
 ---
 
-**Roadmap Version:** 0.8.2
+**Roadmap Version:** 0.8.3
 **Last Updated:** 2026-06-30
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  

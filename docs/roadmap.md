@@ -2,7 +2,7 @@
 
 **Version:** 0.8.3
 **Last Updated:** 2026-06-30
-**Status:** Actively in development — Phase 3.7 (Verified Master CV Generation) completed; Phase 3.8 next
+**Status:** Actively in development — Phase 3.8 (Document Management Frontend) completed; Phase 4 next
 
 ---
 
@@ -73,12 +73,14 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.5: Verified Facts Comparison ✓ (Deterministic vault comparison, safe review findings, migration validation)
 - Phase 3.6: CV Version Management ✓ (Version metadata, lineage, lifecycle, primary selection, migration validation)
 - Phase 3.7: Verified Master CV Generation ✓ (Truthful DOCX/PDF generation, artifact validation, Unicode PDF rendering)
+- Phase 3.8: Document Management Frontend ✓ (Document upload, review, extraction, comparison, CV-version, generation, artifact download workflows)
+
+**Phase 3 CV Document System:** COMPLETED
 
 **In Review:**
 - None
 
 **Not Started:**
-- Phase 3.8: Document Management Frontend
 - Phase 4–14: Job discovery, analysis, matching, tailoring, salary recommendations, application answers, browser automation, tracking, authentication, production deployment
 
 ---
@@ -1333,7 +1335,7 @@ alembic current               # Show database's current revision
 
 #### Phase 3.8 — Document Management Frontend
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** COMPLETED
 
 **Goal:** Provide web UI for document upload, extraction, section detection, and verification workflows.
 
@@ -1361,7 +1363,9 @@ alembic current               # Show database's current revision
 
 **Frontend Pages:**
 - `/documents` — Document upload and management dashboard
-- `/documents/{id}` — Single document detail view with extraction/sections/comparison
+- `/documents/[documentId]` — Single document detail view with extraction/sections/comparison
+- `/cv-versions` — CV version management and lifecycle overview
+- `/cv-versions/[versionId]` — CV version metadata, ancestry, generation, artifacts, and downloads
 
 **API Integration:**
 - POST /api/documents/upload
@@ -1373,9 +1377,56 @@ alembic current               # Show database's current revision
 - POST /api/documents/{id}/compare-facts
 - GET /api/documents/{id}/fact-comparison
 - GET /api/fact-comparisons/{comparison_id}
-- POST /api/documents/generate-verified-master
-- GET /api/documents/{id}/download
+- POST /api/cv-versions/{parent_version_id}/generate-master
+- GET /api/cv-versions/{version_id}/artifacts
+- GET /api/cv-artifacts/{artifact_id}
+- GET /api/cv-artifacts/{artifact_id}/download
+- PATCH /api/documents/{document_id}/primary
+- POST /api/documents/{document_id}/cv-version
+- GET /api/cv-versions
+- GET /api/cv-versions/{version_id}
+- GET /api/cv-versions/{version_id}/history
+- PATCH /api/cv-versions/{version_id}/primary
+- PATCH /api/cv-versions/{version_id}/archive
+- DELETE /api/cv-versions/{version_id}
 - DELETE /api/documents/{id}
+
+**Completion Evidence (Committed — Git revision `9790fa6da6ebd7fef44c9c7a01b08a9a533b95eb`):**
+- Frontend test suite passed: 46 tests.
+- TypeScript type checking passed.
+- ESLint passed.
+- Production build passed.
+- Backend OpenAPI contract inspection passed with 33 paths.
+- No backend application files changed.
+- No database files changed.
+- No PDF, DOCX, TTF, OTF, TTC, generated CV, uploaded CV, secret, or personal document was added to Git.
+- Added App Router pages: `/documents`, `/documents/[documentId]`, `/cv-versions`, `/cv-versions/[versionId]`.
+- Added document upload, list, detail, status, extraction, and section-detection UI.
+- Added verified-facts comparison UI using existing backend endpoints.
+- Added original CV-version adoption.
+- Added CV-version listing, detail, ancestry, primary, archive, and safe-delete workflows.
+- Added Verified Master CV generation using the dedicated backend endpoint.
+- Added DOCX and PDF artifact metadata and explicit download actions.
+- Typed frontend API handling supports JSON, multipart upload, and binary downloads separately.
+- Backend errors remain authoritative and are displayed safely.
+- Extracted CV and backend content is rendered as plain text.
+- `dangerouslySetInnerHTML` is not used.
+- Storage paths and physical stored filenames are not displayed.
+- Destructive archive and delete actions require confirmation.
+- Duplicate upload, comparison, and generation submissions are prevented.
+- Generation uses a stable idempotency key for one deliberate submission attempt.
+- Loading, empty, success, failure, retry, draft, ready, archived, and failed states are represented truthfully.
+- Responsive and accessible interface behavior is implemented using existing project conventions.
+- No major frontend state-management or UI framework dependency was added.
+- Phase 3.8 did not introduce the existing `next/font/google` network requirement.
+- Comparison history remains limited to backend capabilities currently exposed.
+- Parsed and tailored version creation UI remains out of scope because no corresponding safe frontend workflow was required.
+- Generated-document preview rendering remains out of scope; artifacts are downloaded explicitly.
+
+**Optional Future UX Improvements (Not Blockers):**
+- Automatically navigate to the newly generated verified-master child version after generation.
+- Disable Mark Primary client-side for ineligible draft verified-master versions.
+- Consider component-mounted browser tests if the frontend test infrastructure is expanded later.
 
 **Testing Requirements:**
 - Upload form validation (file type, size)
@@ -1402,6 +1453,7 @@ alembic current               # Show database's current revision
 - Frontend TypeScript strict mode passes
 - All component tests pass
 - ESLint clean
+- Implementation committed and documented with Git revision `9790fa6da6ebd7fef44c9c7a01b08a9a533b95eb`
 
 ---
 
@@ -2085,7 +2137,7 @@ Phase 3.6 — Version Management ← Phase 3.5
   ↓
 Phase 3.7 — Master CV Generation ← Phase 2, 3.6
   ↓
-Phase 3.8 — Document Frontend ← Phase 3.1, 3.3, 3.4, 3.5, 3.7
+Phase 3.8 — Document Management Frontend ← Phase 3.1, 3.3, 3.4, 3.5, 3.7
   ↓
 Phase 4 — Job Discovery ← Phase 1
   ↓
@@ -2302,15 +2354,27 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 3.7 — Verified Master CV Generation (Committed)
+**Last Completed Milestone:** Phase 3.8 — Document Management Frontend (Committed — Git revision `9790fa6da6ebd7fef44c9c7a01b08a9a533b95eb`)
 
-**Current Status:** Phase 3.8 — Document Management Frontend is NOT STARTED
+**Current Status:** Phase 3 CV Document System is COMPLETED
 
-**First Not-Started Milestone:** Phase 3.8 — Document Management Frontend
+**First Not-Started Milestone:** Phase 4 — Job Discovery
 
-**Immediate Next Action:** Phase 3.8 — Document Management Frontend
+**Immediate Next Action:** Phase 4 — Job Discovery architecture and source-compliance planning
 
 **Validation Summary:**
+- ✓ Phase 3.8 implementation committed with Git revision `9790fa6da6ebd7fef44c9c7a01b08a9a533b95eb`
+- ✓ Phase 3.8 frontend test suite passed: 46 tests
+- ✓ Phase 3.8 TypeScript type checking passed
+- ✓ Phase 3.8 ESLint passed
+- ✓ Phase 3.8 production build passed; Phase 3.8 did not introduce the existing `next/font/google` network requirement
+- ✓ Phase 3.8 backend OpenAPI contract inspection passed with 33 paths
+- ✓ Phase 3.8 added App Router pages `/documents`, `/documents/[documentId]`, `/cv-versions`, and `/cv-versions/[versionId]`
+- ✓ Phase 3.8 added document upload, list, detail, status, extraction, section-detection, verified-facts comparison, original CV-version adoption, CV-version lifecycle, Verified Master CV generation, and artifact download UI
+- ✓ Phase 3.8 renders extracted CV and backend content as plain text, does not use `dangerouslySetInnerHTML`, and does not display storage paths or physical stored filenames
+- ✓ Phase 3.8 requires confirmation for destructive archive/delete actions, prevents duplicate upload/comparison/generation submissions, and uses a stable idempotency key for one deliberate generation attempt
+- ✓ Phase 3.8 changed no backend application files and no database files
+- ✓ Phase 3.8 added no PDF, DOCX, TTF, OTF, TTC, generated CV, uploaded CV, secret, or personal document to Git
 - ✓ 33 targeted Phase 3.7 tests passed, 1 sandbox-blocked Quick Look raster test skipped
 - ✓ Focused CV-version and Phase 3.7 tests passed
 - ✓ 148 complete backend tests passed, 1 sandbox-blocked Quick Look raster test skipped

@@ -23,6 +23,7 @@ from app.models.candidate_profile import CandidateProfile  # noqa: E402,F401
 from app.models.certification import Certification  # noqa: E402,F401
 from app.models.cv_section import CVSection  # noqa: E402,F401
 from app.models.cv_version import CVVersion  # noqa: E402,F401
+from app.models.cv_version_artifact import CVVersionArtifact  # noqa: E402,F401
 from app.models.document import Document  # noqa: E402,F401
 from app.models.education import Education  # noqa: E402,F401
 from app.models.experience import Experience  # noqa: E402,F401

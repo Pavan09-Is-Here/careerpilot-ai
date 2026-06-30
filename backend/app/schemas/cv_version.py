@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -97,6 +97,24 @@ class CVVersionUpdate(BaseModel):
     )
 
 
+class CVMasterGenerationRequest(BaseModel):
+    display_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=250,
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=1000,
+    )
+    idempotency_key: str = Field(
+        min_length=8,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
+    is_primary: bool = False
+
+
 class CVVersionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -124,9 +142,45 @@ class CVVersionResponse(BaseModel):
         default=None,
         max_length=64,
     )
+    generation_version: str | None = Field(
+        default=None,
+        max_length=100,
+    )
+    source_summary: dict[str, Any] | None = None
+    generated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None = None
+
+
+CVArtifactType = Literal[
+    "docx",
+    "pdf",
+]
+
+
+class CVVersionArtifactResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    cv_version_id: int
+    artifact_type: CVArtifactType
+    mime_type: str = Field(max_length=150)
+    safe_filename: str = Field(max_length=255)
+    file_size: int
+    sha256: str = Field(min_length=64, max_length=64)
+    page_count: int | None = None
+    renderer_version: str = Field(max_length=100)
+    content_version: str = Field(max_length=100)
+    created_at: datetime
+
+
+class CVMasterGenerationResponse(BaseModel):
+    version: CVVersionResponse
+    artifacts: list[CVVersionArtifactResponse] = Field(
+        default_factory=list,
+    )
+    created: bool
 
 
 class CVVersionHistoryResponse(BaseModel):

@@ -6,6 +6,9 @@ from app.api.routes.candidate_profile import (
 from app.api.routes.certification import (
     router as certification_router,
 )
+from app.api.routes.cv_artifact import (
+    router as cv_artifact_router,
+)
 from app.api.routes.cv_version import (
     router as cv_version_router,
 )
@@ -67,4 +70,8 @@ api_router.include_router(
 
 api_router.include_router(
     cv_version_router,
+)
+
+api_router.include_router(
+    cv_artifact_router,
 )

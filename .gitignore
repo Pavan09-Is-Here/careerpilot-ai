@@ -38,3 +38,4 @@ yarn-error.log*
 
 # Uploaded and generated candidate documents
 backend/data/documents/
+backend/data/generated-cvs/

@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -41,6 +42,14 @@ class CVVersion(Base):
             "ix_cv_versions_candidate_type",
             "candidate_profile_id",
             "version_type",
+        ),
+        Index(
+            "uq_cv_versions_generation_key",
+            "candidate_profile_id",
+            "parent_version_id",
+            "version_type",
+            "generation_key",
+            unique=True,
         ),
         Index(
             "uq_cv_versions_primary_per_type",
@@ -136,6 +145,26 @@ class CVVersion(Base):
 
     sha256: Mapped[str | None] = mapped_column(
         String(64),
+        nullable=True,
+    )
+
+    generation_key: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
+    )
+
+    generation_version: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    source_summary: Mapped[dict[str, object] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+
+    generated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
         nullable=True,
     )
 

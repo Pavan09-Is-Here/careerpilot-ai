@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.cv_version import (
+    CVMasterGenerationRequest,
+    CVMasterGenerationResponse,
     CVVersionCreate,
+    CVVersionArtifactResponse,
     CVVersionHistoryResponse,
     CVVersionResponse,
     CVVersionUpdate,
@@ -18,6 +21,10 @@ from app.services.cv_version import (
     list_cv_versions,
     set_primary_cv_version,
     update_cv_version,
+)
+from app.services.verified_master_cv import (
+    generate_verified_master_cv,
+    list_cv_version_artifacts,
 )
 
 
@@ -69,6 +76,51 @@ def get_cv_version_metadata(
 ) -> CVVersionResponse:
     try:
         return get_cv_version_or_404(version_id, database)
+    except CVVersionServiceError as exc:
+        raise_cv_version_http_error(exc)
+
+
+@router.post(
+    "/{parent_version_id}/generate-master",
+    response_model=CVMasterGenerationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_verified_master_cv_metadata(
+    parent_version_id: int,
+    request: CVMasterGenerationRequest,
+    response: Response,
+    database: Session = Depends(get_db),
+) -> CVMasterGenerationResponse:
+    try:
+        result = generate_verified_master_cv(
+            parent_version_id,
+            request,
+            database,
+        )
+    except CVVersionServiceError as exc:
+        raise_cv_version_http_error(exc)
+
+    if not result.created:
+        response.status_code = status.HTTP_200_OK
+
+    return CVMasterGenerationResponse(
+        version=result.version,
+        artifacts=result.artifacts,
+        created=result.created,
+    )
+
+
+@router.get(
+    "/{version_id}/artifacts",
+    response_model=list[CVVersionArtifactResponse],
+)
+def list_generated_cv_artifacts(
+    version_id: int,
+    database: Session = Depends(get_db),
+) -> list[CVVersionArtifactResponse]:
+    try:
+        get_cv_version_or_404(version_id, database)
+        return list_cv_version_artifacts(version_id, database)
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
 

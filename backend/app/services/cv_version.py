@@ -1,18 +1,37 @@
 from datetime import datetime, timezone
+import logging
+from pathlib import Path
 
+from pypdf import PdfReader
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings
 from app.models.candidate_profile import CandidateProfile
 from app.models.cv_version import CVVersion
+from app.models.cv_version_artifact import CVVersionArtifact
 from app.models.document import Document
 from app.schemas.cv_version import (
     CVVersionAdoptRequest,
     CVVersionCreate,
     CVVersionUpdate,
 )
+from app.services.document_storage import (
+    DocumentValidationError,
+    validate_docx_file,
+    validate_pdf_file,
+)
+from app.services.generated_cv_storage import (
+    ARTIFACT_EXTENSIONS,
+    ARTIFACT_MIME_TYPES,
+    GeneratedCVStorageError,
+    hash_file,
+    remove_generated_artifact,
+    resolve_generated_artifact_path,
+)
 
 
+logger = logging.getLogger(__name__)
 DEFAULT_CANDIDATE_PROFILE_ID = 1
 VERSION_TYPES = {"original", "parsed", "verified_master", "tailored"}
 VERSION_STATUSES = {"draft", "ready", "archived", "failed"}
@@ -26,6 +45,10 @@ IMMUTABLE_UPDATE_FIELDS = {
     "parent_version_id",
     "source_document_id",
 }
+REQUIRED_GENERATED_ARTIFACT_TYPES = {"docx", "pdf"}
+ARTIFACT_INTEGRITY_ERROR = (
+    "Verified master CV artifacts are missing or invalid."
+)
 
 
 class CVVersionServiceError(RuntimeError):
@@ -179,6 +202,182 @@ def validate_status_for_primary(status: str) -> None:
             "Failed CV versions cannot be primary.",
             status_code=400,
         )
+
+
+def generated_artifact_types_for_version(
+    version_id: int,
+    database: Session,
+) -> set[str]:
+    return set(
+        database.scalars(
+            select(CVVersionArtifact.artifact_type).where(
+                CVVersionArtifact.cv_version_id == version_id,
+            )
+        ).all()
+    )
+
+
+def validate_generated_artifact_file(
+    artifact: CVVersionArtifact,
+    *,
+    version_id: int,
+    settings: Settings | None = None,
+) -> Path:
+    if artifact.cv_version_id != version_id:
+        raise CVVersionServiceError(
+            ARTIFACT_INTEGRITY_ERROR,
+            status_code=400,
+        )
+
+    if artifact.artifact_type not in REQUIRED_GENERATED_ARTIFACT_TYPES:
+        raise CVVersionServiceError(
+            ARTIFACT_INTEGRITY_ERROR,
+            status_code=400,
+        )
+
+    expected_mime = ARTIFACT_MIME_TYPES[artifact.artifact_type]
+    expected_extension = ARTIFACT_EXTENSIONS[artifact.artifact_type]
+
+    if artifact.mime_type != expected_mime:
+        raise CVVersionServiceError(
+            ARTIFACT_INTEGRITY_ERROR,
+            status_code=400,
+        )
+
+    if not artifact.storage_path.endswith(expected_extension):
+        raise CVVersionServiceError(
+            ARTIFACT_INTEGRITY_ERROR,
+            status_code=400,
+        )
+
+    if not artifact.safe_filename.endswith(expected_extension):
+        raise CVVersionServiceError(
+            ARTIFACT_INTEGRITY_ERROR,
+            status_code=400,
+        )
+
+    try:
+        artifact_path = resolve_generated_artifact_path(
+            artifact.storage_path,
+            settings=settings,
+        )
+
+        actual_size, actual_sha256 = hash_file(artifact_path)
+        if actual_size != artifact.file_size:
+            raise GeneratedCVStorageError(
+                "Generated CV artifact file was not found."
+            )
+
+        if actual_sha256 != artifact.sha256:
+            raise GeneratedCVStorageError(
+                "Generated CV artifact file was not found."
+            )
+
+        active_settings = settings or Settings()
+        if actual_size > active_settings.max_generated_cv_file_size_bytes:
+            raise GeneratedCVStorageError(
+                "Generated CV artifact file was not found."
+            )
+
+        if artifact.artifact_type == "docx":
+            validate_docx_file(artifact_path)
+            if artifact.page_count is not None:
+                raise GeneratedCVStorageError(
+                    "Generated CV artifact file was not found."
+                )
+        else:
+            validate_pdf_file(artifact_path)
+            try:
+                reader = PdfReader(str(artifact_path))
+            except Exception as exc:
+                raise GeneratedCVStorageError(
+                    "Generated CV artifact file was not found."
+                ) from exc
+            if artifact.page_count != len(reader.pages):
+                raise GeneratedCVStorageError(
+                    "Generated CV artifact file was not found."
+                )
+    except (DocumentValidationError, GeneratedCVStorageError, OSError) as exc:
+        raise CVVersionServiceError(
+            ARTIFACT_INTEGRITY_ERROR,
+            status_code=400,
+        ) from exc
+
+    return artifact_path
+
+
+def validate_required_generated_artifacts(
+    version_id: int,
+    database: Session,
+) -> list[CVVersionArtifact]:
+    artifacts = list(
+        database.scalars(
+            select(CVVersionArtifact).where(
+                CVVersionArtifact.cv_version_id == version_id,
+            )
+        ).all()
+    )
+
+    artifact_types = [artifact.artifact_type for artifact in artifacts]
+
+    if (
+        len(artifacts) != len(REQUIRED_GENERATED_ARTIFACT_TYPES)
+        or set(artifact_types) != REQUIRED_GENERATED_ARTIFACT_TYPES
+    ):
+        raise CVVersionServiceError(
+            (
+                "Verified master CV versions require generated DOCX and PDF "
+                "artifacts before they can be ready."
+            ),
+            status_code=400,
+        )
+
+    for artifact in artifacts:
+        validate_generated_artifact_file(
+            artifact,
+            version_id=version_id,
+        )
+
+    return sorted(
+        artifacts,
+        key=lambda artifact: artifact.artifact_type,
+    )
+
+
+def validate_ready_state(
+    version: CVVersion,
+    database: Session,
+    *,
+    status: str | None = None,
+) -> None:
+    active_status = status or version.status
+
+    if (
+        version.version_type == "verified_master"
+        and active_status == "ready"
+    ):
+        validate_required_generated_artifacts(version.id, database)
+
+
+def validate_version_for_primary(
+    version: CVVersion,
+    database: Session,
+) -> None:
+    validate_status_for_primary(version.status)
+
+    if (
+        version.version_type == "verified_master"
+        and version.status != "ready"
+    ):
+        raise CVVersionServiceError(
+            (
+                "Verified master CV versions require generated DOCX and PDF "
+                "artifacts before they can be primary."
+            ),
+            status_code=400,
+        )
+
+    validate_ready_state(version, database)
 
 
 def validate_create_status(status: str, *, is_primary: bool) -> None:
@@ -390,6 +589,15 @@ def create_cv_version(
     candidate_profile_id: int = DEFAULT_CANDIDATE_PROFILE_ID,
 ) -> CVVersion:
     require_candidate_profile(database, candidate_profile_id)
+    if data.version_type == "verified_master":
+        raise CVVersionServiceError(
+            (
+                "Use the verified master generation workflow to create "
+                "verified master CV versions."
+            ),
+            status_code=400,
+        )
+
     validate_create_status(data.status, is_primary=data.is_primary)
     document = validate_source_document_for_create(
         data,
@@ -517,6 +725,7 @@ def update_cv_version(
         version.job_reference = data.job_reference
 
     if "status" in fields and data.status is not None:
+        validate_ready_state(version, database, status=data.status)
         version.status = data.status
 
         if data.status == "failed":
@@ -543,7 +752,7 @@ def set_primary_cv_version(
         database,
         candidate_profile_id=candidate_profile_id,
     )
-    validate_status_for_primary(version.status)
+    validate_version_for_primary(version, database)
     now = current_utc_time()
 
     try:
@@ -634,15 +843,49 @@ def delete_cv_version(
             status_code=400,
         )
 
+    generated_artifacts = list(
+        database.scalars(
+            select(CVVersionArtifact).where(
+                CVVersionArtifact.cv_version_id == version.id,
+            )
+        ).all()
+    )
+
+    artifact_storage_paths: list[str] = []
+
     try:
+        for artifact in generated_artifacts:
+            resolve_generated_artifact_path(
+                artifact.storage_path,
+                require_exists=False,
+            )
+            artifact_storage_paths.append(artifact.storage_path)
+
         database.delete(version)
         database.commit()
+    except GeneratedCVStorageError as exc:
+        database.rollback()
+        raise CVVersionServiceError(
+            "Failed to validate generated CV artifact files.",
+            status_code=500,
+        ) from exc
     except Exception as exc:
         database.rollback()
         raise CVVersionServiceError(
             "Failed to delete CV version.",
             status_code=500,
         ) from exc
+    else:
+        for storage_path in artifact_storage_paths:
+            try:
+                remove_generated_artifact(storage_path)
+            except Exception:
+                logger.warning(
+                    (
+                        "Generated CV artifact cleanup failed after "
+                        "CV version deletion."
+                    )
+                )
 
 
 def get_cv_version_ancestry(

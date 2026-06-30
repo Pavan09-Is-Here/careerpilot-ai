@@ -4,6 +4,7 @@ from app.models.candidate_profile import (
 from app.models.certification import Certification
 from app.models.cv_section import CVSection
 from app.models.cv_version import CVVersion
+from app.models.cv_version_artifact import CVVersionArtifact
 from app.models.document import Document
 from app.models.education import Education
 from app.models.experience import Experience
@@ -19,6 +20,7 @@ __all__ = [
     "Certification",
     "CVSection",
     "CVVersion",
+    "CVVersionArtifact",
     "Document",
     "Education",
     "Experience",

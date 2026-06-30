@@ -22,6 +22,7 @@ from app.services import cv_version as cv_version_service
 
 PHASE35_HEAD = "e5f6a7b8c9d0"
 PHASE36_HEAD = "f6a7b8c9d0e1"
+CURRENT_HEAD = "a7b8c9d0e1f2"
 
 
 @pytest.fixture(autouse=True)
@@ -308,7 +309,7 @@ def test_create_parsed_version_from_original(
     assert payload["source_document_id"] is None
 
 
-def test_create_verified_master_from_allowed_parents(
+def test_generic_create_verified_master_is_rejected(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -329,19 +330,12 @@ def test_create_verified_master_from_allowed_parents(
             "display_name": "Verified Master",
         },
     )
-    assert first.status_code == 201
 
-    second = client.post(
-        "/api/cv-versions",
-        json={
-            "version_type": "verified_master",
-            "parent_version_id": first.json()["id"],
-            "status": "draft",
-            "display_name": "Verified Master Revision",
-        },
+    assert first.status_code == 400
+    assert first.json()["detail"] == (
+        "Use the verified master generation workflow to create "
+        "verified master CV versions."
     )
-    assert second.status_code == 201
-    assert second.json()["parent_version_id"] == first.json()["id"]
 
 
 def test_create_tailored_version_from_verified_master(
@@ -381,7 +375,6 @@ def test_create_tailored_version_from_verified_master(
     ("version_type", "parent_type"),
     [
         ("parsed", "parsed"),
-        ("verified_master", "original"),
         ("tailored", "original"),
     ],
 )
@@ -447,8 +440,8 @@ def test_circular_ancestry_is_rejected(
     response = client.post(
         "/api/cv-versions",
         json={
-            "version_type": "verified_master",
-            "parent_version_id": parsed.id,
+            "version_type": "parsed",
+            "parent_version_id": original.id,
             "display_name": "Cycle child",
         },
     )
@@ -1064,7 +1057,7 @@ def test_cv_version_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == [PHASE36_HEAD]
+    assert script.get_heads() == [CURRENT_HEAD]
     assert script.get_revision(PHASE36_HEAD).down_revision == PHASE35_HEAD
 
     command.upgrade(config, "head")
@@ -1122,7 +1115,10 @@ def test_cv_version_migration_upgrade_downgrade_reupgrade(
                     )
                 )
             }
-        assert upgraded_tables - downgraded_tables == {"cv_versions"}
+        assert upgraded_tables - downgraded_tables == {
+            "cv_versions",
+            "cv_version_artifacts",
+        }
         assert "fact_comparison_runs" in downgraded_tables
 
         command.upgrade(config, "head")
@@ -1135,6 +1131,6 @@ def test_cv_version_migration_upgrade_downgrade_reupgrade(
                 )
             ).fetchone()
         assert restored_table is not None
-        assert script.get_heads() == [PHASE36_HEAD]
+        assert script.get_heads() == [CURRENT_HEAD]
     finally:
         engine.dispose()

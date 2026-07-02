@@ -98,6 +98,15 @@ import type {
 
 import type { ApplicationRun } from "@/types/applicationRun";
 
+import type {
+  AuthSession,
+  AuthStatus,
+  LoginResult,
+  MessageResult,
+} from "@/types/auth";
+
+import { authHeader } from "@/lib/auth";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://127.0.0.1:8000";
@@ -184,6 +193,7 @@ async function requestJson<T>(
     ...init,
     headers: {
       Accept: "application/json",
+      ...authHeader(),
       ...init.headers,
     },
     cache: init.cache ?? "no-store",
@@ -1689,6 +1699,69 @@ export async function cancelApplicationRun(
     `/api/application-runs/${runId}/cancel`,
     "POST",
     {},
+    signal,
+  );
+}
+
+export async function getAuthStatus(
+  signal?: AbortSignal,
+): Promise<AuthStatus> {
+  return requestJson<AuthStatus>("/api/auth/status", { signal });
+}
+
+export async function setupPassword(
+  password: string,
+  signal?: AbortSignal,
+): Promise<MessageResult> {
+  return requestJsonBody<MessageResult>(
+    "/api/auth/setup",
+    "POST",
+    { password },
+    signal,
+  );
+}
+
+export async function login(
+  password: string,
+  signal?: AbortSignal,
+): Promise<LoginResult> {
+  return requestJsonBody<LoginResult>(
+    "/api/auth/login",
+    "POST",
+    { password },
+    signal,
+  );
+}
+
+export async function getSession(
+  signal?: AbortSignal,
+): Promise<AuthSession> {
+  return requestJson<AuthSession>("/api/auth/session", { signal });
+}
+
+export async function logout(
+  signal?: AbortSignal,
+): Promise<MessageResult> {
+  return requestJsonBody<MessageResult>(
+    "/api/auth/logout",
+    "POST",
+    {},
+    signal,
+  );
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  signal?: AbortSignal,
+): Promise<MessageResult> {
+  return requestJsonBody<MessageResult>(
+    "/api/auth/change-password",
+    "POST",
+    {
+      current_password: currentPassword,
+      new_password: newPassword,
+    },
     signal,
   );
 }

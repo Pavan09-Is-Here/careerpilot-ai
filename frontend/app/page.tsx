@@ -66,12 +66,20 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <Link
-            href="/profile"
-            className="inline-flex rounded-xl bg-blue-600 px-6 py-3 font-semibold transition hover:bg-blue-500"
-          >
-            Open profile management
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/auth"
+              className="inline-flex rounded-xl border border-slate-700 px-6 py-3 font-semibold text-slate-200 transition hover:border-blue-500 hover:text-blue-300"
+            >
+              Account
+            </Link>
+            <Link
+              href="/profile"
+              className="inline-flex rounded-xl bg-blue-600 px-6 py-3 font-semibold transition hover:bg-blue-500"
+            >
+              Open profile management
+            </Link>
+          </div>
         </header>
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">

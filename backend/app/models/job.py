@@ -106,6 +106,10 @@ JOB_SKILL_REQUIREMENT_TYPES = (
     "preferred",
     "mentioned",
 )
+JOB_DUPLICATE_DETECTION_METHODS = (
+    "canonical_url",
+    "content_hash",
+)
 
 
 def current_utc_time() -> datetime:
@@ -711,6 +715,76 @@ class JobCompensation(Base):
         Boolean,
         default=True,
         server_default=text("1"),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=current_utc_time,
+        nullable=False,
+    )
+
+
+class JobDuplicate(Base):
+    """Deterministic duplicate link between two normalized jobs.
+
+    Links are additive audit records; duplicate detection never
+    merges or deletes job rows, preserving provenance.
+    """
+
+    __tablename__ = "job_duplicates"
+    __table_args__ = (
+        CheckConstraint(
+            enum_check(
+                "detection_method",
+                JOB_DUPLICATE_DETECTION_METHODS,
+            ),
+            name="ck_job_duplicates_detection_method",
+        ),
+        CheckConstraint(
+            "job_id != duplicate_of_job_id",
+            name="ck_job_duplicates_distinct_jobs",
+        ),
+        UniqueConstraint(
+            "job_id",
+            "duplicate_of_job_id",
+            "detection_method",
+            name="uq_job_duplicates_pair_method",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "normalized_jobs.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    duplicate_of_job_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "normalized_jobs.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    detection_method: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=current_utc_time,
         nullable=False,
     )
 

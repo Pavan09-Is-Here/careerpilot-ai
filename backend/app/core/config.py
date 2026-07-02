@@ -19,3 +19,4 @@ class Settings(BaseSettings):
     max_document_extracted_text_characters: int = 200_000
     default_job_source_retention_days: int = 30
     max_source_snapshot_payload_bytes: int = 10 * 1024 * 1024
+    job_stale_after_days: int = 14

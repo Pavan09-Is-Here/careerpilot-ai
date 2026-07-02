@@ -3,8 +3,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.job import (
+    JobDuplicateListResponse,
     JobEmploymentType,
     JobLifecycleStatus,
+    JobMaintenanceResponse,
     JobRemoteMode,
     JobSourcePageResponse,
     JobSourceResponse,
@@ -18,6 +20,11 @@ from app.services.job import (
     list_job_sources,
     list_normalized_jobs,
     build_job_detail,
+)
+from app.services.job_normalization import (
+    JobNormalizationError,
+    list_job_duplicates,
+    run_job_maintenance,
 )
 
 
@@ -95,6 +102,22 @@ def list_job_metadata(
         raise_job_http_error(exc)
 
 
+@router.post(
+    "/jobs/maintenance",
+    response_model=JobMaintenanceResponse,
+)
+def run_job_maintenance_pass(
+    database: Session = Depends(get_db),
+) -> dict[str, int]:
+    try:
+        return run_job_maintenance(database)
+    except (JobServiceError, JobNormalizationError) as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
+
+
 @router.get(
     "/jobs/{job_id}",
     response_model=NormalizedJobDetailResponse,
@@ -106,5 +129,21 @@ def get_job_metadata(
     try:
         job = get_normalized_job_or_404(job_id, database)
         return build_job_detail(job, database)
+    except JobServiceError as exc:
+        raise_job_http_error(exc)
+
+
+@router.get(
+    "/jobs/{job_id}/duplicates",
+    response_model=JobDuplicateListResponse,
+)
+def list_job_duplicate_links(
+    job_id: int,
+    database: Session = Depends(get_db),
+) -> dict[str, object]:
+    try:
+        get_normalized_job_or_404(job_id, database)
+        items = list_job_duplicates(job_id, database)
+        return {"items": items, "total": len(items)}
     except JobServiceError as exc:
         raise_job_http_error(exc)

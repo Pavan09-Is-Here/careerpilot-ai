@@ -1641,12 +1641,26 @@ alembic current               # Show database's current revision
 
 #### Phase 4.4 — Normalization, Deduplication, and Freshness
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** COMPLETED (see revision below)
 
 **Scope:**
 - Normalize approved provider data into `normalized_jobs`
 - Detect source-scoped and cross-source duplicates
 - Evaluate freshness and lifecycle transitions without deleting provenance
+
+**Implementation:**
+- Shared provider-agnostic upsert (`app/services/job_normalization.py`); Greenhouse adapter now delegates to it, so future adapters reuse the same validated path
+- Content refresh: when a job's provider `content_hash` changes, provider-supplied fields and locations are refreshed deterministically; unchanged jobs are only touched (`last_seen_at`/`ingested_at`)
+- Re-seen jobs are promoted to `active` from `discovered`/`possibly_stale`/`expired` via the validated lifecycle state machine
+- Duplicate detection uses exact signals only — identical `canonical_url` or identical `content_hash` — recorded as additive links in the new `job_duplicates` table with the earliest-seen job as canonical; fuzzy title matching deliberately excluded (a wrong duplicate link could hide a real job, violating the no-inference rule); jobs are never merged or deleted
+- Freshness evaluation: past `expires_at` → `expired`; unseen beyond `job_stale_after_days` (config, default 14) → `possibly_stale`; never deletes rows
+- Endpoints: `POST /api/jobs/maintenance` (freshness + dedup pass, returns counts) and `GET /api/jobs/{job_id}/duplicates`
+- Migration `d0e1f2a3b4c5` (job_duplicates), reversible and validated
+
+**Validation Evidence:**
+- Targeted Phase 4.4 tests passed: 18 tests
+- Complete backend suite passed: 292 tests, 1 sandbox-restricted skip
+- Fresh-database full migration cycle and targeted up/down/re-up validated
 
 #### Phase 4.5 — Saved Jobs and Review Workflow
 

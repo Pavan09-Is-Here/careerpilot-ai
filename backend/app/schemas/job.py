@@ -92,6 +92,10 @@ JobSkillRequirementType = Literal[
     "preferred",
     "mentioned",
 ]
+JobDuplicateDetectionMethod = Literal[
+    "canonical_url",
+    "content_hash",
+]
 
 
 class JobSourceCreate(BaseModel):
@@ -313,6 +317,28 @@ class NormalizedJobPageResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class JobDuplicateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    job_id: int
+    duplicate_of_job_id: int
+    detection_method: JobDuplicateDetectionMethod
+    detected_at: datetime
+    created_at: datetime
+
+
+class JobDuplicateListResponse(BaseModel):
+    items: list[JobDuplicateResponse]
+    total: int
+
+
+class JobMaintenanceResponse(BaseModel):
+    jobs_marked_expired: int
+    jobs_marked_possibly_stale: int
+    duplicate_links_created: int
 
 
 class NormalizedJobDetailResponse(NormalizedJobListItemResponse):

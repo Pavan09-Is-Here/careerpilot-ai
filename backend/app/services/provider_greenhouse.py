@@ -13,13 +13,11 @@ import json
 import re
 
 import httpx
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models.ingestion import IngestionRun
-from app.models.job import JobSource, NormalizedJob
+from app.models.job import JobSource
 from app.schemas.ingestion import (
     IngestionRunCompletion,
     IngestionRunCreate,
@@ -33,9 +31,9 @@ from app.services.ingestion import (
     record_source_snapshot,
     start_ingestion_run,
 )
-from app.services.job import (
-    JobServiceError,
-    build_normalized_job,
+from app.services.job_normalization import (
+    JobNormalizationError,
+    upsert_provider_jobs,
 )
 
 
@@ -269,52 +267,13 @@ def upsert_normalized_jobs(
     jobs: list[dict[str, object]],
     database: Session,
 ) -> tuple[int, int]:
-    """Create unseen jobs and touch seen ones. Single transaction."""
-    discovered = 0
-    updated = 0
-    now = current_utc_time()
+    """Normalize and upsert via the shared provider-agnostic path."""
+    entries = [build_job_create(source, job) for job in jobs]
 
     try:
-        for job in jobs:
-            data, locations = build_job_create(source, job)
-            existing = database.scalar(
-                select(NormalizedJob).where(
-                    NormalizedJob.job_source_id == source.id,
-                    NormalizedJob.source_job_id == data.source_job_id,
-                )
-            )
-
-            if existing is not None:
-                existing.last_seen_at = now
-                existing.ingested_at = now
-                existing.updated_at = now
-                updated += 1
-                continue
-
-            record, location_records, _, _ = build_normalized_job(
-                data,
-                locations=locations,
-            )
-            database.add(record)
-            database.flush()
-            for location_record in location_records:
-                location_record.job_id = record.id
-            database.add_all(location_records)
-            discovered += 1
-
-        database.commit()
-    except JobServiceError as exc:
-        database.rollback()
-        raise GreenhouseAdapterError(
-            "Provider job data failed validation.",
-        ) from exc
-    except IntegrityError as exc:
-        database.rollback()
-        raise GreenhouseAdapterError(
-            "Provider jobs could not be saved.",
-        ) from exc
-
-    return discovered, updated
+        return upsert_provider_jobs(source, entries, database)
+    except JobNormalizationError as exc:
+        raise GreenhouseAdapterError(exc.safe_message) from exc
 
 
 def fail_run_safely(

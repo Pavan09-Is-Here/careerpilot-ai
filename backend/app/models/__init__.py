@@ -18,6 +18,7 @@ from app.models.ingestion import (
 )
 from app.models.job import (
     JobCompensation,
+    JobDuplicate,
     JobLocation,
     JobSkillRequirement,
     JobSource,
@@ -39,6 +40,7 @@ __all__ = [
     "FactComparisonRun",
     "IngestionRun",
     "JobCompensation",
+    "JobDuplicate",
     "JobLocation",
     "JobSkillRequirement",
     "JobSource",

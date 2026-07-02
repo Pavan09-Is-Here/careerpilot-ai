@@ -20,6 +20,7 @@ from app.models.fact_comparison import FactComparisonRun  # noqa: F401
 from app.models.ingestion import IngestionRun  # noqa: F401
 from app.models.ingestion import SourceSnapshot  # noqa: F401
 from app.models.job import JobCompensation  # noqa: F401
+from app.models.job import JobDuplicate  # noqa: F401
 from app.models.job import JobLocation  # noqa: F401
 from app.models.job import JobSkillRequirement  # noqa: F401
 from app.models.job import JobSource  # noqa: F401
@@ -48,6 +49,7 @@ EXPECTED_APPLICATION_TABLES = {
     "job_skill_requirements",
     "ingestion_runs",
     "source_snapshots",
+    "job_duplicates",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -110,6 +112,10 @@ EXPECTED_FOREIGN_KEYS = {
     "source_snapshots": {
         ("ingestion_run_id", "ingestion_runs", "id", "CASCADE"),
         ("job_source_id", "job_sources", "id", "RESTRICT"),
+    },
+    "job_duplicates": {
+        ("job_id", "normalized_jobs", "id", "CASCADE"),
+        ("duplicate_of_job_id", "normalized_jobs", "id", "CASCADE"),
     },
 }
 
@@ -190,6 +196,10 @@ EXPECTED_INDEXES = {
         "ix_source_snapshots_expires_at",
         "ix_source_snapshots_run_fetched",
     },
+    "job_duplicates": {
+        "ix_job_duplicates_job_id",
+        "ix_job_duplicates_duplicate_of_job_id",
+    },
 }
 
 
@@ -222,7 +232,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["c9d0e1f2a3b4"]
+    assert script.get_heads() == ["d0e1f2a3b4c5"]
 
     command.upgrade(config, "head")
 

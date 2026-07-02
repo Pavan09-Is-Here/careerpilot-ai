@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.8.6
-**Last Updated:** 2026-07-02 (Phase 4.1 committed and COMPLETED; root `CLAUDE.md` added)
-**Status:** Actively in development — Phase 4.1 COMPLETED; next milestone Phase 4.2 (Ingestion Runs and Source Snapshots) NOT STARTED
+**Version:** 0.8.7
+**Last Updated:** 2026-07-02 (Phase 4.2 committed and COMPLETED)
+**Status:** Actively in development — Phase 4.2 COMPLETED; next milestone Phase 4.3 (First Approved Provider Adapter) NOT STARTED
 
 ---
 
@@ -76,11 +76,12 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.8: Document Management Frontend ✓ (Document upload, review, extraction, comparison, CV-version, generation, artifact download workflows)
 
 - Phase 4.1: Core Job and Job Source Foundation ✓ (Backend schema, source compliance policy, normalized job read APIs)
+- Phase 4.2: Ingestion Runs and Source Snapshots ✓ (Run lifecycle tracking, bounded snapshot metadata, retention cleanup, read-only run APIs)
 
 **Phase 3 CV Document System:** COMPLETED
 
 **Not Started:**
-- Phase 4.2–14: Ingestion, provider adapters, normalization/deduplication/freshness, saved jobs, frontend job discovery, analysis, matching, tailoring, salary recommendations, application answers, browser automation, tracking, authentication, production deployment
+- Phase 4.3–14: Provider adapters, normalization/deduplication/freshness, saved jobs, frontend job discovery, analysis, matching, tailoring, salary recommendations, application answers, browser automation, tracking, authentication, production deployment
 
 ---
 
@@ -175,7 +176,8 @@ backend/
 │   │   ├── e5f6a7b8c9d0_add_fact_comparison.py (committed)
 │   │   ├── f6a7b8c9d0e1_add_cv_version_management.py (committed)
 │   │   ├── a7b8c9d0e1f2_add_verified_master_cv_generation.py (committed)
-│   │   └── b8c9d0e1f2a3_add_phase_4_1_job_foundation.py
+│   │   ├── b8c9d0e1f2a3_add_phase_4_1_job_foundation.py (committed)
+│   │   └── c9d0e1f2a3b4_add_phase_4_2_ingestion_runs.py (committed)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -186,7 +188,8 @@ backend/
 │   ├── test_fact_comparison.py # Verified facts comparison tests
 │   ├── test_cv_version.py      # CV version management tests
 │   ├── test_verified_master_cv.py # Verified master CV generation tests
-│   └── test_jobs_phase41.py       # Phase 4.1 job source/job foundation tests
+│   ├── test_jobs_phase41.py       # Phase 4.1 job source/job foundation tests
+│   └── test_ingestion_phase42.py  # Phase 4.2 ingestion run/snapshot tests
 ├── .venv/                         # Virtual environment
 ├── pyproject.toml                 # Tool config (pytest, ruff, mypy)
 ├── requirements.txt               # Production dependencies
@@ -401,7 +404,7 @@ frontend/
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (committed Phase 4.1 head is `b8c9d0e1f2a3`)
+  - `alembic heads` — Check current migration head (committed Phase 4.2 head is `c9d0e1f2a3b4`)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -422,6 +425,7 @@ frontend/
 - `f6a7b8c9d0e1_add_cv_version_management` (Phase 3.6, committed, safely migrated, and validated)
 - `a7b8c9d0e1f2_add_verified_master_cv_generation` (Phase 3.7, committed, safely migrated, and validated)
 - `b8c9d0e1f2a3_add_phase_4_1_job_foundation` (Phase 4.1, committed, safely migrated, and validated)
+- `c9d0e1f2a3b4_add_phase_4_2_ingestion_runs` (Phase 4.2, committed, safely migrated, and validated)
 
 **Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one working-tree head: `b8c9d0e1f2a3`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
@@ -1465,7 +1469,7 @@ alembic current               # Show database's current revision
 
 ### Phase 4 — Job Discovery
 
-**Phase Status:** IN PROGRESS (Phase 4.1 COMPLETED; Phase 4.2+ NOT STARTED)
+**Phase Status:** IN PROGRESS (Phases 4.1–4.2 COMPLETED; Phase 4.3+ NOT STARTED)
 
 **Goal:** Build compliant job discovery foundations before any live provider integration.
 
@@ -1559,7 +1563,7 @@ alembic current               # Show database's current revision
 
 #### Phase 4.2 — Ingestion Runs and Source Snapshots
 
-**Milestone Status:** IN REVIEW
+**Milestone Status:** COMPLETED (Committed — Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`)
 
 **Scope:**
 - Model ingestion runs and raw/source snapshot metadata
@@ -1567,7 +1571,7 @@ alembic current               # Show database's current revision
 - Define retention cleanup rules without deleting normalized job provenance
 - Keep provider payloads bounded and do not expose them through public APIs
 
-**Database Schema (In Review):**
+**Database Schema:**
 - New migration `c9d0e1f2a3b4_add_phase_4_2_ingestion_runs.py` follows committed Phase 4.1 head `b8c9d0e1f2a3`
 - New tables: `ingestion_runs`, `source_snapshots`
 - Runs are owned by job sources (`ondelete=RESTRICT`); snapshots cascade from runs and restrict on sources
@@ -1575,7 +1579,7 @@ alembic current               # Show database's current revision
 - Non-negative counters (`jobs_discovered`, `jobs_updated`, `snapshots_recorded`); `finished_at` requires `started_at`
 - Snapshot constraints: SHA-256 content hash, non-negative payload size, `expires_at > fetched_at`
 
-**Safety Rules (In Review):**
+**Safety Rules:**
 - Ingestion runs require an existing, enabled job source
 - Failed runs require a bounded, safe failure summary (control characters and null bytes rejected); succeeded runs cannot carry one
 - Snapshot payload size bounded by `max_source_snapshot_payload_bytes` (default 10 MiB)
@@ -1583,7 +1587,7 @@ alembic current               # Show database's current revision
 - Snapshot expiry derived from the source's `configured_retention_days`, capped at the 365-day maximum
 - Retention cleanup deletes expired snapshot metadata only — never ingestion runs, job sources, or normalized job provenance
 
-**Read-Only API Endpoints (In Review):**
+**Read-Only API Endpoints:**
 - `GET /api/ingestion-runs`
 - `GET /api/ingestion-runs/{run_id}`
 - `GET /api/ingestion-runs/{run_id}/snapshots`
@@ -1594,11 +1598,13 @@ alembic current               # Show database's current revision
 - Background workers or scheduled cleanup
 - Write API endpoints for runs or snapshots
 
-**Validation Evidence (In Review):**
-- Targeted Phase 4.2 tests passed: 34 tests
-- Complete backend suite passed: 247 tests, 1 sandbox-restricted Quick Look raster test skipped
+**Validation Evidence:**
+- Targeted Phase 4.2 tests passed: 36 tests
+- Complete backend suite passed: 249 tests, 1 sandbox-restricted Quick Look raster test skipped
 - Migration validated on a temporary database: fresh full cycle (`upgrade head` → `downgrade base` → `upgrade head`) and targeted upgrade/downgrade/re-upgrade between `b8c9d0e1f2a3` and `c9d0e1f2a3b4`, with job-source row preservation asserted
-- Real `backend/careerpilot.db` has not been migrated for Phase 4.2 and remains at Alembic revision `b8c9d0e1f2a3` pending review
+- Independent code review completed; blocking findings fixed before commit (IntegrityError handling on run updates, atomic snapshot counter increment, bounded completion counters)
+- Real `backend/careerpilot.db` safely upgraded to Alembic revision `c9d0e1f2a3b4` after review; existing data preserved
+- Committed as Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`
 
 #### Phase 4.3 — First Approved Provider Adapter
 
@@ -2479,23 +2485,25 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 4.1 — Core Job and Job Source Foundation (Committed — Git revision `cd33a9ae9ba0785635627ded887dd37057608320`)
+**Last Completed Milestone:** Phase 4.2 — Ingestion Runs and Source Snapshots (Committed — Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`)
 
-**Current Status:** Phase 4.2 — Ingestion Runs and Source Snapshots is IN REVIEW
+**Current Status:** Phase 4.2 COMPLETED; no milestone in progress
 
 **First Not-Started Milestone:** Phase 4.3 — First Approved Provider Adapter
 
-**Immediate Next Action:** Code review and commit of Phase 4.2, then begin Phase 4.3 only upon explicit request
+**Immediate Next Action:** Begin Phase 4.3 only upon explicit request
 
 **Validation Summary:**
-- ✓ Phase 4.1 implementation committed with Git revision `cd33a9ae9ba0785635627ded887dd37057608320`
-- ✓ Phase 4.1 targeted tests passed: 57 tests; complete backend suite: 205 passed, 1 environment-restricted skip
+- ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`
+- ✓ Phase 4.2 targeted tests passed: 36 tests; complete backend suite: 249 passed, 1 environment-restricted skip
 - ✓ Python compile check passed (`python -m compileall app`)
-- ✓ Ruff passed on Phase 4.1 files (unused test imports removed pre-commit)
-- ✓ Migration `b8c9d0e1f2a3` validated: fresh-database full cycle and temporary-copy upgrade/downgrade/re-upgrade, no data loss
-- ✓ Real `backend/careerpilot.db` upgraded to `b8c9d0e1f2a3`; existing tables preserved
-- ✓ Independent code review: no critical or major findings (compliance gating, response leakage, route hygiene, data safety, input validation, test coverage)
-- ✓ New read-only endpoints registered: `GET /api/job-sources`, `GET /api/job-sources/{source_id}`, `GET /api/jobs`, `GET /api/jobs/{job_id}`
+- ✓ Ruff passed on all Phase 4.2 files
+- ✓ Migration `c9d0e1f2a3b4` validated: fresh-database full cycle and targeted upgrade/downgrade/re-upgrade with job-source row preservation
+- ✓ Real `backend/careerpilot.db` upgraded to `c9d0e1f2a3b4`; existing tables preserved
+- ✓ Independent code review completed; blocking findings fixed pre-commit (IntegrityError handling, atomic counter increment, bounded counters)
+- ✓ New read-only endpoints registered: `GET /api/ingestion-runs`, `GET /api/ingestion-runs/{run_id}`, `GET /api/ingestion-runs/{run_id}/snapshots`
+- ✓ Snapshot responses never expose provider payloads or internal storage references; retention cleanup preserves runs, sources, and normalized job provenance
+- ✓ Phase 4.1 completed previously with Git revision `cd33a9ae9ba0785635627ded887dd37057608320` (57 targeted tests)
 - ✓ Phase 3.8 added document upload, list, detail, status, extraction, section-detection, verified-facts comparison, original CV-version adoption, CV-version lifecycle, Verified Master CV generation, and artifact download UI
 - ✓ Phase 3.8 renders extracted CV and backend content as plain text, does not use `dangerouslySetInnerHTML`, and does not display storage paths or physical stored filenames
 - ✓ Phase 3.8 requires confirmation for destructive archive/delete actions, prevents duplicate upload/comparison/generation submissions, and uses a stable idempotency key for one deliberate generation attempt
@@ -2506,10 +2514,10 @@ Follow this workflow for every milestone:
 - ✓ Phase 4.1 adds no provider credentials, source fetching, scheduled ingestion, scraping, matching, saved jobs, automatic applications, browser automation, or frontend job-discovery UI
 - ✓ Phase 4.1 targeted backend tests passed: 57 tests
 - ✓ Complete backend suite passed: 205 tests, 1 sandbox-restricted Quick Look raster test skipped
-- ✓ Alembic has exactly one committed head: `b8c9d0e1f2a3`
-- ✓ Committed migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1` → `a7b8c9d0e1f2` → `b8c9d0e1f2a3`
-- ✓ Temporary upgrade to `b8c9d0e1f2a3`, downgrade to `a7b8c9d0e1f2`, and re-upgrade to `b8c9d0e1f2a3` passed
-- ✓ Real development database safely upgraded to revision `b8c9d0e1f2a3` after review; existing data preserved
+- ✓ Alembic has exactly one committed head: `c9d0e1f2a3b4`
+- ✓ Committed migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1` → `a7b8c9d0e1f2` → `b8c9d0e1f2a3` → `c9d0e1f2a3b4`
+- ✓ Temporary upgrade to `c9d0e1f2a3b4`, downgrade to `b8c9d0e1f2a3`, and re-upgrade to `c9d0e1f2a3b4` passed
+- ✓ Real development database safely upgraded to revision `c9d0e1f2a3b4` after review; existing data preserved
 
 **Immediate Blockers:** None
 
@@ -2535,8 +2543,8 @@ Follow this workflow for every milestone:
 
 ---
 
-**Roadmap Version:** 0.8.6
+**Roadmap Version:** 0.8.7
 **Last Updated:** 2026-07-02
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
-**Status:** Actively maintained — Phase 4.1 COMPLETED; Phase 4.2 NOT STARTED
+**Status:** Actively maintained — Phase 4.2 COMPLETED; Phase 4.3 NOT STARTED

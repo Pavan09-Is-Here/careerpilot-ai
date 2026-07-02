@@ -48,6 +48,9 @@ from app.api.routes.saved_job import (
 from app.api.routes.skill import (
     router as skill_router,
 )
+from app.api.routes.worker import (
+    router as worker_router,
+)
 from app.api.routes.document import (
     router as document_router,
 )
@@ -115,6 +118,10 @@ api_router.include_router(
 
 api_router.include_router(
     application_router,
+)
+
+api_router.include_router(
+    worker_router,
 )
 
 api_router.include_router(

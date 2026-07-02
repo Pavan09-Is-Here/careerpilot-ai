@@ -34,6 +34,8 @@ from app.models.job_tailored_cv import JobTailoredCV  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.saved_job import SavedJob  # noqa: F401
 from app.models.skill import Skill  # noqa: F401
+from app.models.worker import AuditLogEntry  # noqa: F401
+from app.models.worker import WorkerRun  # noqa: F401
 
 
 EXPECTED_APPLICATION_TABLES = {
@@ -64,6 +66,8 @@ EXPECTED_APPLICATION_TABLES = {
     "application_packages",
     "application_runs",
     "applications",
+    "worker_runs",
+    "audit_log_entries",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -168,6 +172,9 @@ EXPECTED_FOREIGN_KEYS = {
         ("job_id", "normalized_jobs", "id", "CASCADE"),
         ("candidate_profile_id", "candidate_profiles", "id", "CASCADE"),
         ("cv_id", "cv_versions", "id", "SET NULL"),
+    },
+    "audit_log_entries": {
+        ("worker_run_id", "worker_runs", "id", "CASCADE"),
     },
 }
 
@@ -287,6 +294,17 @@ EXPECTED_INDEXES = {
         "ix_applications_cv_id",
         "ix_applications_status",
     },
+    "worker_runs": {
+        "ix_worker_runs_worker_name",
+        "ix_worker_runs_status",
+        "ix_worker_runs_run_date",
+    },
+    "audit_log_entries": {
+        "ix_audit_log_entries_worker_run_id",
+        "ix_audit_log_entries_worker_name",
+        "ix_audit_log_entries_level",
+        "ix_audit_log_entries_created_at",
+    },
 }
 
 
@@ -319,7 +337,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["e7f8a9b0c1d2"]
+    assert script.get_heads() == ["f8a9b0c1d2e3"]
 
     command.upgrade(config, "head")
 

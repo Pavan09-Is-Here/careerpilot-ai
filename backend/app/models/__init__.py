@@ -33,10 +33,13 @@ from app.models.job_tailored_cv import JobTailoredCV
 from app.models.project import Project
 from app.models.saved_job import SavedJob
 from app.models.skill import Skill
+from app.models.worker import AuditLogEntry, WorkerRun
 
 __all__ = [
     "Application",
     "ApplicationAnswer",
+    "AuditLogEntry",
+    "WorkerRun",
     "ApplicationPackage",
     "ApplicationRun",
     "CandidateProfile",

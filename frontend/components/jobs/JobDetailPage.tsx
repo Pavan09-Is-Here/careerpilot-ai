@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
@@ -8,6 +9,7 @@ import {
   getJobDuplicates,
   isAbortError,
   saveJob,
+  trackJobApplication,
 } from "@/lib/api";
 
 import type {
@@ -94,6 +96,9 @@ export default function JobDetailPage({
     return () => controller.abort();
   }, [jobId]);
 
+  const router = useRouter();
+  const [tracking, setTracking] = useState(false);
+
   const handleSave = () => {
     setSaving(true);
     setNotice(null);
@@ -110,6 +115,24 @@ export default function JobDetailPage({
         );
       })
       .finally(() => setSaving(false));
+  };
+
+  const handleTrack = () => {
+    setTracking(true);
+    setNotice(null);
+
+    trackJobApplication(jobId)
+      .then((application) => {
+        router.push(`/applications/${application.id}`);
+      })
+      .catch((requestError: unknown) => {
+        setNotice(
+          requestError instanceof Error
+            ? requestError.message
+            : "Failed to track application.",
+        );
+        setTracking(false);
+      });
   };
 
   if (loading) {
@@ -171,14 +194,24 @@ export default function JobDetailPage({
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={handleSave}
-          className="shrink-0 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700"
-        >
-          {saving ? "Saving…" : "Save for review"}
-        </button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={handleSave}
+            className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-400 hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save for review"}
+          </button>
+          <button
+            type="button"
+            disabled={tracking}
+            onClick={handleTrack}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700"
+          >
+            {tracking ? "Tracking…" : "Track application"}
+          </button>
+        </div>
       </header>
 
       {notice ? (

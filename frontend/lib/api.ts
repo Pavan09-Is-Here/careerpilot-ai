@@ -76,6 +76,15 @@ import type {
   ProfileSuggestion,
 } from "@/types/profileSuggestion";
 
+import type {
+  Application,
+  ApplicationDetail,
+  ApplicationFollowUpInput,
+  ApplicationNoteInput,
+  ApplicationStatus,
+  ApplicationUpdateInput,
+} from "@/types/application";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://127.0.0.1:8000";
@@ -1417,6 +1426,95 @@ export async function applyDocumentProfileSuggestion(
       include_sensitive: input.includeSensitive ?? false,
       overwrite: input.overwrite ?? false,
     },
+    signal,
+  );
+}
+
+export async function trackJobApplication(
+  jobId: number,
+  signal?: AbortSignal,
+): Promise<Application> {
+  assertPositiveIntegerId(jobId, "job id");
+
+  return requestJsonBody<Application>(
+    `/api/jobs/${jobId}/track`,
+    "POST",
+    {},
+    signal,
+  );
+}
+
+export async function getApplications(
+  status?: ApplicationStatus,
+  signal?: AbortSignal,
+): Promise<Application[]> {
+  const params = new URLSearchParams();
+
+  if (status) {
+    params.set("status", status);
+  }
+
+  const query = params.toString();
+
+  return requestJson<Application[]>(
+    query ? `/api/applications?${query}` : "/api/applications",
+    { signal },
+  );
+}
+
+export async function getApplication(
+  applicationId: number,
+  signal?: AbortSignal,
+): Promise<ApplicationDetail> {
+  assertPositiveIntegerId(applicationId, "application id");
+
+  return requestJson<ApplicationDetail>(
+    `/api/applications/${applicationId}`,
+    { signal },
+  );
+}
+
+export async function updateApplication(
+  applicationId: number,
+  input: ApplicationUpdateInput,
+  signal?: AbortSignal,
+): Promise<Application> {
+  assertPositiveIntegerId(applicationId, "application id");
+
+  return requestJsonBody<Application>(
+    `/api/applications/${applicationId}`,
+    "PUT",
+    input,
+    signal,
+  );
+}
+
+export async function addApplicationNote(
+  applicationId: number,
+  input: ApplicationNoteInput,
+  signal?: AbortSignal,
+): Promise<Application> {
+  assertPositiveIntegerId(applicationId, "application id");
+
+  return requestJsonBody<Application>(
+    `/api/applications/${applicationId}/notes`,
+    "POST",
+    input,
+    signal,
+  );
+}
+
+export async function addApplicationFollowUp(
+  applicationId: number,
+  input: ApplicationFollowUpInput,
+  signal?: AbortSignal,
+): Promise<Application> {
+  assertPositiveIntegerId(applicationId, "application id");
+
+  return requestJsonBody<Application>(
+    `/api/applications/${applicationId}/follow-up`,
+    "POST",
+    input,
     signal,
   );
 }

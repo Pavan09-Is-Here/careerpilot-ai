@@ -33,6 +33,10 @@ const jobSections = [
 
 const automationSections = [
   {
+    label: "Applications",
+    href: "/applications",
+  },
+  {
     label: "Notifications",
     href: "/notifications",
   },
@@ -188,10 +192,10 @@ export default function DashboardPage() {
             </div>
 
             <Link
-              href="/notifications"
+              href="/applications"
               className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-blue-300 transition hover:border-blue-500"
             >
-              Open notifications
+              Open applications
             </Link>
           </div>
 

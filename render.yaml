@@ -1,0 +1,55 @@
+# Render Blueprint for the CareerPilot AI backend.
+# In Render: New + → Blueprint → connect this repo. Render reads this
+# file. Set the env vars marked `sync: false` in the dashboard (secrets).
+# The frontend is deployed separately on Vercel (see
+# docs/deploy-render-supabase-vercel.md).
+
+services:
+  - type: web
+    name: careerpilot-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: "pip install -r requirements.txt"
+    # Run migrations on every release, then start the API.
+    startCommand: "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: CAREERPILOT_ENVIRONMENT
+        value: production
+      # Supabase Postgres URL, prefixed with postgresql+psycopg://
+      # (set in the dashboard — secret).
+      - key: CAREERPILOT_DATABASE_URL
+        sync: false
+      # Your Vercel frontend URL, e.g. https://careerpilot.vercel.app
+      - key: CAREERPILOT_CORS_ORIGINS
+        sync: false
+      # Object storage on Supabase Storage (S3-compatible). Optional
+      # for a first deploy, but required so uploaded files survive
+      # redeploys (Render's disk is ephemeral).
+      - key: CAREERPILOT_STORAGE_BACKEND
+        value: local
+      - key: CAREERPILOT_S3_BUCKET
+        sync: false
+      - key: CAREERPILOT_S3_REGION
+        sync: false
+      - key: CAREERPILOT_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      # Email (optional). Without SMTP, notifications are recorded only.
+      - key: CAREERPILOT_SMTP_HOST
+        sync: false
+      - key: CAREERPILOT_SMTP_USERNAME
+        sync: false
+      - key: CAREERPILOT_SMTP_PASSWORD
+        sync: false
+      - key: CAREERPILOT_NOTIFICATION_FROM_ADDRESS
+        sync: false
+      # Error reporting (optional).
+      - key: CAREERPILOT_SENTRY_DSN
+        sync: false

@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Deployment / infrastructure (Phase 14).
     # Deployment tier: "development", "staging", or "production".
     environment: str = "development"
+    # Extra allowed CORS origins (comma-separated), e.g. the deployed
+    # frontend URL. Local development origins are always allowed.
+    cors_origins: str = ""
     # Full SQLAlchemy database URL. When unset, the local SQLite
     # development database is used. In production set this to a
     # PostgreSQL URL, e.g. postgresql+psycopg://user:pass@host/db.

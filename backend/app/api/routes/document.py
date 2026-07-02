@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from datetime import datetime, timezone
 
 from fastapi import (
@@ -57,6 +58,16 @@ from app.services.document_extraction import (
     DocumentExtractionError,
     ExtractionResult,
     extract_document_text,
+)
+from app.services.cv_profile_extraction import (
+    CVProfileExtractionError,
+    apply_profile_suggestion,
+    build_profile_suggestion,
+)
+from app.schemas.cv_profile_extraction import (
+    ApplyProfileSuggestionRequest,
+    ApplyProfileSuggestionResponse,
+    ProfileSuggestionResponse,
 )
 from app.services.document_section_detection import (
     CVSectionDetectionError,
@@ -708,6 +719,51 @@ def extract_document(
     commit_document_update(document, database)
 
     return document
+
+
+@router.get(
+    "/{document_id}/profile-suggestion",
+    response_model=ProfileSuggestionResponse,
+)
+def get_document_profile_suggestion(
+    document_id: int,
+    database: Session = Depends(get_db),
+) -> object:
+    document = get_document_or_404(document_id, database)
+    try:
+        return asdict(build_profile_suggestion(document))
+    except CVProfileExtractionError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
+
+
+@router.post(
+    "/{document_id}/apply-profile-suggestion",
+    response_model=ApplyProfileSuggestionResponse,
+)
+def apply_document_profile_suggestion(
+    document_id: int,
+    payload: ApplyProfileSuggestionRequest | None = None,
+    database: Session = Depends(get_db),
+) -> dict[str, object]:
+    document = get_document_or_404(document_id, database)
+    request = payload or ApplyProfileSuggestionRequest()
+    try:
+        return apply_profile_suggestion(
+            document,
+            database,
+            apply_profile=request.apply_profile,
+            apply_skills=request.apply_skills,
+            include_sensitive=request.include_sensitive,
+            overwrite=request.overwrite,
+        )
+    except CVProfileExtractionError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
 
 
 @router.post(

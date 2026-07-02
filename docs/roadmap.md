@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.6
-**Last Updated:** 2026-07-02 (Phase 10 committed and COMPLETED)
-**Status:** Actively in development — Phase 10 COMPLETED (safe workflow/gate engine; live Playwright driver deferred by design); next milestone Phase 11 (Application Tracking Dashboard) NOT STARTED
+**Version:** 0.9.7
+**Last Updated:** 2026-07-02 (Phase 11 committed and COMPLETED)
+**Status:** Actively in development — Phase 11 COMPLETED; next milestone Phase 12 (Background Automation) NOT STARTED
 
 ---
 
@@ -2128,7 +2128,7 @@ alembic current               # Show database's current revision
 - Field mapping (`app/services/application_run.py`) is deterministic and verified-only: identity fields and non-sensitive verified answers are auto-fillable; cover letter and tailored-CV PDF are referenced; sensitive/legal answers (work authorization, sponsorship, anything flagged for manual confirmation) and missing required answers go to `manual_fields` and are never auto-filled.
 - Mandatory safety gates with fixed precedence: `captcha` > `mfa` > `assessment` (from the Phase 9 package blockers) > `legal_declaration` (always) > `submission_confirmation` (always, last). The run starts `paused_for_gate`.
 - `resume` acknowledges one gate at a time — recording that the candidate handled it externally; it never bypasses a protection. The submission gate clears only when the candidate supplies a `confirmation_number` (the tool never submits on its own), transitioning the run to `submitted`. `cancel` terminates the run. Apply is idempotent (returns the existing active run) and is rejected for `not_eligible`/`blocked_by_missing_information` packages and for unconfirmed ready/needs_review packages.
-- Endpoints: `POST /api/jobs/{id}/apply`, `GET /api/applications/{id}/status`, `POST /api/applications/{id}/resume`, `POST /api/applications/{id}/cancel`.
+- Endpoints: `POST /api/jobs/{id}/apply`, `GET /api/application-runs/{id}/status`, `POST /api/application-runs/{id}/resume`, `POST /api/application-runs/{id}/cancel`. (The run-workflow endpoints were placed under `/api/application-runs/...` rather than the roadmap's original `/api/applications/...` to keep the `/api/applications` namespace unambiguous for the Phase 11 tracking records — a run id and a tracking-record id are distinct entities.)
 - Validation: full backend suite 405 passed, 1 environment-restricted skip (run in shards for sandbox time limits); `compileall app` passed; isolated temp-DB migration upgrade → downgrade to `c5d6e7f8a9b0` → re-upgrade validated (columns, four indexes, all three FKs incl. SET NULL); Alembic single head `d6e7f8a9b0c1`; migration-parity test updated and passing. Dev database migrated to `d6e7f8a9b0c1` (additive; existing data preserved).
 - **Deferred by design (safety):** live Playwright browser driving and any autonomous submission. No new production dependency (Playwright) was added.
 
@@ -2136,7 +2136,7 @@ alembic current               # Show database's current revision
 
 ### Phase 11 — Application Tracking Dashboard
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `e5f21d16f37f1be6e2f34f310d0262536016f6db`)
 
 **Goal:** Track submitted applications and outcomes.
 
@@ -2194,6 +2194,15 @@ alembic current               # Show database's current revision
 - Dashboard displays applications and statuses
 - Status updates working
 - All tracking tests pass
+
+**Implementation Notes (Completed):**
+- New table `applications` (one per job; FK `job_id` → `normalized_jobs.id` CASCADE, `candidate_profile_id` → `candidate_profiles.id` CASCADE, `cv_id` → `cv_versions.id` SET NULL) via reversible migration `e7f8a9b0c1d2` (follows `d6e7f8a9b0c1`).
+- Fields: `status` (CHECK-constrained, 14 statuses), `applied_at`, `confirmation_number`, `interview_date`, `interview_stage` (CHECK-constrained, nullable), `offer_details`, `rejection_reason`, `outcome_date`, `notes`/`follow_ups` (JSON), timestamps.
+- Initial status is derived deterministically (`app/services/application.py`) from the existing pipeline: submitted/paused runs → submitted/blocked/applying; package readiness → ready_to_apply/needs_review/blocked/not_eligible; else tailored CV → cv_generated; else match → matched/not_eligible; else discovered. No fabrication.
+- Status changes are validated against an explicit transition map; terminal states (`rejected`, `withdrawn`) cannot transition out; `withdrawn` is reachable from any non-terminal state; setting `submitted` auto-stamps `applied_at`. Detail responses include a chronologically sorted `timeline` (tracked, applied, interview, outcome, notes, follow-ups).
+- Endpoints: `POST /api/jobs/{id}/track` (idempotent create-or-get; the entry point, since the roadmap's planned endpoints assumed records already existed), `GET /api/applications` (+ optional `status` filter), `GET /api/applications/{id}` (detail + timeline), `PUT /api/applications/{id}`, `POST /api/applications/{id}/notes`, `POST /api/applications/{id}/follow-up`.
+- Validation: full backend suite 417 passed, 1 environment-restricted skip (run in shards for sandbox time limits); `compileall app` passed; isolated temp-DB migration upgrade → downgrade to `d6e7f8a9b0c1` → re-upgrade validated (four indexes, three FKs incl. two SET NULL/CASCADE); Alembic single head `e7f8a9b0c1d2`; migration-parity test updated. Dev database migrated to `e7f8a9b0c1d2` (additive; existing data preserved).
+- Related cleanup in this batch: Phase 10 run-workflow endpoints were moved from `/api/applications/{id}/...` to `/api/application-runs/{id}/...` so the `/api/applications` namespace unambiguously belongs to these tracking records.
 
 ---
 
@@ -2626,7 +2635,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 10 — Browser-Assisted Applications (safe workflow/gate engine; live Playwright driver deferred by design) (Committed — Git revision `47f1f3d4ada2177afd5015d310259071f6e739a3`)
+**Last Completed Milestone:** Phase 11 — Application Tracking Dashboard (Committed — Git revision `e5f21d16f37f1be6e2f34f310d0262536016f6db`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2636,11 +2645,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–10 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–11 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 11 — Application Tracking Dashboard
+**First Not-Started Milestone:** Phase 12 — Background Automation
 
-**Immediate Next Action:** Begin Phase 11 only upon explicit request. Committed Alembic head is now `d6e7f8a9b0c1` (Phase 10), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Note for Phase 10: the live Playwright browser driver is deferred by design (safety); the delivered layer is the human-in-the-loop workflow + safety-gate engine, and any future live driver must route through the same gates without bypassing site protections and needs a real (non-sandbox) environment. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Begin Phase 12 only upon explicit request. Committed Alembic head is now `e7f8a9b0c1d2` (Phase 11), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Reminders: (1) Phase 10's live Playwright browser driver is deferred by design (safety) — the delivered layer is the human-in-the-loop workflow + safety-gate engine at `/api/application-runs/...`, and any future live driver must route through the same gates without bypassing site protections in a real (non-sandbox) environment; (2) Phase 12 background automation must never auto-submit applications (always human-approved) per the safety rules. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`
@@ -2692,8 +2701,8 @@ Follow this workflow for every milestone:
 
 ---
 
-**Roadmap Version:** 0.8.7
+**Roadmap Version:** 0.9.7
 **Last Updated:** 2026-07-02
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
-**Status:** Actively maintained — Phase 4.2 COMPLETED; Phase 4.3 NOT STARTED
+**Status:** Actively maintained — Phases 1–11 COMPLETED; Phase 12 (Background Automation) NOT STARTED

@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.8
-**Last Updated:** 2026-07-02 (Phase 12 committed and COMPLETED)
-**Status:** Actively in development — Phase 12 COMPLETED; next milestone Phase 13 (Authentication, Privacy, and Security) NOT STARTED
+**Version:** 0.9.9
+**Last Updated:** 2026-07-02 (Phase 13 committed and COMPLETED)
+**Status:** Actively in development — Phase 13 COMPLETED (application-layer security; infra controls deferred to Phase 14); next milestone Phase 14 (Production Database and Deployment) NOT STARTED
 
 ---
 
@@ -2273,7 +2273,9 @@ alembic current               # Show database's current revision
 
 ### Phase 13 — Authentication, Privacy, and Security
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `693e5c68a0352c07a0c852dac7f3d80a70de7793`)
+
+> **Scope note:** This milestone delivers the self-contained, testable **application-layer** security controls. Infrastructure/deployment controls that cannot be meaningfully or safely implemented in this environment are explicitly deferred to Phase 14: encryption-at-rest (DB/object-storage layer), TLS/HTTPS enforcement, automated backup/restore, and retention automation. CSRF tokens are not applicable to this stateless Bearer-token API (no ambient cookie auth) and are intentionally omitted. Authentication is delivered on new `/auth` and `/privacy` routes with an opt-in session dependency; the existing routes are **not** retrofitted with mandatory auth in this milestone (that global enforcement is a follow-up coordinated with the frontend, to avoid breaking the current suite and the not-yet-auth-aware UI).
 
 **Goal:** Implement user authentication, data privacy, and comprehensive security controls.
 
@@ -2326,6 +2328,16 @@ alembic current               # Show database's current revision
 - Data privacy controls working
 - All security tests pass
 - No sensitive data in logs
+
+**Implementation Notes (Completed):**
+- New tables `auth_credentials` (single-user login credential) and `auth_sessions` (opaque, hashed sessions) via reversible migration `a9b0c1d2e3f4` (follows `f8a9b0c1d2e3`). No FKs to candidate data; sessions indexed on `token_hash` (unique) and `expires_at`.
+- Passwords are stored only as PBKDF2-HMAC-SHA256 hashes with a per-credential random salt and stored iteration count (default 480,000, configurable, upgradeable) — standard library only, no new crypto dependency. Verification is constant-time (`secrets.compare_digest`). The password itself is never stored or logged.
+- Session tokens are opaque random strings (`secrets.token_urlsafe`); only their SHA-256 hash is persisted, so a database read cannot recover a live token. Sessions expire (default 12h) and are revoked on logout, on password change, and on account erasure.
+- Security-headers middleware sets HSTS, `Content-Security-Policy` (default-src 'none'), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and a minimal `Permissions-Policy` on every response.
+- In-process fixed-window rate limiter guards `POST /api/auth/login` against brute force (configurable attempts/window; returns 429 with `Retry-After`). Multi-instance deployments should move this to a shared store (deferred).
+- GDPR controls: `GET /api/privacy/export` returns the candidate's own data sanitized of internal storage references (no `storage_path`/`stored_filename`); `POST /api/privacy/delete` performs a confirmed, authenticated right-to-be-forgotten erasure of all candidate-owned records in FK-safe order (breaking the CV-version self-reference first) and revokes all sessions.
+- Endpoints: `GET /api/auth/status`, `POST /api/auth/setup`, `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, `POST /api/auth/change-password`, `GET /api/privacy/export`, `POST /api/privacy/delete`. `/privacy/*` and the stateful `/auth/*` routes require a valid Bearer session.
+- Validation: full backend suite 439 passed, 1 environment-restricted skip (run in shards for sandbox time limits); `compileall app` passed; no hardcoded secrets (source scan); isolated temp-DB migration upgrade → downgrade to `f8a9b0c1d2e3` → re-upgrade validated (both tables, indexes); Alembic single head `a9b0c1d2e3f4`; migration-parity test updated. Auth flow, session expiry/revocation, rate limiting, security headers, sanitized export, and guarded erasure (with cascade) are covered by targeted tests. Dev database migrated to `a9b0c1d2e3f4` (additive; existing data preserved).
 
 ---
 
@@ -2646,7 +2658,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 12 — Background Automation (Committed — Git revision `f3da9a192417348ac2fa4b77ab78df974ea07e8c`)
+**Last Completed Milestone:** Phase 13 — Authentication, Privacy, and Security (Committed — Git revision `693e5c68a0352c07a0c852dac7f3d80a70de7793`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2656,11 +2668,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–12 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–13 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 13 — Authentication, Privacy, and Security
+**First Not-Started Milestone:** Phase 14 — Production Database and Deployment
 
-**Immediate Next Action:** Begin Phase 13 only upon explicit request. Committed Alembic head is now `f8a9b0c1d2e3` (Phase 12), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Standing reminders: (1) Phase 10's live Playwright browser driver is deferred by design (safety) — the delivered layer is the human-in-the-loop workflow + safety-gate engine at `/api/application-runs/...`; (2) Phase 12 workers run as bounded, on-demand cycles (external cron drives cadence) and never auto-submit applications. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Begin Phase 14 only upon explicit request. Committed Alembic head is now `a9b0c1d2e3f4` (Phase 13), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Standing reminders: (1) Phase 10's live Playwright driver and (2) Phase 13's infrastructure security controls (encryption-at-rest, TLS enforcement, backup/restore, retention automation) and (3) global auth enforcement on existing routes are all deferred to Phase 14 / deployment and coordinated with the frontend; Phase 12 workers never auto-submit. Note: Phase 14 is largely a deployment/infrastructure milestone (PostgreSQL/Supabase, object storage, hosting, Sentry, backups) — much of it cannot be executed or validated inside this sandbox and will need a real target environment; scope it explicitly before starting. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`
@@ -2712,8 +2724,8 @@ Follow this workflow for every milestone:
 
 ---
 
-**Roadmap Version:** 0.9.8
+**Roadmap Version:** 0.9.9
 **Last Updated:** 2026-07-02
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
-**Status:** Actively maintained — Phases 1–12 COMPLETED; Phase 13 (Authentication, Privacy, and Security) NOT STARTED
+**Status:** Actively maintained — Phases 1–13 COMPLETED; Phase 14 (Production Database and Deployment) NOT STARTED

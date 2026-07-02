@@ -528,7 +528,7 @@ def test_document_extraction_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["c5d6e7f8a9b0"]
+    assert script.get_heads() == ["d6e7f8a9b0c1"]
     assert script.get_revision("b7a3c8d9e012").revision == "b7a3c8d9e012"
 
     command.upgrade(config, "head")

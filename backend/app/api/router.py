@@ -6,6 +6,9 @@ from app.api.routes.application_answer import (
 from app.api.routes.application_package import (
     router as application_package_router,
 )
+from app.api.routes.application_run import (
+    router as application_run_router,
+)
 from app.api.routes.candidate_profile import (
     router as candidate_profile_router,
 )
@@ -101,6 +104,10 @@ api_router.include_router(
 
 api_router.include_router(
     application_package_router,
+)
+
+api_router.include_router(
+    application_run_router,
 )
 
 api_router.include_router(

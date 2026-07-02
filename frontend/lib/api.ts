@@ -91,6 +91,13 @@ import type {
   ApplicationAnswerInput,
 } from "@/types/applicationAnswer";
 
+import type {
+  ApplicationPackage,
+  ApplicationPackageUpdateInput,
+} from "@/types/applicationPackage";
+
+import type { ApplicationRun } from "@/types/applicationRun";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://127.0.0.1:8000";
@@ -1586,4 +1593,102 @@ export async function deleteApplicationAnswer(
   if (!response.ok && response.status !== 204) {
     throw new Error(await readErrorMessage(response));
   }
+}
+
+export async function prepareApplication(
+  jobId: number,
+  signal?: AbortSignal,
+): Promise<ApplicationPackage> {
+  assertPositiveIntegerId(jobId, "job id");
+
+  return requestJsonBody<ApplicationPackage>(
+    `/api/jobs/${jobId}/prepare-application`,
+    "POST",
+    {},
+    signal,
+  );
+}
+
+export async function getApplicationPackage(
+  jobId: number,
+  signal?: AbortSignal,
+): Promise<ApplicationPackage> {
+  assertPositiveIntegerId(jobId, "job id");
+
+  return requestJson<ApplicationPackage>(
+    `/api/jobs/${jobId}/application-package`,
+    { signal },
+  );
+}
+
+export async function updateApplicationPackage(
+  jobId: number,
+  input: ApplicationPackageUpdateInput,
+  signal?: AbortSignal,
+): Promise<ApplicationPackage> {
+  assertPositiveIntegerId(jobId, "job id");
+
+  return requestJsonBody<ApplicationPackage>(
+    `/api/jobs/${jobId}/application-package`,
+    "PUT",
+    input,
+    signal,
+  );
+}
+
+export async function startApplicationRun(
+  jobId: number,
+  signal?: AbortSignal,
+): Promise<ApplicationRun> {
+  assertPositiveIntegerId(jobId, "job id");
+
+  return requestJsonBody<ApplicationRun>(
+    `/api/jobs/${jobId}/apply`,
+    "POST",
+    {},
+    signal,
+  );
+}
+
+export async function getApplicationRun(
+  runId: number,
+  signal?: AbortSignal,
+): Promise<ApplicationRun> {
+  assertPositiveIntegerId(runId, "run id");
+
+  return requestJson<ApplicationRun>(
+    `/api/application-runs/${runId}/status`,
+    { signal },
+  );
+}
+
+export async function resumeApplicationRun(
+  runId: number,
+  confirmationNumber?: string,
+  signal?: AbortSignal,
+): Promise<ApplicationRun> {
+  assertPositiveIntegerId(runId, "run id");
+
+  return requestJsonBody<ApplicationRun>(
+    `/api/application-runs/${runId}/resume`,
+    "POST",
+    confirmationNumber
+      ? { confirmation_number: confirmationNumber }
+      : {},
+    signal,
+  );
+}
+
+export async function cancelApplicationRun(
+  runId: number,
+  signal?: AbortSignal,
+): Promise<ApplicationRun> {
+  assertPositiveIntegerId(runId, "run id");
+
+  return requestJsonBody<ApplicationRun>(
+    `/api/application-runs/${runId}/cancel`,
+    "POST",
+    {},
+    signal,
+  );
 }

@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.5
-**Last Updated:** 2026-07-02 (Phase 9 committed and COMPLETED)
-**Status:** Actively in development — Phase 9 COMPLETED; next milestone Phase 10 (Browser-Assisted Applications) NOT STARTED
+**Version:** 0.9.6
+**Last Updated:** 2026-07-02 (Phase 10 committed and COMPLETED)
+**Status:** Actively in development — Phase 10 COMPLETED (safe workflow/gate engine; live Playwright driver deferred by design); next milestone Phase 11 (Application Tracking Dashboard) NOT STARTED
 
 ---
 
@@ -2055,7 +2055,9 @@ alembic current               # Show database's current revision
 
 ### Phase 10 — Browser-Assisted Applications
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `47f1f3d4ada2177afd5015d310259071f6e739a3`)
+
+> **Safety scope note:** Per the authoritative candidate-truth and automation-safety rules (CLAUDE.md, which overrides the roadmap on conflict), this milestone delivers the safe, human-in-the-loop workflow and safety-gate engine — not live, unattended browser submission. The live Playwright driver is intentionally abstracted behind a driver interface and deferred: the default `manual_assist` driver plans and pauses only. It never bypasses CAPTCHA, MFA, bot detection, rate limits, access controls, or terms of service, and it never submits an application on its own. A future live driver must route through these same gates without bypassing site protections, and requires a real (non-sandbox) environment to validate.
 
 **Goal:** Safely assist with job application workflows using browser automation.
 
@@ -2119,6 +2121,16 @@ alembic current               # Show database's current revision
 - Form filling functional
 - Safety gates enforced
 - All application tests pass
+
+**Implementation Notes (Completed):**
+- New table `application_runs` (FK `job_id` → `normalized_jobs.id` CASCADE, `candidate_profile_id` → `candidate_profiles.id` CASCADE, `application_package_id` → `application_packages.id` SET NULL) via reversible migration `d6e7f8a9b0c1` (follows `c5d6e7f8a9b0`).
+- Fields: `status` (CHECK-constrained: paused_for_gate, submitted, cancelled, failed), `pause_reason`, `gates`/`fill_plan`/`manual_fields` (JSON), `confirmation_number`, `submitted_at`, `error`, `attempts`, `driver`, `workflow_version`, timestamps.
+- Field mapping (`app/services/application_run.py`) is deterministic and verified-only: identity fields and non-sensitive verified answers are auto-fillable; cover letter and tailored-CV PDF are referenced; sensitive/legal answers (work authorization, sponsorship, anything flagged for manual confirmation) and missing required answers go to `manual_fields` and are never auto-filled.
+- Mandatory safety gates with fixed precedence: `captcha` > `mfa` > `assessment` (from the Phase 9 package blockers) > `legal_declaration` (always) > `submission_confirmation` (always, last). The run starts `paused_for_gate`.
+- `resume` acknowledges one gate at a time — recording that the candidate handled it externally; it never bypasses a protection. The submission gate clears only when the candidate supplies a `confirmation_number` (the tool never submits on its own), transitioning the run to `submitted`. `cancel` terminates the run. Apply is idempotent (returns the existing active run) and is rejected for `not_eligible`/`blocked_by_missing_information` packages and for unconfirmed ready/needs_review packages.
+- Endpoints: `POST /api/jobs/{id}/apply`, `GET /api/applications/{id}/status`, `POST /api/applications/{id}/resume`, `POST /api/applications/{id}/cancel`.
+- Validation: full backend suite 405 passed, 1 environment-restricted skip (run in shards for sandbox time limits); `compileall app` passed; isolated temp-DB migration upgrade → downgrade to `c5d6e7f8a9b0` → re-upgrade validated (columns, four indexes, all three FKs incl. SET NULL); Alembic single head `d6e7f8a9b0c1`; migration-parity test updated and passing. Dev database migrated to `d6e7f8a9b0c1` (additive; existing data preserved).
+- **Deferred by design (safety):** live Playwright browser driving and any autonomous submission. No new production dependency (Playwright) was added.
 
 ---
 
@@ -2614,7 +2626,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 9 — Application Preparation (Committed — Git revision `793bac65404fb62529bbe92d52b037fa7a01b8f6`)
+**Last Completed Milestone:** Phase 10 — Browser-Assisted Applications (safe workflow/gate engine; live Playwright driver deferred by design) (Committed — Git revision `47f1f3d4ada2177afd5015d310259071f6e739a3`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2624,11 +2636,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–9 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–10 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 10 — Browser-Assisted Applications
+**First Not-Started Milestone:** Phase 11 — Application Tracking Dashboard
 
-**Immediate Next Action:** Begin Phase 10 only upon explicit request. Committed Alembic head is now `c5d6e7f8a9b0` (Phase 9), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Begin Phase 11 only upon explicit request. Committed Alembic head is now `d6e7f8a9b0c1` (Phase 10), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Note for Phase 10: the live Playwright browser driver is deferred by design (safety); the delivered layer is the human-in-the-loop workflow + safety-gate engine, and any future live driver must route through the same gates without bypassing site protections and needs a real (non-sandbox) environment. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

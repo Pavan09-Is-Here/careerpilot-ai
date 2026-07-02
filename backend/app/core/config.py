@@ -26,3 +26,16 @@ class Settings(BaseSettings):
     session_ttl_minutes: int = 720
     login_rate_limit_max_attempts: int = 10
     login_rate_limit_window_seconds: int = 300
+
+    # Notifications / email delivery. Real sending is enabled only when
+    # an SMTP host is configured; otherwise notifications are recorded
+    # but not sent. Secrets belong in the environment, never in source.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    notification_from_address: str = "careerpilot@localhost"
+
+    # Auto-apply pipeline daily bound on how many jobs to prepare.
+    auto_apply_target_recency_hours: int = 168

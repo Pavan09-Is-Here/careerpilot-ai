@@ -21,6 +21,9 @@ from app.api.routes.application_run import (
 from app.api.routes.candidate_profile import (
     router as candidate_profile_router,
 )
+from app.api.routes.notification import (
+    router as notification_router,
+)
 from app.api.routes.certification import (
     router as certification_router,
 )
@@ -128,6 +131,10 @@ api_router.include_router(
 
 api_router.include_router(
     worker_router,
+)
+
+api_router.include_router(
+    notification_router,
 )
 
 api_router.include_router(

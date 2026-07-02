@@ -19,7 +19,7 @@ Safety:
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -32,9 +32,15 @@ from app.models.job_tailored_cv import JobTailoredCV
 from app.models.worker import AuditLogEntry, WorkerRun
 from app.services.application_package import (
     ApplicationPackageServiceError,
+    load_tailored_cv,
     prepare_application_package,
 )
-from app.services.job_match import JobMatchServiceError, analyze_job_match
+from app.services.job_match import (
+    JobMatchServiceError,
+    analyze_job_match,
+    normalize_token,
+)
+from app.services.notification import create_notification
 
 
 CANDIDATE_PROFILE_ID = 1
@@ -44,6 +50,7 @@ WORKER_ORDER = (
     "job_analysis",
     "application_preparation",
     "expiry_checker",
+    "auto_apply_pipeline",
 )
 
 DAILY_LIMITS: dict[str, dict[str, int]] = {
@@ -51,7 +58,11 @@ DAILY_LIMITS: dict[str, dict[str, int]] = {
     "job_analysis": {"max_runs": 24, "max_items": 100},
     "application_preparation": {"max_runs": 24, "max_items": 100},
     "expiry_checker": {"max_runs": 48, "max_items": 500},
+    "auto_apply_pipeline": {"max_runs": 12, "max_items": 25},
 }
+
+# Default recency window for the auto-apply pipeline (hours).
+AUTO_APPLY_RECENCY_HOURS = 168
 
 MAX_ATTEMPTS = 3
 BACKOFF_BASE_SECONDS = 1.0
@@ -347,11 +358,199 @@ def worker_expiry_checker(ctx: WorkerContext) -> None:
     )
 
 
+def _target_role_tokens(profile: CandidateProfile) -> list[str]:
+    tokens: list[str] = []
+    for role in profile.target_roles or []:
+        cleaned = normalize_token(role)
+        if cleaned:
+            tokens.append(cleaned)
+    return tokens
+
+
+def _job_matches_target(
+    job: NormalizedJob,
+    role_tokens: list[str],
+) -> bool:
+    haystack = normalize_token(
+        f"{job.title} {job.normalized_title or ''}"
+    )
+    return any(token in haystack for token in role_tokens)
+
+
+def worker_auto_apply_pipeline(ctx: WorkerContext) -> None:
+    """Prepare applications for the latest jobs in the candidate's
+    target field — never submitting.
+
+    For each recent, target-matching, eligible job: ensure a match,
+    ensure a tailored CV, prepare the application package, and emit a
+    notification. Submission always remains a human step: this worker
+    stops at a ready-to-review package and notifies the candidate.
+    """
+    from app.schemas.cv_version import CVMasterGenerationRequest
+    from app.services.cv_tailoring import (
+        CVTailoringError,
+        generate_tailored_cv,
+    )
+
+    profile = ctx.database.get(CandidateProfile, CANDIDATE_PROFILE_ID)
+    if profile is None:
+        ctx.audit(
+            "auto_apply_skipped",
+            "No candidate profile exists; auto-apply skipped.",
+            level="warning",
+        )
+        return
+
+    role_tokens = _target_role_tokens(profile)
+    if not role_tokens:
+        ctx.audit(
+            "auto_apply_skipped",
+            "No target roles are set on the profile; set a target "
+            "field to enable auto-apply.",
+            level="warning",
+        )
+        return
+
+    cutoff = ctx.now - timedelta(hours=AUTO_APPLY_RECENCY_HOURS)
+    candidates = list(
+        ctx.database.scalars(
+            select(NormalizedJob)
+            .where(
+                NormalizedJob.lifecycle_status.in_(
+                    ("discovered", "active")
+                ),
+                NormalizedJob.last_seen_at >= cutoff,
+            )
+            .order_by(NormalizedJob.last_seen_at.desc())
+        ).all()
+    )
+    jobs = [
+        job for job in candidates if _job_matches_target(job, role_tokens)
+    ][: ctx.limit]
+
+    for job in jobs:
+        ctx.processed += 1
+        try:
+            match = analyze_job_match(job.id, ctx.database, today=ctx.now.date())
+            if match.eligibility_status == "ineligible":
+                ctx.audit(
+                    "auto_apply_skip_ineligible",
+                    f"'{job.title}' is not eligible; skipped.",
+                    entity_type="job",
+                    entity_id=job.id,
+                )
+                ctx.succeeded += 1
+                continue
+
+            if load_tailored_cv(job.id, ctx.database) is None:
+                try:
+                    generate_tailored_cv(
+                        job.id,
+                        CVMasterGenerationRequest(
+                            idempotency_key=f"auto-apply-job{job.id}",
+                        ),
+                        ctx.database,
+                    )
+                except CVTailoringError as exc:
+                    create_notification(
+                        ctx.database,
+                        category="manual_action_required",
+                        subject=f"Action needed to apply: {job.title}",
+                        body=(
+                            f"CareerPilot could not tailor a CV for "
+                            f"'{job.title}' at {job.employer_name}: "
+                            f"{exc.safe_message} Please resolve this and "
+                            "re-run, or prepare the application manually."
+                        ),
+                        related_job_id=job.id,
+                        dedupe_key=f"manual_action_required:{job.id}",
+                    )
+                    ctx.audit(
+                        "auto_apply_manual",
+                        f"Tailoring blocked for '{job.title}': "
+                        f"{exc.safe_message}",
+                        level="warning",
+                        entity_type="job",
+                        entity_id=job.id,
+                    )
+                    ctx.succeeded += 1
+                    continue
+
+            package = prepare_application_package(job.id, ctx.database)
+
+            if package.readiness_status == (
+                "ready_for_automatic_application"
+            ):
+                create_notification(
+                    ctx.database,
+                    category="application_prepared",
+                    subject=(
+                        f"Ready to submit: {job.title} at "
+                        f"{job.employer_name}"
+                    ),
+                    body=(
+                        f"A tailored application for '{job.title}' at "
+                        f"{job.employer_name} is prepared and ready for "
+                        "your review. Submission is not automated — open "
+                        "CareerPilot to review and submit it."
+                    ),
+                    related_job_id=job.id,
+                    dedupe_key=f"application_prepared:{job.id}",
+                )
+                ctx.audit(
+                    "auto_apply_prepared",
+                    f"Prepared application for '{job.title}'.",
+                    entity_type="job",
+                    entity_id=job.id,
+                )
+            else:
+                create_notification(
+                    ctx.database,
+                    category="manual_action_required",
+                    subject=f"Review needed: {job.title}",
+                    body=(
+                        f"The application for '{job.title}' at "
+                        f"{job.employer_name} needs your attention "
+                        f"(status: {package.readiness_status}). Open "
+                        "CareerPilot to review it."
+                    ),
+                    related_job_id=job.id,
+                    dedupe_key=(
+                        f"manual_action_required:{job.id}:"
+                        f"{package.readiness_status}"
+                    ),
+                )
+                ctx.audit(
+                    "auto_apply_review",
+                    f"'{job.title}' prepared but needs review "
+                    f"({package.readiness_status}).",
+                    level="warning",
+                    entity_type="job",
+                    entity_id=job.id,
+                )
+            ctx.succeeded += 1
+        except (
+            JobMatchServiceError,
+            ApplicationPackageServiceError,
+        ) as exc:
+            ctx.database.rollback()
+            ctx.failed += 1
+            ctx.audit(
+                "auto_apply_failed",
+                f"Auto-apply failed for '{job.title}': "
+                f"{exc.safe_message}",
+                level="error",
+                entity_type="job",
+                entity_id=job.id,
+            )
+
+
 WORKER_REGISTRY: dict[str, Callable[[WorkerContext], None]] = {
     "job_discovery": worker_job_discovery,
     "job_analysis": worker_job_analysis,
     "application_preparation": worker_application_preparation,
     "expiry_checker": worker_expiry_checker,
+    "auto_apply_pipeline": worker_auto_apply_pipeline,
 }
 
 

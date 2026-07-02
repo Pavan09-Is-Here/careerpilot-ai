@@ -9,6 +9,7 @@ WorkerName = Literal[
     "job_analysis",
     "application_preparation",
     "expiry_checker",
+    "auto_apply_pipeline",
 ]
 
 WorkerRunStatus = Literal[

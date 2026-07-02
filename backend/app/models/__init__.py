@@ -31,6 +31,7 @@ from app.models.job import (
 )
 from app.models.job_match import JobMatch
 from app.models.job_tailored_cv import JobTailoredCV
+from app.models.notification import Notification
 from app.models.project import Project
 from app.models.saved_job import SavedJob
 from app.models.skill import Skill
@@ -64,6 +65,7 @@ __all__ = [
     "JobTailoredCV",
     "JobSource",
     "NormalizedJob",
+    "Notification",
     "Project",
     "SavedJob",
     "Skill",

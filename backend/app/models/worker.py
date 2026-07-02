@@ -23,6 +23,7 @@ WORKER_NAMES = (
     "job_analysis",
     "application_preparation",
     "expiry_checker",
+    "auto_apply_pipeline",
 )
 
 WORKER_RUN_STATUSES = (

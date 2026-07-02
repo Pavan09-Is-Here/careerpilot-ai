@@ -248,6 +248,8 @@ def update_application(
     fields = data.model_dump(exclude_unset=True)
 
     now = current_utc_time()
+    previous_status = application.status
+    became_submitted = False
 
     if "status" in fields and fields["status"] is not None:
         target = fields["status"]
@@ -255,6 +257,8 @@ def update_application(
         application.status = target
         if target == "submitted" and application.applied_at is None:
             application.applied_at = now
+        if target == "submitted" and previous_status != "submitted":
+            became_submitted = True
 
     for field_name in (
         "confirmation_number",
@@ -280,7 +284,42 @@ def update_application(
             status_code=409,
         ) from exc
 
+    if became_submitted:
+        _notify_application_submitted(application, database)
+
     return application
+
+
+def _notify_application_submitted(
+    application: Application,
+    database: Session,
+) -> None:
+    """Emit a 'you applied to …' notification. Best-effort — a
+    notification failure must never break the status update."""
+    from app.services.notification import create_notification
+
+    job = database.get(NormalizedJob, application.job_id)
+    title = job.title if job else "a job"
+    employer = job.employer_name if job else "the employer"
+    confirmation = (
+        f" Confirmation: {application.confirmation_number}."
+        if application.confirmation_number
+        else ""
+    )
+    try:
+        create_notification(
+            database,
+            category="application_submitted",
+            subject=f"You applied to {title} at {employer}",
+            body=(
+                f"Your application to '{title}' at {employer} has been "
+                f"recorded as submitted.{confirmation}"
+            ),
+            related_job_id=application.job_id,
+            dedupe_key=f"application_submitted:{application.id}",
+        )
+    except Exception:  # noqa: BLE001 - notification is best-effort
+        database.rollback()
 
 
 def add_note(

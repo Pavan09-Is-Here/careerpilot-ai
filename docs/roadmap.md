@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.4
-**Last Updated:** 2026-07-02 (Phase 8 committed and COMPLETED)
-**Status:** Actively in development — Phase 8 COMPLETED; next milestone Phase 9 (Application Preparation) NOT STARTED
+**Version:** 0.9.5
+**Last Updated:** 2026-07-02 (Phase 9 committed and COMPLETED)
+**Status:** Actively in development — Phase 9 COMPLETED; next milestone Phase 10 (Browser-Assisted Applications) NOT STARTED
 
 ---
 
@@ -1991,7 +1991,7 @@ alembic current               # Show database's current revision
 
 ### Phase 9 — Application Preparation
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `793bac65404fb62529bbe92d52b037fa7a01b8f6`)
 
 **Goal:** Prepare complete application package with CV, answers, and readiness assessment.
 
@@ -2040,6 +2040,16 @@ alembic current               # Show database's current revision
 - Application package assembly working
 - Readiness determination accurate
 - All package tests pass
+
+**Implementation Notes (Completed):**
+- New table `application_packages` (one per job; FK `job_id` → `normalized_jobs.id` CASCADE, unique; FK `candidate_profile_id` → `candidate_profiles.id` CASCADE) via reversible migration `c5d6e7f8a9b0` (follows `b4c5d6e7f8a9`).
+- Fields: `readiness_status` (CHECK-constrained), `cover_letter_text`, `blockers`/`risk_warnings`/`missing_items` (JSON), `user_confirmed`, `user_notes`, `assembly_version`, `prepared_at`, timestamps.
+- Assembly (`app/services/application_package.py`) reads existing artifacts only — the Phase 5 match, Phase 6 tailored CV + artifacts, Phase 8 answers — and computes the Phase 7 salary read-only. It never generates missing pieces; absence is reported as missing information, never fabricated.
+- Cover letter is deterministic and verified-fact-only: candidate's own verified professional summary (verbatim), a verified `company_interest` answer (verbatim), and verified skills the posting explicitly lists as structured requirements. Returns none when the profile is not marked verified.
+- Deterministic readiness precedence: `not_eligible` (match ineligible) > `blocked_by_captcha` > `blocked_by_mfa` > `blocked_by_assessment` (keyword detection in job text) > `blocked_by_missing_information` (missing verified profile, match, tailored CV+artifacts, or required work_authorization/availability answers) > `needs_user_review` (conditional match, unconfirmed sensitive answers, missing recommended answers, salary advisories, stale/expired posting) > `ready_for_automatic_application`.
+- Endpoints: `POST /api/jobs/{id}/prepare-application` (upsert + reassess; resets prior confirmation), `GET /api/jobs/{id}/application-package`, `PUT /api/jobs/{id}/application-package` (confirm/notes; confirming a blocked or ineligible package is rejected). CAPTCHA/MFA/assessment always require manual handling; submission stays a deliberate human action.
+- Validation: full backend suite 395 passed, 1 environment-restricted skip (run in shards for sandbox time limits); `compileall app` passed; isolated temp-DB migration upgrade → downgrade to `b4c5d6e7f8a9` → re-upgrade validated (table created, dropped, recreated with correct columns, indexes, and both CASCADE FKs); Alembic single head `c5d6e7f8a9b0`; migration-parity test updated and passing.
+- No candidate facts fabricated or mutated. Dev database migrated to `c5d6e7f8a9b0` (additive; existing data preserved).
 
 ---
 
@@ -2604,7 +2614,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 8 — Verified Application Answer Vault (Committed — Git revision `ede11b9b7e1e1d59e1f26bc7a28ba99cd8da3e0c`)
+**Last Completed Milestone:** Phase 9 — Application Preparation (Committed — Git revision `793bac65404fb62529bbe92d52b037fa7a01b8f6`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2614,11 +2624,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–8 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–9 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 9 — Application Preparation
+**First Not-Started Milestone:** Phase 10 — Browser-Assisted Applications
 
-**Immediate Next Action:** Begin Phase 9 only upon explicit request. Committed Alembic head is now `b4c5d6e7f8a9` (Phase 8). The real dev database (`backend/careerpilot.db`) was intentionally left at `a3b4c5d6e7f8`; run `alembic upgrade head` against it as a separate, approved change-control step before running the API on it. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Begin Phase 10 only upon explicit request. Committed Alembic head is now `c5d6e7f8a9b0` (Phase 9), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

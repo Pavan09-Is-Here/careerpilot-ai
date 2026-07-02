@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.8.7
-**Last Updated:** 2026-07-02 (Phase 4.2 committed and COMPLETED)
-**Status:** Actively in development — Phase 4.2 COMPLETED; next milestone Phase 4.3 (First Approved Provider Adapter) NOT STARTED
+**Version:** 0.8.8
+**Last Updated:** 2026-07-02 (Phase 4.3 committed and COMPLETED)
+**Status:** Actively in development — Phase 4.3 COMPLETED; next milestone Phase 4.4 (Normalization, Deduplication, and Freshness)
 
 ---
 
@@ -1608,16 +1608,16 @@ alembic current               # Show database's current revision
 
 #### Phase 4.3 — First Approved Provider Adapter
 
-**Milestone Status:** IN REVIEW
+**Milestone Status:** COMPLETED (Committed — Git revision `f9e0e893d1c4fad5aa1dbf1d00d3a94c88194c78`)
 
 **Scope:**
 - Add the first explicitly approved provider adapter only after source policy review
 - Respect provider access mode, attribution, retention, and server-fetch policy
 - Do not add credentials unless explicitly approved for that milestone
 
-**Approved Provider (In Review):** Greenhouse Job Board API — explicitly approved by the user for this milestone. Public, keyless endpoint (`boards-api.greenhouse.io/v1/boards/{board}/jobs`); no credentials are used or stored.
+**Approved Provider:** Greenhouse Job Board API — explicitly approved by the user for this milestone. Public, keyless endpoint (`boards-api.greenhouse.io/v1/boards/{board}/jobs`); no credentials are used or stored.
 
-**Adapter Behaviour (In Review):**
+**Adapter Behaviour:**
 - `app/services/provider_greenhouse.py` with trigger endpoint `POST /api/job-sources/{source_id}/ingest`
 - Fetch is compliance-gated: provider type `greenhouse`, source enabled, allowlisted, `server_fetch_allowed`, access mode `api`, all three policy reviews `approved_for_configured_use`, and a strictly validated `boards-api.greenhouse.io` base URL — no fetch occurs otherwise
 - Full ingestion lifecycle: run created and started, payload snapshot metadata recorded (hash, size, media type), jobs upserted, run completed with counters or failed with a safe generic summary (no URLs, paths, or exception text)
@@ -1632,10 +1632,12 @@ alembic current               # Show database's current revision
 - Content-change refresh, deduplication, freshness scoring (Phase 4.4)
 - Frontend job discovery UI
 
-**Validation Evidence (In Review):**
-- Targeted Phase 4.3 tests passed: 23 tests (mocked HTTP transport; no network access in tests)
-- Complete backend suite passed: 272 tests, 1 sandbox-restricted Quick Look raster test skipped
+**Validation Evidence:**
+- Targeted Phase 4.3 tests passed: 25 tests (mocked HTTP transport; no network access in tests)
+- Complete backend suite passed: 274 tests, 1 sandbox-restricted Quick Look raster test skipped
 - No schema change; no migration required; Alembic head remains `c9d0e1f2a3b4`
+- Independent code review passed; snapshot-before-upsert ordering deliberately retained as fetch-audit behaviour (documented by test)
+- Committed as Git revision `f9e0e893d1c4fad5aa1dbf1d00d3a94c88194c78`
 
 #### Phase 4.4 — Normalization, Deduplication, and Freshness
 
@@ -2507,13 +2509,13 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 4.2 — Ingestion Runs and Source Snapshots (Committed — Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`)
+**Last Completed Milestone:** Phase 4.3 — First Approved Provider Adapter, Greenhouse (Committed — Git revision `f9e0e893d1c4fad5aa1dbf1d00d3a94c88194c78`)
 
-**Current Status:** Phase 4.3 — First Approved Provider Adapter (Greenhouse) is IN REVIEW
+**Current Status:** Phase 4.4 — Normalization, Deduplication, and Freshness is IN PROGRESS (user approved autonomous execution through Phase 4.6)
 
-**First Not-Started Milestone:** Phase 4.4 — Normalization, Deduplication, and Freshness
+**First Not-Started Milestone:** Phase 4.5 — Saved Jobs and Review Workflow
 
-**Immediate Next Action:** Code review and commit of Phase 4.3, then begin Phase 4.4 only upon explicit request
+**Immediate Next Action:** Complete, review, and commit Phase 4.4; continue through Phase 4.6 per user approval
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

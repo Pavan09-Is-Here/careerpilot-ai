@@ -1850,7 +1850,20 @@ alembic current               # Show database's current revision
 
 ### Phase 7 — Salary Recommendation Engine
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** COMPLETED (revision recorded in Current Project Position)
+
+**Implementation Notes (salary-local-1):**
+- Local-data-only by explicit decision: no external market APIs (Glassdoor/Levels.fyi/Paysa would require paid/external API approval per change-control rules; can be added as a later milestone upon explicit approval)
+- Evidence hierarchy: the posting's own advertised range (confidence **high**) → advertised ranges of stored jobs with the *identical* normalized title, same currency and period, no fuzzy analogies (**medium** at ≥3 comparable jobs, otherwise **low**) → **insufficient_data** with no numbers rather than an invented range
+- No currency conversion; dominant (currency, period) group only
+- Deterministic safe-answer templates for salary questions that quote only advertised numbers and never reveal the candidate's declared minimum salary; a below-declared-minimum warning is flagged in factors for the candidate's eyes only
+- Endpoint: `POST /api/salary-recommendation` — computed on demand, nothing persisted, no schema change or migration
+- Full factor list returned with every recommendation for explainability
+
+**Validation Evidence:**
+- Targeted Phase 7 tests passed: 10 tests (confidence calibration, exact-title comparability, currency isolation, no-invention proof, minimum-salary non-disclosure)
+- Complete backend suite passed: 358 tests, 1 sandbox-restricted skip
+- No migration required; Alembic head remains `a3b4c5d6e7f8`
 
 **Goal:** Recommend salary ranges based on role, experience, location, and market data.
 

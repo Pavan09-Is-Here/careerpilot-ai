@@ -26,6 +26,14 @@ from app.schemas.cv_version import (
     CVMasterGenerationResponse,
 )
 from app.schemas.job_match import JobMatchResponse
+from app.schemas.salary import (
+    SalaryRecommendationRequest,
+    SalaryRecommendationResponse,
+)
+from app.services.salary import (
+    SalaryServiceError,
+    recommend_salary,
+)
 from app.services.cv_tailoring import (
     CVTailoringError,
     generate_tailored_cv,
@@ -181,6 +189,27 @@ def get_job_match(
             status_code=exc.status_code,
             detail=exc.safe_message,
         ) from exc
+
+
+@router.post(
+    "/salary-recommendation",
+    response_model=SalaryRecommendationResponse,
+)
+def get_salary_recommendation(
+    payload: SalaryRecommendationRequest,
+    database: Session = Depends(get_db),
+) -> SalaryRecommendationResponse:
+    try:
+        recommendation = recommend_salary(payload.job_id, database)
+    except SalaryServiceError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
+
+    return SalaryRecommendationResponse(
+        **recommendation.__dict__,
+    )
 
 
 @router.post(

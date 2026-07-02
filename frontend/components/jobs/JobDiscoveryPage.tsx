@@ -55,6 +55,14 @@ const REMOTE_OPTIONS: JobRemoteMode[] = [
   "flexible",
 ];
 
+const RECENCY_OPTIONS: { label: string; hours: number | undefined }[] =
+  [
+    { label: "Any time", hours: undefined },
+    { label: "Last 24 hours", hours: 24 },
+    { label: "Last 7 days", hours: 168 },
+    { label: "Last 30 days", hours: 720 },
+  ];
+
 export default function JobDiscoveryPage() {
   const [jobPage, setJobPage] =
     useState<NormalizedJobPage | null>(null);
@@ -76,6 +84,8 @@ export default function JobDiscoveryPage() {
   const [remoteMode, setRemoteMode] = useState<
     JobRemoteMode | undefined
   >(undefined);
+  const [postedWithinHours, setPostedWithinHours] =
+    useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(
     null,
@@ -116,6 +126,7 @@ export default function JobDiscoveryPage() {
           lifecycleStatus,
           employmentType,
           remoteMode,
+          postedWithinHours,
         },
         signal,
       )
@@ -141,6 +152,7 @@ export default function JobDiscoveryPage() {
       lifecycleStatus,
       employmentType,
       remoteMode,
+      postedWithinHours,
     ],
   );
 
@@ -299,6 +311,31 @@ export default function JobDiscoveryPage() {
             {REMOTE_OPTIONS.map((option) => (
               <option key={option} value={option}>
                 {humanizeToken(option)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-slate-400">
+          Posted
+          <select
+            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+            value={postedWithinHours ?? ""}
+            onChange={(event) => {
+              setPage(1);
+              setPostedWithinHours(
+                event.target.value
+                  ? Number(event.target.value)
+                  : undefined,
+              );
+            }}
+          >
+            {RECENCY_OPTIONS.map((option) => (
+              <option
+                key={option.label}
+                value={option.hours ?? ""}
+              >
+                {option.label}
               </option>
             ))}
           </select>

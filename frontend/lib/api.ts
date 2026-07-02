@@ -63,6 +63,19 @@ import type {
   SavedJobUpdateInput,
 } from "@/types/savedJob";
 
+import type {
+  Notification,
+  NotificationDeliverResult,
+  NotificationFilters,
+  NotificationPage,
+} from "@/types/notification";
+
+import type {
+  ApplyProfileSuggestionInput,
+  ApplyProfileSuggestionResult,
+  ProfileSuggestion,
+} from "@/types/profileSuggestion";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://127.0.0.1:8000";
@@ -1236,6 +1249,13 @@ export async function getJobs(
     params.set("remote_mode", filters.remoteMode);
   }
 
+  if (filters.postedWithinHours) {
+    params.set(
+      "posted_within_hours",
+      String(filters.postedWithinHours),
+    );
+  }
+
   return requestJson<NormalizedJobPage>(
     `/api/jobs?${params.toString()}`,
     { signal },
@@ -1316,6 +1336,87 @@ export async function updateSavedJob(
     `/api/saved-jobs/${savedJobId}`,
     "PATCH",
     input,
+    signal,
+  );
+}
+
+export async function getNotifications(
+  filters: NotificationFilters = {},
+  signal?: AbortSignal,
+): Promise<NotificationPage> {
+  const params = new URLSearchParams({
+    limit: String(filters.limit ?? 100),
+    offset: String(filters.offset ?? 0),
+  });
+
+  if (filters.category) {
+    params.set("category", filters.category);
+  }
+
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+
+  return requestJson<NotificationPage>(
+    `/api/notifications?${params.toString()}`,
+    { signal },
+  );
+}
+
+export async function getNotification(
+  notificationId: number,
+  signal?: AbortSignal,
+): Promise<Notification> {
+  assertPositiveIntegerId(
+    notificationId,
+    "notification id",
+  );
+
+  return requestJson<Notification>(
+    `/api/notifications/${notificationId}`,
+    { signal },
+  );
+}
+
+export async function deliverNotifications(
+  signal?: AbortSignal,
+): Promise<NotificationDeliverResult> {
+  return requestJsonBody<NotificationDeliverResult>(
+    "/api/notifications/deliver",
+    "POST",
+    {},
+    signal,
+  );
+}
+
+export async function getDocumentProfileSuggestion(
+  documentId: number,
+  signal?: AbortSignal,
+): Promise<ProfileSuggestion> {
+  assertPositiveIntegerId(documentId, "document id");
+
+  return requestJson<ProfileSuggestion>(
+    `/api/documents/${documentId}/profile-suggestion`,
+    { signal },
+  );
+}
+
+export async function applyDocumentProfileSuggestion(
+  documentId: number,
+  input: ApplyProfileSuggestionInput = {},
+  signal?: AbortSignal,
+): Promise<ApplyProfileSuggestionResult> {
+  assertPositiveIntegerId(documentId, "document id");
+
+  return requestJsonBody<ApplyProfileSuggestionResult>(
+    `/api/documents/${documentId}/apply-profile-suggestion`,
+    "POST",
+    {
+      apply_profile: input.applyProfile ?? true,
+      apply_skills: input.applySkills ?? true,
+      include_sensitive: input.includeSensitive ?? false,
+      overwrite: input.overwrite ?? false,
+    },
     signal,
   );
 }

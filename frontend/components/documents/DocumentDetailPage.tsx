@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import CVVersionCards from "@/components/cv-versions/CVVersionCards";
+import CVAutofillPanel from "@/components/documents/CVAutofillPanel";
 
 import {
   DetailRow,
@@ -928,6 +929,8 @@ export default function DocumentDetailPage({
             </p>
           </SectionPanel>
         </div>
+
+        <CVAutofillPanel documentId={documentId} />
       </div>
     </main>
   );

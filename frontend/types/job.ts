@@ -148,4 +148,5 @@ export type JobListFilters = {
   employer?: string;
   employmentType?: JobEmploymentType;
   remoteMode?: JobRemoteMode;
+  postedWithinHours?: number;
 };

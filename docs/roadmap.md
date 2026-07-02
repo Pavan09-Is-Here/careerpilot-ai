@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.2
-**Last Updated:** 2026-07-02 (Phase 6 committed and COMPLETED)
-**Status:** Actively in development — Phase 6 COMPLETED; next milestone Phase 7 (Salary Recommendation Engine) NOT STARTED
+**Version:** 0.9.3
+**Last Updated:** 2026-07-02 (Phase 7 committed and COMPLETED)
+**Status:** Actively in development — Phase 7 COMPLETED; next milestone Phase 8 (Verified Application Answer Vault) NOT STARTED
 
 ---
 
@@ -1850,7 +1850,7 @@ alembic current               # Show database's current revision
 
 ### Phase 7 — Salary Recommendation Engine
 
-**Milestone Status:** COMPLETED (revision recorded in Current Project Position)
+**Milestone Status:** COMPLETED (Committed — Git revision `d25210c4c2d7377c978977439a1c9a98b7ea5ae9`)
 
 **Implementation Notes (salary-local-1):**
 - Local-data-only by explicit decision: no external market APIs (Glassdoor/Levels.fyi/Paysa would require paid/external API approval per change-control rules; can be added as a later milestone upon explicit approval)
@@ -2594,7 +2594,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 6 — Job-Specific CV Tailoring (Committed — Git revision `76978302cb24dc0d8aaeede64f5b2e4992ae45f6`)
+**Last Completed Milestone:** Phase 7 — Salary Recommendation Engine (Committed — Git revision `d25210c4c2d7377c978977439a1c9a98b7ea5ae9`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2604,11 +2604,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–6 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–7 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 7 — Salary Recommendation Engine
+**First Not-Started Milestone:** Phase 8 — Verified Application Answer Vault
 
-**Immediate Next Action:** Phase 7 requires a user decision on salary data sources (external market data vs. source-stated compensation only). Dev database is at Alembic revision `a3b4c5d6e7f8`. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Begin Phase 8 only upon explicit request. Dev database is at Alembic revision `a3b4c5d6e7f8` (Phase 7 added no schema change). Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

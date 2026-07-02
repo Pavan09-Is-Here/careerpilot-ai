@@ -30,6 +30,9 @@ from app.api.routes.job import (
 from app.api.routes.project import (
     router as project_router,
 )
+from app.api.routes.saved_job import (
+    router as saved_job_router,
+)
 from app.api.routes.skill import (
     router as skill_router,
 )
@@ -88,4 +91,8 @@ api_router.include_router(
 
 api_router.include_router(
     ingestion_router,
+)
+
+api_router.include_router(
+    saved_job_router,
 )

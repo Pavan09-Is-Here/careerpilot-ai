@@ -1641,7 +1641,7 @@ alembic current               # Show database's current revision
 
 #### Phase 4.4 — Normalization, Deduplication, and Freshness
 
-**Milestone Status:** COMPLETED (see revision below)
+**Milestone Status:** COMPLETED (Committed — Git revision `ae36ba6edf065fd7b619ee8bcf7f401d4590f33f`; dev DB migrated to `d0e1f2a3b4c5`)
 
 **Scope:**
 - Normalize approved provider data into `normalized_jobs`
@@ -1664,12 +1664,25 @@ alembic current               # Show database's current revision
 
 #### Phase 4.5 — Saved Jobs and Review Workflow
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** COMPLETED (revision recorded below)
 
 **Scope:**
 - Allow candidate review and saving of discovered jobs
 - Preserve removed, expired, unavailable, and stale jobs for inspection
 - Do not implement matching or applications
+
+**Implementation:**
+- New `saved_jobs` table (migration `e1f2a3b4c5d6`): one review record per job, `RESTRICT` FK so a saved job's underlying data can never be deleted
+- Review workflow: `saved` → `shortlisted`/`dismissed` → `archived` via a validated transition map; `archived` is terminal; records are archived, never deleted (no DELETE endpoint by design)
+- Bounded, validated candidate notes (2,000 chars, control characters rejected)
+- Jobs remain saveable and inspectable in every lifecycle state including removed/expired/unavailable/stale
+- Endpoints: `POST/GET /api/saved-jobs`, `GET/PATCH /api/saved-jobs/{id}` with embedded job summaries
+- No matching or application logic introduced
+
+**Validation Evidence:**
+- Targeted Phase 4.5 tests passed: 16 tests
+- Complete backend suite passed: 308 tests, 1 sandbox-restricted skip
+- Migration validated up/down/re-up; RESTRICT deletion protection covered by test
 
 #### Phase 4.6 — Job Discovery Frontend
 

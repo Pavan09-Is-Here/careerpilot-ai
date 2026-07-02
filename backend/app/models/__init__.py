@@ -25,6 +25,7 @@ from app.models.job import (
     NormalizedJob,
 )
 from app.models.project import Project
+from app.models.saved_job import SavedJob
 from app.models.skill import Skill
 
 __all__ = [
@@ -46,6 +47,7 @@ __all__ = [
     "JobSource",
     "NormalizedJob",
     "Project",
+    "SavedJob",
     "Skill",
     "SourceSnapshot",
 ]

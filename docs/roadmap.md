@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.1
-**Last Updated:** 2026-07-02 (Phase 5 committed and COMPLETED)
-**Status:** Actively in development — Phase 5 COMPLETED; next milestone Phase 6 (Job-Specific CV Tailoring) NOT STARTED
+**Version:** 0.9.2
+**Last Updated:** 2026-07-02 (Phase 6 committed and COMPLETED)
+**Status:** Actively in development — Phase 6 COMPLETED; next milestone Phase 7 (Salary Recommendation Engine) NOT STARTED
 
 ---
 
@@ -1780,7 +1780,7 @@ alembic current               # Show database's current revision
 
 ### Phase 6 — Job-Specific CV Tailoring
 
-**Milestone Status:** COMPLETED (revision recorded in Current Project Position)
+**Milestone Status:** COMPLETED (Committed — Git revision `76978302cb24dc0d8aaeede64f5b2e4992ae45f6`; dev DB migrated to `a3b4c5d6e7f8`)
 
 **Implementation Notes (cv-tailoring-1):**
 - Deterministic tailoring in `app/services/cv_tailoring.py`, reusing the Phase 3.7 verified-master render engine (same DOCX/PDF renderers, artifact validation, and idempotent generation flow)
@@ -2581,7 +2581,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 5 — Job Analysis, Matching, and Eligibility (Committed — Git revision `9738ba88ff764ebb155d397f7e18cff351929a60`)
+**Last Completed Milestone:** Phase 6 — Job-Specific CV Tailoring (Committed — Git revision `76978302cb24dc0d8aaeede64f5b2e4992ae45f6`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2591,11 +2591,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–5 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–6 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 6 — Job-Specific CV Tailoring
+**First Not-Started Milestone:** Phase 7 — Salary Recommendation Engine
 
-**Immediate Next Action:** Begin Phase 6 only upon explicit request. Dev database is at Alembic revision `f2a3b4c5d6e7`. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Phase 7 requires a user decision on salary data sources (external market data vs. source-stated compensation only). Dev database is at Alembic revision `a3b4c5d6e7f8`. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

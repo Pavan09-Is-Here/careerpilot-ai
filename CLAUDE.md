@@ -109,4 +109,4 @@ Be direct and precise. Start substantial tasks with a concise plan and key risks
 
 ## Current project status
 
-See `docs/roadmap.md` → **Current Project Position** for the latest status (roadmap v0.9.1: Phases 1–5 COMPLETED; Phase 6 — Job-Specific CV Tailoring — NOT STARTED).
+See `docs/roadmap.md` → **Current Project Position** for the latest status (roadmap v0.9.2: Phases 1–6 COMPLETED; Phase 7 — Salary Recommendation Engine — NOT STARTED).

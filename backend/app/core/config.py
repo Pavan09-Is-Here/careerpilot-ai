@@ -39,3 +39,23 @@ class Settings(BaseSettings):
 
     # Auto-apply pipeline daily bound on how many jobs to prepare.
     auto_apply_target_recency_hours: int = 168
+
+    # Deployment / infrastructure (Phase 14).
+    # Deployment tier: "development", "staging", or "production".
+    environment: str = "development"
+    # Full SQLAlchemy database URL. When unset, the local SQLite
+    # development database is used. In production set this to a
+    # PostgreSQL URL, e.g. postgresql+psycopg://user:pass@host/db.
+    database_url: str | None = None
+    # Error reporting. Sentry is initialised only when a DSN is set;
+    # otherwise it stays inert. Secrets belong in the environment.
+    sentry_dsn: str | None = None
+    sentry_traces_sample_rate: float = 0.0
+    # Object storage for uploaded documents and generated CVs.
+    # "local" uses the filesystem paths above; "s3" uses the S3
+    # settings below (requires boto3 to be installed).
+    storage_backend: str = "local"
+    s3_bucket: str | None = None
+    s3_region: str | None = None
+    s3_prefix: str = ""
+    s3_endpoint_url: str | None = None

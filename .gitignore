@@ -12,6 +12,9 @@ venv/
 # Local environment files
 .env
 .env.*
+# Placeholder-only example env files are tracked intentionally.
+!.env.example
+!**/.env.example
 
 # Local SQLite data
 backend/careerpilot.db

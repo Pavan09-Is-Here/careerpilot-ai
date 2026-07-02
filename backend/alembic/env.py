@@ -18,8 +18,17 @@ if config.config_file_name is not None:
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.core.config import Settings  # noqa: E402
 from app.core.database import Base  # noqa: E402
 from app.models.candidate_profile import CandidateProfile  # noqa: E402,F401
+
+# When a database URL is configured in the environment
+# (CAREERPILOT_DATABASE_URL, e.g. a PostgreSQL URL in production),
+# use it. Otherwise keep whatever alembic.ini or the caller set (the
+# local SQLite database, or an explicit URL passed by tests).
+_configured_database_url = Settings().database_url
+if _configured_database_url:
+    config.set_main_option("sqlalchemy.url", _configured_database_url)
 from app.models.certification import Certification  # noqa: E402,F401
 from app.models.cv_section import CVSection  # noqa: E402,F401
 from app.models.cv_version import CVVersion  # noqa: E402,F401

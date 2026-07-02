@@ -4,7 +4,36 @@ from fastapi.middleware.cors import (
 )
 
 from app.api.router import api_router
+from app.core.config import Settings
+from app.core.database import engine
 from app.core.security import SecurityHeadersMiddleware
+
+
+settings = Settings()
+
+
+def _init_error_reporting(app_settings: Settings) -> None:
+    """Initialise Sentry only when a DSN is configured.
+
+    Without a DSN this is a no-op, so development and tests run with no
+    external reporting and no secrets in source.
+    """
+    if not app_settings.sentry_dsn:
+        return
+
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=app_settings.sentry_dsn,
+            environment=app_settings.environment,
+            traces_sample_rate=app_settings.sentry_traces_sample_rate,
+        )
+    except Exception:  # noqa: BLE001 - reporting must never block startup
+        pass
+
+
+_init_error_reporting(settings)
 
 
 app = FastAPI(
@@ -49,4 +78,6 @@ async def health_check() -> dict[str, str]:
         "service": "careerpilot-api",
         "status": "healthy",
         "version": "0.7.0",
+        "environment": settings.environment,
+        "database": engine.url.get_backend_name(),
     }

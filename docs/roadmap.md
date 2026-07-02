@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.7
-**Last Updated:** 2026-07-02 (Phase 11 committed and COMPLETED)
-**Status:** Actively in development — Phase 11 COMPLETED; next milestone Phase 12 (Background Automation) NOT STARTED
+**Version:** 0.9.8
+**Last Updated:** 2026-07-02 (Phase 12 committed and COMPLETED)
+**Status:** Actively in development — Phase 12 COMPLETED; next milestone Phase 13 (Authentication, Privacy, and Security) NOT STARTED
 
 ---
 
@@ -2208,7 +2208,9 @@ alembic current               # Show database's current revision
 
 ### Phase 12 — Background Automation
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `f3da9a192417348ac2fa4b77ab78df974ea07e8c`)
+
+> **Safety/architecture scope note:** Workers run as bounded, on-demand cycles (one pass per `POST /api/workers/start`), not always-on daemons — this keeps behaviour deterministic and testable and avoids adding a scheduler/queue production dependency; an external scheduler (cron) is expected to call the endpoint on the desired cadence. There is deliberately **no submission worker** — automation never submits applications (submission stays a human step per the safeguards). The discovery worker respects the source compliance gate (`enabled`, `allowlisted`, `server_fetch_allowed`) and does not perform live network fetches in this environment; a future live fetcher would plug in behind the same gate.
 
 **Goal:** Automated background workers for job discovery, analysis, and application preparation.
 
@@ -2257,6 +2259,15 @@ alembic current               # Show database's current revision
 - Retry logic working
 - Audit logging complete
 - All worker tests pass
+
+**Implementation Notes (Completed):**
+- New tables `worker_runs` and `audit_log_entries` (FK `worker_run_id` → `worker_runs.id` CASCADE) via reversible migration `f8a9b0c1d2e3` (follows `e7f8a9b0c1d2`).
+- `worker_runs`: worker_name, status (CHECK: running/success/partial/failed/skipped), run_date, item counters, retries, error, timing. `audit_log_entries`: worker_run_id, worker_name, action, entity_type/id, level (CHECK: info/warning/error), message, created_at.
+- Framework (`app/services/worker.py`): a worker registry with per-worker daily limits (max_runs, max_items), computed exponential-backoff retries (`compute_backoff_seconds`, capped), and a `process_items` helper that retries each item up to 3 attempts, records failures rather than raising (one bad item never aborts the cycle), and defensively rolls back partial work so the session stays usable. Run counters are held off the ORM object to survive mid-cycle rollbacks.
+- Workers: `job_discovery` (enumerates compliance-gated, fetch-eligible sources; live network fetch deferred), `job_analysis` (analyzes un-analyzed active/discovered jobs via Phase 5), `application_preparation` (prepares packages for eligible + tailored jobs via Phase 9; never submits), `expiry_checker` (marks jobs past `expires_at` as expired). No submission worker exists.
+- Health monitoring (`GET /api/workers/status`) reports per-worker health (healthy/degraded/failed/never_run), last run, and today's count vs. daily limit. Full audit trail via `GET /api/audit-log` (worker/level filters, pagination).
+- Endpoints: `POST /api/workers/start` (body `{worker: name|"all"}`; enforces daily limits, returning `skipped` runs when reached), `GET /api/workers/status`, `GET /api/audit-log`.
+- Validation: full backend suite 427 passed, 1 environment-restricted skip (run in shards for sandbox time limits); `compileall app` passed; isolated temp-DB migration upgrade → downgrade to `e7f8a9b0c1d2` → re-upgrade validated (both tables, all indexes, CASCADE FK); Alembic single head `f8a9b0c1d2e3`; migration-parity test updated. Retry behaviour, daily limits, graceful failure, and audit capture are covered by targeted tests. Dev database migrated to `f8a9b0c1d2e3` (additive; existing data preserved).
 
 ---
 
@@ -2635,7 +2646,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 11 — Application Tracking Dashboard (Committed — Git revision `e5f21d16f37f1be6e2f34f310d0262536016f6db`)
+**Last Completed Milestone:** Phase 12 — Background Automation (Committed — Git revision `f3da9a192417348ac2fa4b77ab78df974ea07e8c`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2645,11 +2656,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–11 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–12 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 12 — Background Automation
+**First Not-Started Milestone:** Phase 13 — Authentication, Privacy, and Security
 
-**Immediate Next Action:** Begin Phase 12 only upon explicit request. Committed Alembic head is now `e7f8a9b0c1d2` (Phase 11), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Reminders: (1) Phase 10's live Playwright browser driver is deferred by design (safety) — the delivered layer is the human-in-the-loop workflow + safety-gate engine at `/api/application-runs/...`, and any future live driver must route through the same gates without bypassing site protections in a real (non-sandbox) environment; (2) Phase 12 background automation must never auto-submit applications (always human-approved) per the safety rules. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Begin Phase 13 only upon explicit request. Committed Alembic head is now `f8a9b0c1d2e3` (Phase 12), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Standing reminders: (1) Phase 10's live Playwright browser driver is deferred by design (safety) — the delivered layer is the human-in-the-loop workflow + safety-gate engine at `/api/application-runs/...`; (2) Phase 12 workers run as bounded, on-demand cycles (external cron drives cadence) and never auto-submit applications. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`
@@ -2701,8 +2712,8 @@ Follow this workflow for every milestone:
 
 ---
 
-**Roadmap Version:** 0.9.7
+**Roadmap Version:** 0.9.8
 **Last Updated:** 2026-07-02
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
-**Status:** Actively maintained — Phases 1–11 COMPLETED; Phase 12 (Background Automation) NOT STARTED
+**Status:** Actively maintained — Phases 1–12 COMPLETED; Phase 13 (Authentication, Privacy, and Security) NOT STARTED

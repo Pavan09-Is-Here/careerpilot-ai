@@ -44,7 +44,7 @@ def start_application(
 
 
 @router.get(
-    "/applications/{run_id}/status",
+    "/application-runs/{run_id}/status",
     response_model=ApplicationRunResponse,
 )
 def get_application_status(
@@ -58,7 +58,7 @@ def get_application_status(
 
 
 @router.post(
-    "/applications/{run_id}/resume",
+    "/application-runs/{run_id}/resume",
     response_model=ApplicationRunResponse,
 )
 def resume_application(
@@ -77,7 +77,7 @@ def resume_application(
 
 
 @router.post(
-    "/applications/{run_id}/cancel",
+    "/application-runs/{run_id}/cancel",
     response_model=ApplicationRunResponse,
 )
 def cancel_application(

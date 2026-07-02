@@ -358,7 +358,7 @@ def test_resume_steps_through_gates_and_records_submission(
 
     # Acknowledge the legal declaration gate (handled by the human).
     after_legal = client.post(
-        f"/api/applications/{run_id}/resume",
+        f"/api/application-runs/{run_id}/resume",
         json={},
     ).json()
     assert after_legal["status"] == "paused_for_gate"
@@ -367,18 +367,18 @@ def test_resume_steps_through_gates_and_records_submission(
     # At the submission gate, no confirmation number -> stays paused,
     # the tool never submits on its own.
     without_number = client.post(
-        f"/api/applications/{run_id}/resume",
+        f"/api/application-runs/{run_id}/resume",
         json={},
     )
     assert without_number.status_code == 400
 
-    still = client.get(f"/api/applications/{run_id}/status").json()
+    still = client.get(f"/api/application-runs/{run_id}/status").json()
     assert still["status"] == "paused_for_gate"
     assert still["confirmation_number"] is None
 
     # Human submits externally and records the confirmation number.
     submitted = client.post(
-        f"/api/applications/{run_id}/resume",
+        f"/api/application-runs/{run_id}/resume",
         json={"confirmation_number": "APP-12345"},
     ).json()
     assert submitted["status"] == "submitted"
@@ -392,14 +392,14 @@ def test_resume_after_submitted_rejected(
 ) -> None:
     job = build_ready_confirmed_package(client, db_session)
     run_id = client.post(f"/api/jobs/{job.id}/apply").json()["id"]
-    client.post(f"/api/applications/{run_id}/resume", json={})
+    client.post(f"/api/application-runs/{run_id}/resume", json={})
     client.post(
-        f"/api/applications/{run_id}/resume",
+        f"/api/application-runs/{run_id}/resume",
         json={"confirmation_number": "APP-1"},
     )
 
     again = client.post(
-        f"/api/applications/{run_id}/resume",
+        f"/api/application-runs/{run_id}/resume",
         json={"confirmation_number": "APP-2"},
     )
     assert again.status_code == 409
@@ -415,13 +415,13 @@ def test_cancel_run(
     job = build_ready_confirmed_package(client, db_session)
     run_id = client.post(f"/api/jobs/{job.id}/apply").json()["id"]
 
-    cancelled = client.post(f"/api/applications/{run_id}/cancel").json()
+    cancelled = client.post(f"/api/application-runs/{run_id}/cancel").json()
     assert cancelled["status"] == "cancelled"
 
-    resume = client.post(f"/api/applications/{run_id}/resume", json={})
+    resume = client.post(f"/api/application-runs/{run_id}/resume", json={})
     assert resume.status_code == 409
 
 
 def test_status_missing_run_404(client: TestClient) -> None:
-    response = client.get("/api/applications/999/status")
+    response = client.get("/api/application-runs/999/status")
     assert response.status_code == 404

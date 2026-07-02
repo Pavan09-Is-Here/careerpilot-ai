@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.3
-**Last Updated:** 2026-07-02 (Phase 7 committed and COMPLETED)
-**Status:** Actively in development — Phase 7 COMPLETED; next milestone Phase 8 (Verified Application Answer Vault) NOT STARTED
+**Version:** 0.9.4
+**Last Updated:** 2026-07-02 (Phase 8 committed and COMPLETED)
+**Status:** Actively in development — Phase 8 COMPLETED; next milestone Phase 9 (Application Preparation) NOT STARTED
 
 ---
 
@@ -1920,7 +1920,7 @@ alembic current               # Show database's current revision
 
 ### Phase 8 — Verified Application Answer Vault
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `ede11b9b7e1e1d59e1f26bc7a28ba99cd8da3e0c`)
 
 **Goal:** Maintain a vault of verified answers to common application questions.
 
@@ -1976,6 +1976,16 @@ alembic current               # Show database's current revision
 - Sensitive question detection working
 - Verified answers retrievable
 - All answer management tests pass
+
+**Implementation Notes (Completed):**
+- New table `application_answers` (single-candidate, FK `candidate_profile_id` → `candidate_profiles.id` CASCADE) via reversible migration `b4c5d6e7f8a9` (follows `a3b4c5d6e7f8`).
+- Fields: `category` (CHECK-constrained enum), `question_label`, `answer_text`, `verified`, `manually_confirmed`, server-derived `requires_manual_confirmation`, `notes`, timestamps. Unique `(candidate_profile_id, category, question_label)` prevents exact duplicates; supports multiple reusable answers per category otherwise.
+- Categories: work_authorization, sponsorship, availability, notice_period, relocation, remote_preference, expected_salary, company_interest, cover_letter, other.
+- Deterministic sensitivity detection (`app/services/application_answer.py`): sensitive categories (work_authorization, sponsorship) plus keyword signals (visa, citizenship, background check, criminal/felony, demographic/EEO, health, disability, veteran, date of birth, social security, etc.). No AI, embeddings, OCR, network, or external services.
+- Truthfulness guard: a sensitive answer cannot be promoted to `verified` unless `manually_confirmed` is true (returns HTTP 400). Sensitive answers may still be stored unverified.
+- API endpoints: `GET /api/application-answers` (optional `category` filter), `GET /api/application-answers/{id}`, `POST /api/application-answers`, `PUT /api/application-answers/{id}`, `DELETE /api/application-answers/{id}`.
+- Validation: full backend suite 377 passed, 1 environment-restricted skip (run as two shards for sandbox time limits); `compileall app` passed; isolated temp-DB migration upgrade → downgrade to `a3b4c5d6e7f8` → re-upgrade validated (table created, dropped, recreated with correct columns, indexes, and FK); Alembic single head `b4c5d6e7f8a9`; migration-parity test updated and passing.
+- No candidate facts are fabricated or mutated; the real development database (`backend/careerpilot.db`) was not modified — applying `alembic upgrade head` to it is a separate change-control step pending approval.
 
 ---
 
@@ -2594,7 +2604,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 7 — Salary Recommendation Engine (Committed — Git revision `d25210c4c2d7377c978977439a1c9a98b7ea5ae9`)
+**Last Completed Milestone:** Phase 8 — Verified Application Answer Vault (Committed — Git revision `ede11b9b7e1e1d59e1f26bc7a28ba99cd8da3e0c`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2604,11 +2614,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–7 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–8 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 8 — Verified Application Answer Vault
+**First Not-Started Milestone:** Phase 9 — Application Preparation
 
-**Immediate Next Action:** Begin Phase 8 only upon explicit request. Dev database is at Alembic revision `a3b4c5d6e7f8` (Phase 7 added no schema change). Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Begin Phase 9 only upon explicit request. Committed Alembic head is now `b4c5d6e7f8a9` (Phase 8). The real dev database (`backend/careerpilot.db`) was intentionally left at `a3b4c5d6e7f8`; run `alembic upgrade head` against it as a separate, approved change-control step before running the API on it. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

@@ -109,4 +109,4 @@ Be direct and precise. Start substantial tasks with a concise plan and key risks
 
 ## Current project status
 
-See `docs/roadmap.md` → **Current Project Position** for the latest status (roadmap v0.8.4: Phase 4.1 — Core Job and Job Source Foundation — in review).
+See `docs/roadmap.md` → **Current Project Position** for the latest status (roadmap v0.8.6: Phase 4.1 COMPLETED; Phase 4.2 — Ingestion Runs and Source Snapshots — NOT STARTED).

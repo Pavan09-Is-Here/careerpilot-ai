@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.8.5
-**Last Updated:** 2026-07-02 (added root `CLAUDE.md` — Claude tooling instructions; no milestone changes)
-**Status:** Actively in development — Phase 4.1 (Core Job and Job Source Foundation) in review
+**Version:** 0.8.6
+**Last Updated:** 2026-07-02 (Phase 4.1 committed and COMPLETED; root `CLAUDE.md` added)
+**Status:** Actively in development — Phase 4.1 COMPLETED; next milestone Phase 4.2 (Ingestion Runs and Source Snapshots) NOT STARTED
 
 ---
 
@@ -75,10 +75,9 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 - Phase 3.7: Verified Master CV Generation ✓ (Truthful DOCX/PDF generation, artifact validation, Unicode PDF rendering)
 - Phase 3.8: Document Management Frontend ✓ (Document upload, review, extraction, comparison, CV-version, generation, artifact download workflows)
 
-**Phase 3 CV Document System:** COMPLETED
+- Phase 4.1: Core Job and Job Source Foundation ✓ (Backend schema, source compliance policy, normalized job read APIs)
 
-**In Review:**
-- Phase 4.1: Core Job and Job Source Foundation (backend schema, source compliance policy, normalized job read APIs)
+**Phase 3 CV Document System:** COMPLETED
 
 **Not Started:**
 - Phase 4.2–14: Ingestion, provider adapters, normalization/deduplication/freshness, saved jobs, frontend job discovery, analysis, matching, tailoring, salary recommendations, application answers, browser automation, tracking, authentication, production deployment
@@ -127,7 +126,7 @@ backend/
 │   │       ├── fact_comparison.py # Comparison run retrieval
 │   │       ├── cv_version.py      # CV version metadata, lifecycle, master generation
 │   │       ├── cv_artifact.py     # Generated CV artifact metadata and downloads
-│   │       └── job.py             # Phase 4.1 read-only source/job APIs (in review)
+│   │       └── job.py             # Phase 4.1 read-only source/job APIs
 │   ├── core/
 │   │   ├── config.py              # Settings (document storage path, etc.)
 │   │   └── database.py            # SQLAlchemy engine, session, Base
@@ -176,7 +175,7 @@ backend/
 │   │   ├── e5f6a7b8c9d0_add_fact_comparison.py (committed)
 │   │   ├── f6a7b8c9d0e1_add_cv_version_management.py (committed)
 │   │   ├── a7b8c9d0e1f2_add_verified_master_cv_generation.py (committed)
-│   │   └── b8c9d0e1f2a3_add_phase_4_1_job_foundation.py (in review)
+│   │   └── b8c9d0e1f2a3_add_phase_4_1_job_foundation.py
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -402,7 +401,7 @@ frontend/
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (working-tree head is `b8c9d0e1f2a3` while Phase 4.1 is in review; committed Phase 3.7 head is `a7b8c9d0e1f2`)
+  - `alembic heads` — Check current migration head (committed Phase 4.1 head is `b8c9d0e1f2a3`)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -422,12 +421,12 @@ frontend/
 - `e5f6a7b8c9d0_add_fact_comparison` (Phase 3.5, committed and validated)
 - `f6a7b8c9d0e1_add_cv_version_management` (Phase 3.6, committed, safely migrated, and validated)
 - `a7b8c9d0e1f2_add_verified_master_cv_generation` (Phase 3.7, committed, safely migrated, and validated)
-- `b8c9d0e1f2a3_add_phase_4_1_job_foundation` (Phase 4.1, in review; not applied to the real development database)
+- `b8c9d0e1f2a3_add_phase_4_1_job_foundation` (Phase 4.1, committed, safely migrated, and validated)
 
 **Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one working-tree head: `b8c9d0e1f2a3`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
-**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`, safely upgrading to the Phase 3.6 migration `f6a7b8c9d0e1`, and safely upgrading to the Phase 3.7 migration `a7b8c9d0e1f2`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, `fact_comparison_findings`, `cv_versions`, and `cv_version_artifacts` exist.
+**Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`, safely upgrading to the Phase 3.6 migration `f6a7b8c9d0e1`, safely upgrading to the Phase 3.7 migration `a7b8c9d0e1f2`, and safely upgrading to the Phase 4.1 migration `b8c9d0e1f2a3`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, `fact_comparison_findings`, `cv_versions`, and `cv_version_artifacts` exist.
 
 ---
 
@@ -1466,7 +1465,7 @@ alembic current               # Show database's current revision
 
 ### Phase 4 — Job Discovery
 
-**Phase Status:** IN REVIEW (Phase 4.1 only)
+**Phase Status:** IN PROGRESS (Phase 4.1 COMPLETED; Phase 4.2+ NOT STARTED)
 
 **Goal:** Build compliant job discovery foundations before any live provider integration.
 
@@ -1483,7 +1482,7 @@ alembic current               # Show database's current revision
 
 #### Phase 4.1 — Core Job and Job Source Foundation
 
-**Milestone Status:** IN REVIEW
+**Milestone Status:** COMPLETED (Committed — Git revision `cd33a9ae9ba0785635627ded887dd37057608320`)
 
 **Scope:**
 - Job sources and source compliance-policy fields
@@ -1495,7 +1494,7 @@ alembic current               # Show database's current revision
 - Safe read-only APIs for sources and jobs
 - Migration, metadata parity, source compliance, URL safety, pagination, and response-shape tests
 
-**Database Schema (In Review):**
+**Database Schema:**
 - New migration `b8c9d0e1f2a3_add_phase_4_1_job_foundation.py` follows committed Phase 3.7 head `a7b8c9d0e1f2`
 - New tables:
   - `job_sources`
@@ -1509,7 +1508,7 @@ alembic current               # Show database's current revision
 - Job source deletion is restricted by normalized job provenance
 - List/filter indexes are added for source, lifecycle, employer, employment type, remote mode, and stable child ordering
 
-**Compliance and Safety Rules (In Review):**
+**Compliance and Safety Rules:**
 - Job sources default to disabled, unallowlisted, server-fetch disabled, and `not_reviewed`
 - A source cannot be enabled unless allowlisted
 - Manual-review sources cannot be enabled until operational review statuses are resolved
@@ -1523,7 +1522,7 @@ alembic current               # Show database's current revision
 - Descriptions and source text are bounded
 - Salary, sponsorship, seniority, employment type, remote mode, and skills are not inferred
 
-**Read-Only API Endpoints (In Review):**
+**Read-Only API Endpoints:**
 - `GET /api/job-sources`
 - `GET /api/job-sources/{source_id}`
 - `GET /api/jobs`
@@ -1542,11 +1541,13 @@ alembic current               # Show database's current revision
 - Saved jobs
 - Frontend pages
 
-**Validation Evidence (In Review):**
+**Validation Evidence:**
 - Targeted Phase 4.1 tests passed: 57 tests
 - Complete backend suite passed: 205 tests, 1 sandbox-restricted Quick Look raster test skipped
-- Real `backend/careerpilot.db` has not been migrated for Phase 4.1 and remains at Alembic revision `a7b8c9d0e1f2` pending review
-- Temporary migration validation upgrades to `b8c9d0e1f2a3`, downgrades to `a7b8c9d0e1f2`, and re-upgrades without touching the real development database
+- Migration validation on a temporary database: upgrade to `b8c9d0e1f2a3`, downgrade to `a7b8c9d0e1f2`, and re-upgrade all clean; fresh-database full cycle (`upgrade head` → `downgrade base` → `upgrade head`) also validated
+- Real `backend/careerpilot.db` safely upgraded to Alembic revision `b8c9d0e1f2a3` after review; existing tables and data preserved
+- Independent code review passed: compliance gating, response leakage, route hygiene, migration reversibility, data safety, input validation, and test coverage checks — no critical or major findings
+- Committed as Git revision `cd33a9ae9ba0785635627ded887dd37057608320`
 
 **Definition of Done:**
 - Phase 4.1 implementation is reviewed and committed
@@ -2445,36 +2446,37 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 3.8 — Document Management Frontend (Committed — Git revision `9790fa6da6ebd7fef44c9c7a01b08a9a533b95eb`)
+**Last Completed Milestone:** Phase 4.1 — Core Job and Job Source Foundation (Committed — Git revision `cd33a9ae9ba0785635627ded887dd37057608320`)
 
-**Current Status:** Phase 4.1 — Core Job and Job Source Foundation is IN REVIEW
+**Current Status:** Phase 4.1 COMPLETED; no milestone in progress
 
 **First Not-Started Milestone:** Phase 4.2 — Ingestion Runs and Source Snapshots
 
-**Immediate Next Action:** Code review and commit of Phase 4.1, then begin Phase 4.2 only upon explicit request
+**Immediate Next Action:** Begin Phase 4.2 only upon explicit request
 
 **Validation Summary:**
-- ✓ Phase 3.8 implementation committed with Git revision `9790fa6da6ebd7fef44c9c7a01b08a9a533b95eb`
-- ✓ Phase 3.8 frontend test suite passed: 46 tests
-- ✓ Phase 3.8 TypeScript type checking passed
-- ✓ Phase 3.8 ESLint passed
-- ✓ Phase 3.8 production build passed; Phase 3.8 did not introduce the existing `next/font/google` network requirement
-- ✓ Phase 3.8 backend OpenAPI contract inspection passed with 33 paths
-- ✓ Phase 3.8 added App Router pages `/documents`, `/documents/[documentId]`, `/cv-versions`, and `/cv-versions/[versionId]`
+- ✓ Phase 4.1 implementation committed with Git revision `cd33a9ae9ba0785635627ded887dd37057608320`
+- ✓ Phase 4.1 targeted tests passed: 57 tests; complete backend suite: 205 passed, 1 environment-restricted skip
+- ✓ Python compile check passed (`python -m compileall app`)
+- ✓ Ruff passed on Phase 4.1 files (unused test imports removed pre-commit)
+- ✓ Migration `b8c9d0e1f2a3` validated: fresh-database full cycle and temporary-copy upgrade/downgrade/re-upgrade, no data loss
+- ✓ Real `backend/careerpilot.db` upgraded to `b8c9d0e1f2a3`; existing tables preserved
+- ✓ Independent code review: no critical or major findings (compliance gating, response leakage, route hygiene, data safety, input validation, test coverage)
+- ✓ New read-only endpoints registered: `GET /api/job-sources`, `GET /api/job-sources/{source_id}`, `GET /api/jobs`, `GET /api/jobs/{job_id}`
 - ✓ Phase 3.8 added document upload, list, detail, status, extraction, section-detection, verified-facts comparison, original CV-version adoption, CV-version lifecycle, Verified Master CV generation, and artifact download UI
 - ✓ Phase 3.8 renders extracted CV and backend content as plain text, does not use `dangerouslySetInnerHTML`, and does not display storage paths or physical stored filenames
 - ✓ Phase 3.8 requires confirmation for destructive archive/delete actions, prevents duplicate upload/comparison/generation submissions, and uses a stable idempotency key for one deliberate generation attempt
 - ✓ Phase 3.8 changed no backend application files and no database files
 - ✓ Phase 3.8 added no PDF, DOCX, TTF, OTF, TTC, generated CV, uploaded CV, secret, or personal document to Git
 - ✓ Phase 3 CV Document System is COMPLETED
-- ✓ Phase 4.1 backend schema and read-only API implementation is in review
+- ✓ Phase 4.1 backend schema and read-only API implementation is COMPLETED (Git revision `cd33a9ae9ba0785635627ded887dd37057608320`)
 - ✓ Phase 4.1 adds no provider credentials, source fetching, scheduled ingestion, scraping, matching, saved jobs, automatic applications, browser automation, or frontend job-discovery UI
 - ✓ Phase 4.1 targeted backend tests passed: 57 tests
 - ✓ Complete backend suite passed: 205 tests, 1 sandbox-restricted Quick Look raster test skipped
-- ✓ Alembic has exactly one working-tree head: `b8c9d0e1f2a3`
-- ✓ Migration chain in review: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1` → `a7b8c9d0e1f2` → `b8c9d0e1f2a3`
+- ✓ Alembic has exactly one committed head: `b8c9d0e1f2a3`
+- ✓ Committed migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1` → `a7b8c9d0e1f2` → `b8c9d0e1f2a3`
 - ✓ Temporary upgrade to `b8c9d0e1f2a3`, downgrade to `a7b8c9d0e1f2`, and re-upgrade to `b8c9d0e1f2a3` passed
-- ✓ Real development database remains unmigrated for Phase 4.1 by instruction and remains at revision `a7b8c9d0e1f2`
+- ✓ Real development database safely upgraded to revision `b8c9d0e1f2a3` after review; existing data preserved
 
 **Immediate Blockers:** None
 
@@ -2500,8 +2502,8 @@ Follow this workflow for every milestone:
 
 ---
 
-**Roadmap Version:** 0.8.4
-**Last Updated:** 2026-06-30
+**Roadmap Version:** 0.8.6
+**Last Updated:** 2026-07-02
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
-**Status:** Actively maintained — Phase 4.1 in review
+**Status:** Actively maintained — Phase 4.1 COMPLETED; Phase 4.2 NOT STARTED

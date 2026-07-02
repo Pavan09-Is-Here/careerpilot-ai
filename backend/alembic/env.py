@@ -29,6 +29,8 @@ from app.models.education import Education  # noqa: E402,F401
 from app.models.experience import Experience  # noqa: E402,F401
 from app.models.fact_comparison import FactComparisonFinding  # noqa: E402,F401
 from app.models.fact_comparison import FactComparisonRun  # noqa: E402,F401
+from app.models.ingestion import IngestionRun  # noqa: E402,F401
+from app.models.ingestion import SourceSnapshot  # noqa: E402,F401
 from app.models.job import JobCompensation  # noqa: E402,F401
 from app.models.job import JobLocation  # noqa: E402,F401
 from app.models.job import JobSkillRequirement  # noqa: E402,F401

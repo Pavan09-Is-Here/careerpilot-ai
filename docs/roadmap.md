@@ -1559,13 +1559,46 @@ alembic current               # Show database's current revision
 
 #### Phase 4.2 — Ingestion Runs and Source Snapshots
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** IN REVIEW
 
 **Scope:**
 - Model ingestion runs and raw/source snapshot metadata
 - Track run status, start/end times, source ownership, and safe failure summaries
 - Define retention cleanup rules without deleting normalized job provenance
 - Keep provider payloads bounded and do not expose them through public APIs
+
+**Database Schema (In Review):**
+- New migration `c9d0e1f2a3b4_add_phase_4_2_ingestion_runs.py` follows committed Phase 4.1 head `b8c9d0e1f2a3`
+- New tables: `ingestion_runs`, `source_snapshots`
+- Runs are owned by job sources (`ondelete=RESTRICT`); snapshots cascade from runs and restrict on sources
+- Run statuses: `pending`, `running`, `succeeded`, `failed`, `cancelled` with service-enforced transitions
+- Non-negative counters (`jobs_discovered`, `jobs_updated`, `snapshots_recorded`); `finished_at` requires `started_at`
+- Snapshot constraints: SHA-256 content hash, non-negative payload size, `expires_at > fetched_at`
+
+**Safety Rules (In Review):**
+- Ingestion runs require an existing, enabled job source
+- Failed runs require a bounded, safe failure summary (control characters and null bytes rejected); succeeded runs cannot carry one
+- Snapshot payload size bounded by `max_source_snapshot_payload_bytes` (default 10 MiB)
+- Snapshot media type and storage reference validated; storage reference is internal-only and never exposed via the API
+- Snapshot expiry derived from the source's `configured_retention_days`, capped at the 365-day maximum
+- Retention cleanup deletes expired snapshot metadata only — never ingestion runs, job sources, or normalized job provenance
+
+**Read-Only API Endpoints (In Review):**
+- `GET /api/ingestion-runs`
+- `GET /api/ingestion-runs/{run_id}`
+- `GET /api/ingestion-runs/{run_id}/snapshots`
+
+**Out of Scope for Phase 4.2:**
+- Provider adapters, HTTP clients, or any live fetching
+- Raw provider payload storage or exposure
+- Background workers or scheduled cleanup
+- Write API endpoints for runs or snapshots
+
+**Validation Evidence (In Review):**
+- Targeted Phase 4.2 tests passed: 34 tests
+- Complete backend suite passed: 247 tests, 1 sandbox-restricted Quick Look raster test skipped
+- Migration validated on a temporary database: fresh full cycle (`upgrade head` → `downgrade base` → `upgrade head`) and targeted upgrade/downgrade/re-upgrade between `b8c9d0e1f2a3` and `c9d0e1f2a3b4`, with job-source row preservation asserted
+- Real `backend/careerpilot.db` has not been migrated for Phase 4.2 and remains at Alembic revision `b8c9d0e1f2a3` pending review
 
 #### Phase 4.3 — First Approved Provider Adapter
 
@@ -2448,11 +2481,11 @@ Follow this workflow for every milestone:
 
 **Last Completed Milestone:** Phase 4.1 — Core Job and Job Source Foundation (Committed — Git revision `cd33a9ae9ba0785635627ded887dd37057608320`)
 
-**Current Status:** Phase 4.1 COMPLETED; no milestone in progress
+**Current Status:** Phase 4.2 — Ingestion Runs and Source Snapshots is IN REVIEW
 
-**First Not-Started Milestone:** Phase 4.2 — Ingestion Runs and Source Snapshots
+**First Not-Started Milestone:** Phase 4.3 — First Approved Provider Adapter
 
-**Immediate Next Action:** Begin Phase 4.2 only upon explicit request
+**Immediate Next Action:** Code review and commit of Phase 4.2, then begin Phase 4.3 only upon explicit request
 
 **Validation Summary:**
 - ✓ Phase 4.1 implementation committed with Git revision `cd33a9ae9ba0785635627ded887dd37057608320`

@@ -21,6 +21,9 @@ from app.api.routes.experience import (
 from app.api.routes.fact_comparison import (
     router as fact_comparison_router,
 )
+from app.api.routes.ingestion import (
+    router as ingestion_router,
+)
 from app.api.routes.job import (
     router as job_router,
 )
@@ -81,4 +84,8 @@ api_router.include_router(
 
 api_router.include_router(
     job_router,
+)
+
+api_router.include_router(
+    ingestion_router,
 )

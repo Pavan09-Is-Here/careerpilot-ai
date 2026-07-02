@@ -33,6 +33,7 @@ from app.services.job import (
 
 PHASE37_HEAD = "a7b8c9d0e1f2"
 PHASE41_HEAD = "b8c9d0e1f2a3"
+CHAIN_HEAD = "c9d0e1f2a3b4"
 
 
 def content_hash(seed: str | None = None) -> str:
@@ -858,7 +859,7 @@ def test_phase41_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == [PHASE41_HEAD]
+    assert script.get_heads() == [CHAIN_HEAD]
     assert script.get_revision(PHASE41_HEAD).down_revision == PHASE37_HEAD
 
     command.upgrade(config, "head")
@@ -907,7 +908,7 @@ def test_exactly_one_alembic_head() -> None:
     config.set_main_option("script_location", str(backend_dir / "alembic"))
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == [PHASE41_HEAD]
+    assert script.get_heads() == [CHAIN_HEAD]
 
 
 def test_real_database_remains_unchanged_by_temp_migration(

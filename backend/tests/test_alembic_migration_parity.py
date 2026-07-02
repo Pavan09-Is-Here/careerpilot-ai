@@ -17,6 +17,8 @@ from app.models.education import Education  # noqa: F401
 from app.models.experience import Experience  # noqa: F401
 from app.models.fact_comparison import FactComparisonFinding  # noqa: F401
 from app.models.fact_comparison import FactComparisonRun  # noqa: F401
+from app.models.ingestion import IngestionRun  # noqa: F401
+from app.models.ingestion import SourceSnapshot  # noqa: F401
 from app.models.job import JobCompensation  # noqa: F401
 from app.models.job import JobLocation  # noqa: F401
 from app.models.job import JobSkillRequirement  # noqa: F401
@@ -44,6 +46,8 @@ EXPECTED_APPLICATION_TABLES = {
     "job_locations",
     "job_compensations",
     "job_skill_requirements",
+    "ingestion_runs",
+    "source_snapshots",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -99,6 +103,13 @@ EXPECTED_FOREIGN_KEYS = {
     },
     "job_skill_requirements": {
         ("job_id", "normalized_jobs", "id", "CASCADE"),
+    },
+    "ingestion_runs": {
+        ("job_source_id", "job_sources", "id", "RESTRICT"),
+    },
+    "source_snapshots": {
+        ("ingestion_run_id", "ingestion_runs", "id", "CASCADE"),
+        ("job_source_id", "job_sources", "id", "RESTRICT"),
     },
 }
 
@@ -167,6 +178,18 @@ EXPECTED_INDEXES = {
         "ix_job_skill_requirements_requirement_type",
         "ix_job_skill_requirements_normalized_skill_key",
     },
+    "ingestion_runs": {
+        "ix_ingestion_runs_job_source_id",
+        "ix_ingestion_runs_run_status",
+        "ix_ingestion_runs_source_created",
+    },
+    "source_snapshots": {
+        "ix_source_snapshots_ingestion_run_id",
+        "ix_source_snapshots_job_source_id",
+        "ix_source_snapshots_content_hash",
+        "ix_source_snapshots_expires_at",
+        "ix_source_snapshots_run_fetched",
+    },
 }
 
 
@@ -199,7 +222,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["b8c9d0e1f2a3"]
+    assert script.get_heads() == ["c9d0e1f2a3b4"]
 
     command.upgrade(config, "head")
 

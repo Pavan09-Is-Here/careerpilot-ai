@@ -18,3 +18,4 @@ class Settings(BaseSettings):
     max_generated_cv_file_size_bytes: int = 5 * 1024 * 1024
     max_document_extracted_text_characters: int = 200_000
     default_job_source_retention_days: int = 30
+    max_source_snapshot_payload_bytes: int = 10 * 1024 * 1024

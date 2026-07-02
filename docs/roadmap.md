@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.0
-**Last Updated:** 2026-07-02 (Phases 4.3–4.6 committed; Phase 4 Job Discovery COMPLETED)
-**Status:** Actively in development — Phase 4 COMPLETED; next milestone Phase 5 (Job Analysis, Matching, and Eligibility) NOT STARTED
+**Version:** 0.9.1
+**Last Updated:** 2026-07-02 (Phase 5 committed and COMPLETED)
+**Status:** Actively in development — Phase 5 COMPLETED; next milestone Phase 6 (Job-Specific CV Tailoring) NOT STARTED
 
 ---
 
@@ -1713,7 +1713,7 @@ alembic current               # Show database's current revision
 
 ### Phase 5 — Job Analysis, Matching, and Eligibility
 
-**Milestone Status:** COMPLETED (revision recorded in Current Project Position)
+**Milestone Status:** COMPLETED (Committed — Git revision `9738ba88ff764ebb155d397f7e18cff351929a60`; dev DB migrated to `f2a3b4c5d6e7`)
 
 **Implementation Notes (match-algorithm-1):**
 - Deterministic, versioned, rule-based scoring in `app/services/job_match.py`; no ML or inference — every score line is explained in the stored `explanation`
@@ -2567,7 +2567,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 4.6 — Job Discovery Frontend (Phase 4 Job Discovery COMPLETE)
+**Last Completed Milestone:** Phase 5 — Job Analysis, Matching, and Eligibility (Committed — Git revision `9738ba88ff764ebb155d397f7e18cff351929a60`)
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2577,11 +2577,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phase 4 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–5 COMPLETED; no milestone in progress
 
-**First Not-Started Milestone:** Phase 5 — Job Analysis, Matching, and Eligibility
+**First Not-Started Milestone:** Phase 6 — Job-Specific CV Tailoring
 
-**Immediate Next Action:** Begin Phase 5 only upon explicit request. Dev database is at Alembic revision `e1f2a3b4c5d6`. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Begin Phase 6 only upon explicit request. Dev database is at Alembic revision `f2a3b4c5d6e7`. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

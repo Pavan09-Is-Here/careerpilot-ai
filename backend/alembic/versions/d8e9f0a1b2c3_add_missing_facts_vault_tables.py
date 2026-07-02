@@ -20,45 +20,10 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
 
-    op.create_table(
-        "candidate_profiles",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("full_name", sa.String(length=150), nullable=False),
-        sa.Column("email", sa.String(length=255), nullable=False),
-        sa.Column("phone", sa.String(length=50), nullable=True),
-        sa.Column("location", sa.String(length=150), nullable=True),
-        sa.Column(
-            "professional_title",
-            sa.String(length=200),
-            nullable=True,
-        ),
-        sa.Column("professional_summary", sa.Text(), nullable=True),
-        sa.Column("linkedin_url", sa.String(length=500), nullable=True),
-        sa.Column("github_url", sa.String(length=500), nullable=True),
-        sa.Column("portfolio_url", sa.String(length=500), nullable=True),
-        sa.Column("work_authorization", sa.String(length=250), nullable=True),
-        sa.Column("requires_sponsorship", sa.Boolean(), nullable=False),
-        sa.Column("willing_to_relocate", sa.Boolean(), nullable=False),
-        sa.Column("preferred_work_modes", sa.JSON(), nullable=False),
-        sa.Column("target_roles", sa.JSON(), nullable=False),
-        sa.Column("preferred_locations", sa.JSON(), nullable=False),
-        sa.Column("minimum_salary", sa.Integer(), nullable=True),
-        sa.Column("salary_currency", sa.String(length=10), nullable=False),
-        sa.Column("minimum_match_score", sa.Integer(), nullable=False),
-        sa.Column("auto_apply_enabled", sa.Boolean(), nullable=False),
-        sa.Column("facts_verified", sa.Boolean(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
+    # candidate_profiles is created in the baseline migration
+    # (6a528be87510) so the documents table's foreign key resolves on
+    # PostgreSQL. This migration adds the remaining facts-vault tables
+    # that reference it.
 
     op.create_table(
         "education",
@@ -289,4 +254,6 @@ def downgrade() -> None:
         table_name="education",
     )
     op.drop_table("education")
-    op.drop_table("candidate_profiles")
+    # candidate_profiles is dropped by the baseline migration's
+    # downgrade (6a528be87510), after documents, so its foreign key
+    # resolves on PostgreSQL.

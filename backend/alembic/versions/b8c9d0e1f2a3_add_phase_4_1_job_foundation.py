@@ -128,13 +128,13 @@ def upgrade() -> None:
         sa.Column(
             "enabled",
             sa.Boolean(),
-            server_default=sa.text("0"),
+            server_default=sa.text("false"),
             nullable=False,
         ),
         sa.Column(
             "allowlisted",
             sa.Boolean(),
-            server_default=sa.text("0"),
+            server_default=sa.text("false"),
             nullable=False,
         ),
         sa.Column(
@@ -146,7 +146,7 @@ def upgrade() -> None:
         sa.Column(
             "attribution_required",
             sa.Boolean(),
-            server_default=sa.text("0"),
+            server_default=sa.text("false"),
             nullable=False,
         ),
         sa.Column("attribution_text", sa.String(length=500), nullable=True),
@@ -168,7 +168,7 @@ def upgrade() -> None:
         sa.Column(
             "manual_review_required",
             sa.Boolean(),
-            server_default=sa.text("1"),
+            server_default=sa.text("true"),
             nullable=False,
         ),
         sa.Column(
@@ -180,7 +180,7 @@ def upgrade() -> None:
         sa.Column(
             "server_fetch_allowed",
             sa.Boolean(),
-            server_default=sa.text("0"),
+            server_default=sa.text("false"),
             nullable=False,
         ),
         sa.Column(
@@ -515,7 +515,7 @@ def upgrade() -> None:
         sa.Column(
             "source_provided",
             sa.Boolean(),
-            server_default=sa.text("1"),
+            server_default=sa.text("true"),
             nullable=False,
         ),
         sa.Column("normalization_version", sa.String(length=100), nullable=True),
@@ -568,7 +568,7 @@ def upgrade() -> None:
         sa.Column(
             "explicitly_supplied",
             sa.Boolean(),
-            server_default=sa.text("1"),
+            server_default=sa.text("true"),
             nullable=False,
         ),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -623,7 +623,7 @@ def upgrade() -> None:
         sa.Column(
             "source_provided",
             sa.Boolean(),
-            server_default=sa.text("1"),
+            server_default=sa.text("true"),
             nullable=False,
         ),
         sa.Column("normalization_version", sa.String(length=100), nullable=True),

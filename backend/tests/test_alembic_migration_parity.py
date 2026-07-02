@@ -25,6 +25,7 @@ from app.models.job import JobLocation  # noqa: F401
 from app.models.job import JobSkillRequirement  # noqa: F401
 from app.models.job import JobSource  # noqa: F401
 from app.models.job import NormalizedJob  # noqa: F401
+from app.models.job_match import JobMatch  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.saved_job import SavedJob  # noqa: F401
 from app.models.skill import Skill  # noqa: F401
@@ -52,6 +53,7 @@ EXPECTED_APPLICATION_TABLES = {
     "source_snapshots",
     "job_duplicates",
     "saved_jobs",
+    "job_matches",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -121,6 +123,15 @@ EXPECTED_FOREIGN_KEYS = {
     },
     "saved_jobs": {
         ("job_id", "normalized_jobs", "id", "RESTRICT"),
+    },
+    "job_matches": {
+        ("job_id", "normalized_jobs", "id", "CASCADE"),
+        (
+            "candidate_profile_id",
+            "candidate_profiles",
+            "id",
+            "CASCADE",
+        ),
     },
 }
 
@@ -209,6 +220,11 @@ EXPECTED_INDEXES = {
         "ix_saved_jobs_job_id",
         "ix_saved_jobs_review_status",
     },
+    "job_matches": {
+        "ix_job_matches_job_id",
+        "ix_job_matches_candidate_profile_id",
+        "ix_job_matches_eligibility_status",
+    },
 }
 
 
@@ -241,7 +257,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["e1f2a3b4c5d6"]
+    assert script.get_heads() == ["f2a3b4c5d6e7"]
 
     command.upgrade(config, "head")
 

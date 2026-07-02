@@ -37,6 +37,7 @@ from app.models.job import JobLocation  # noqa: E402,F401
 from app.models.job import JobSkillRequirement  # noqa: E402,F401
 from app.models.job import JobSource  # noqa: E402,F401
 from app.models.job import NormalizedJob  # noqa: E402,F401
+from app.models.job_match import JobMatch  # noqa: E402,F401
 from app.models.project import Project  # noqa: E402,F401
 from app.models.saved_job import SavedJob  # noqa: E402,F401
 from app.models.skill import Skill  # noqa: E402,F401

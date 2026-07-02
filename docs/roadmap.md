@@ -1713,7 +1713,21 @@ alembic current               # Show database's current revision
 
 ### Phase 5 — Job Analysis, Matching, and Eligibility
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** COMPLETED (revision recorded in Current Project Position)
+
+**Implementation Notes (match-algorithm-1):**
+- Deterministic, versioned, rule-based scoring in `app/services/job_match.py`; no ML or inference — every score line is explained in the stored `explanation`
+- Only `verified = TRUE` vault records count as evidence; unverified records are excluded and surfaced in explanations
+- Missing data policy ("unknown ≠ unqualified"): components without enough data score NULL and are excluded from the weighted overall score (weights renormalized); they flag manual review instead of penalizing the candidate
+- Component evidence: skills = structured job skill requirements vs verified skill names (required ×1.0, preferred ×0.5); experience = merged non-overlapping verified date ranges vs explicit "N+ years" phrases; education = deterministic degree-tier keywords; projects = verified project technologies covering job skills; location = job locations/remote mode vs declared preferences and relocation willingness; work authorization = declared sponsorship needs vs explicit posting phrases
+- Ineligible requires an explicit contradiction (candidate requires sponsorship + posting explicitly refuses); all unknowns → conditionally_eligible with listed review reasons
+- `job_matches` table (migration `f2a3b4c5d6e7`) with 0–100 range checks and one match per (job, profile); re-analysis updates in place
+- Endpoints: `POST /api/jobs/{id}/analyze`, `GET /api/jobs/{id}/match`
+
+**Validation Evidence:**
+- Targeted Phase 5 tests passed: 26 tests (scoring, blockers, eligibility, explainability, no-fact-mutation, endpoints, migration cycle)
+- Complete backend suite passed: 334 tests, 1 sandbox-restricted skip
+- Analysis proven not to modify candidate facts (dedicated test)
 
 **Goal:** Analyze job requirements, match against candidate qualifications, assess eligibility.
 

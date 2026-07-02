@@ -21,6 +21,12 @@ from app.services.job import (
     list_normalized_jobs,
     build_job_detail,
 )
+from app.schemas.job_match import JobMatchResponse
+from app.services.job_match import (
+    JobMatchServiceError,
+    analyze_job_match,
+    get_job_match_or_404,
+)
 from app.services.job_normalization import (
     JobNormalizationError,
     list_job_duplicates,
@@ -131,6 +137,41 @@ def get_job_metadata(
         return build_job_detail(job, database)
     except JobServiceError as exc:
         raise_job_http_error(exc)
+
+
+@router.post(
+    "/jobs/{job_id}/analyze",
+    response_model=JobMatchResponse,
+    status_code=201,
+)
+def analyze_job(
+    job_id: int,
+    database: Session = Depends(get_db),
+) -> JobMatchResponse:
+    try:
+        return analyze_job_match(job_id, database)
+    except JobMatchServiceError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
+
+
+@router.get(
+    "/jobs/{job_id}/match",
+    response_model=JobMatchResponse,
+)
+def get_job_match(
+    job_id: int,
+    database: Session = Depends(get_db),
+) -> JobMatchResponse:
+    try:
+        return get_job_match_or_404(job_id, database)
+    except JobMatchServiceError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
 
 
 @router.get(

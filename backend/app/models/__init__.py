@@ -24,6 +24,7 @@ from app.models.job import (
     JobSource,
     NormalizedJob,
 )
+from app.models.job_match import JobMatch
 from app.models.project import Project
 from app.models.saved_job import SavedJob
 from app.models.skill import Skill
@@ -43,6 +44,7 @@ __all__ = [
     "JobCompensation",
     "JobDuplicate",
     "JobLocation",
+    "JobMatch",
     "JobSkillRequirement",
     "JobSource",
     "NormalizedJob",

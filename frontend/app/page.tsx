@@ -20,6 +20,17 @@ const documentSections = [
   },
 ];
 
+const jobSections = [
+  {
+    label: "Job discovery",
+    href: "/jobs",
+  },
+  {
+    label: "Saved jobs",
+    href: "/saved-jobs",
+  },
+];
+
 export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
@@ -108,6 +119,41 @@ export default function DashboardPage() {
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {documentSections.map((section) => (
+              <Link
+                key={section.href}
+                href={section.href}
+                className="rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm font-medium text-slate-200 transition hover:border-blue-500 hover:text-blue-300"
+              >
+                {section.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-xl font-semibold">
+                Job discovery
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Browse jobs from approved,
+                compliance-reviewed sources and manage
+                your saved-job review workflow.
+              </p>
+            </div>
+
+            <Link
+              href="/jobs"
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-blue-300 transition hover:border-blue-500"
+            >
+              Open job discovery
+            </Link>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {jobSections.map((section) => (
               <Link
                 key={section.href}
                 href={section.href}

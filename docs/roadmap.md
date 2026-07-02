@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.8.8
-**Last Updated:** 2026-07-02 (Phase 4.3 committed and COMPLETED)
-**Status:** Actively in development — Phase 4.3 COMPLETED; next milestone Phase 4.4 (Normalization, Deduplication, and Freshness)
+**Version:** 0.9.0
+**Last Updated:** 2026-07-02 (Phases 4.3–4.6 committed; Phase 4 Job Discovery COMPLETED)
+**Status:** Actively in development — Phase 4 COMPLETED; next milestone Phase 5 (Job Analysis, Matching, and Eligibility) NOT STARTED
 
 ---
 
@@ -77,11 +77,16 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 
 - Phase 4.1: Core Job and Job Source Foundation ✓ (Backend schema, source compliance policy, normalized job read APIs)
 - Phase 4.2: Ingestion Runs and Source Snapshots ✓ (Run lifecycle tracking, bounded snapshot metadata, retention cleanup, read-only run APIs)
+- Phase 4.3: First Approved Provider Adapter ✓ (Greenhouse Job Board API, keyless, compliance-gated fetch)
+- Phase 4.4: Normalization, Deduplication, and Freshness ✓ (Content refresh, exact-signal duplicate links, lifecycle freshness)
+- Phase 4.5: Saved Jobs and Review Workflow ✓ (Review statuses, archive-not-delete, provenance protection)
+- Phase 4.6: Job Discovery Frontend ✓ (Job browsing, detail, saved-job review UI)
 
 **Phase 3 CV Document System:** COMPLETED
+**Phase 4 Job Discovery:** COMPLETED
 
 **Not Started:**
-- Phase 4.3–14: Provider adapters, normalization/deduplication/freshness, saved jobs, frontend job discovery, analysis, matching, tailoring, salary recommendations, application answers, browser automation, tracking, authentication, production deployment
+- Phase 5–14: Analysis/matching/eligibility, CV tailoring, salary recommendations, application answers, application preparation, browser automation, tracking, background automation, authentication, production deployment
 
 ---
 
@@ -1469,7 +1474,7 @@ alembic current               # Show database's current revision
 
 ### Phase 4 — Job Discovery
 
-**Phase Status:** IN PROGRESS (Phases 4.1–4.2 COMPLETED; Phase 4.3+ NOT STARTED)
+**Phase Status:** COMPLETED (Phases 4.1–4.6 all COMPLETED)
 
 **Goal:** Build compliant job discovery foundations before any live provider integration.
 
@@ -1664,7 +1669,7 @@ alembic current               # Show database's current revision
 
 #### Phase 4.5 — Saved Jobs and Review Workflow
 
-**Milestone Status:** COMPLETED (revision recorded below)
+**Milestone Status:** COMPLETED (Committed — Git revision `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`; dev DB migrated to `e1f2a3b4c5d6`)
 
 **Scope:**
 - Allow candidate review and saving of discovered jobs
@@ -1686,11 +1691,23 @@ alembic current               # Show database's current revision
 
 #### Phase 4.6 — Job Discovery Frontend
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** COMPLETED (revision recorded in Current Project Position)
 
 **Scope:**
 - Add frontend views for safe job source/job browsing after backend read and review workflows are ready
 - Do not add provider setup, credentials, automatic refresh, matching, or applications
+
+**Implementation:**
+- App Router pages: `/jobs` (discovery list with source/lifecycle/employment/remote filters, pagination, save action), `/jobs/[jobId]` (full detail incl. locations, source-stated compensation and skills, attribution, duplicate links), `/saved-jobs` (review workflow with status filters and validated transitions)
+- Components in `components/jobs/`, API functions in `lib/api.ts`, types in `types/job.ts` / `types/savedJob.ts` — no `src/` directory, existing conventions preserved
+- All provider content rendered as plain text (no `dangerouslySetInnerHTML`); external links use `rel="noopener noreferrer"`; no provider setup, credential, auto-refresh, matching, or application UI (enforced by tests)
+- Saved-job UI archives instead of deleting, mirroring the backend workflow
+- Dashboard links to Job discovery and Saved jobs added
+
+**Validation Evidence:**
+- Frontend test suite passed: 54 tests (8 new Phase 4.6 tests)
+- ESLint passed; TypeScript strict check passed
+- `npm run build` blocked in the validation sandbox only by the pre-existing `next/font/google` network requirement documented since Phase 3.8; run locally to confirm
 
 ---
 
@@ -2536,13 +2553,21 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 4.3 — First Approved Provider Adapter, Greenhouse (Committed — Git revision `f9e0e893d1c4fad5aa1dbf1d00d3a94c88194c78`)
+**Last Completed Milestone:** Phase 4.6 — Job Discovery Frontend (Phase 4 Job Discovery COMPLETE)
 
-**Current Status:** Phase 4.4 — Normalization, Deduplication, and Freshness is IN PROGRESS (user approved autonomous execution through Phase 4.6)
+**Phase 4 Commit Chain:**
+- Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
+- Phase 4.2 `651170904a5f9f61a562713e97b9f676df2c81ca`
+- Phase 4.3 `f9e0e893d1c4fad5aa1dbf1d00d3a94c88194c78`
+- Phase 4.4 `ae36ba6edf065fd7b619ee8bcf7f401d4590f33f`
+- Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
+- Phase 4.6 — see final Phase 4 commit in `git log`
 
-**First Not-Started Milestone:** Phase 4.5 — Saved Jobs and Review Workflow
+**Current Status:** Phase 4 COMPLETED; no milestone in progress
 
-**Immediate Next Action:** Complete, review, and commit Phase 4.4; continue through Phase 4.6 per user approval
+**First Not-Started Milestone:** Phase 5 — Job Analysis, Matching, and Eligibility
+
+**Immediate Next Action:** Begin Phase 5 only upon explicit request. Dev database is at Alembic revision `e1f2a3b4c5d6`. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

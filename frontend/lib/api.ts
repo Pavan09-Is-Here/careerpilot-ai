@@ -48,6 +48,21 @@ import type {
   DownloadedArtifact,
 } from "@/types/cvVersion";
 
+import type {
+  JobDuplicateList,
+  JobListFilters,
+  JobSourcePage,
+  NormalizedJobDetail,
+  NormalizedJobPage,
+} from "@/types/job";
+
+import type {
+  SavedJob,
+  SavedJobPage,
+  SavedJobReviewStatus,
+  SavedJobUpdateInput,
+} from "@/types/savedJob";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://127.0.0.1:8000";
@@ -1168,4 +1183,139 @@ export async function downloadCVArtifact(
     ),
     mime_type: response.headers.get("Content-Type"),
   };
+}
+
+export async function getJobSources(
+  page = 1,
+  pageSize = 50,
+  signal?: AbortSignal,
+): Promise<JobSourcePage> {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+
+  return requestJson<JobSourcePage>(
+    `/api/job-sources?${params.toString()}`,
+    { signal },
+  );
+}
+
+export async function getJobs(
+  filters: JobListFilters = {},
+  signal?: AbortSignal,
+): Promise<NormalizedJobPage> {
+  const params = new URLSearchParams({
+    page: String(filters.page ?? 1),
+    page_size: String(filters.pageSize ?? 50),
+  });
+
+  if (filters.sourceId) {
+    params.set("source", String(filters.sourceId));
+  }
+
+  if (filters.lifecycleStatus) {
+    params.set(
+      "lifecycle_status",
+      filters.lifecycleStatus,
+    );
+  }
+
+  if (filters.employer) {
+    params.set("employer", filters.employer);
+  }
+
+  if (filters.employmentType) {
+    params.set(
+      "employment_type",
+      filters.employmentType,
+    );
+  }
+
+  if (filters.remoteMode) {
+    params.set("remote_mode", filters.remoteMode);
+  }
+
+  return requestJson<NormalizedJobPage>(
+    `/api/jobs?${params.toString()}`,
+    { signal },
+  );
+}
+
+export async function getJob(
+  jobId: number,
+  signal?: AbortSignal,
+): Promise<NormalizedJobDetail> {
+  assertPositiveIntegerId(jobId, "job id");
+
+  return requestJson<NormalizedJobDetail>(
+    `/api/jobs/${jobId}`,
+    { signal },
+  );
+}
+
+export async function getJobDuplicates(
+  jobId: number,
+  signal?: AbortSignal,
+): Promise<JobDuplicateList> {
+  assertPositiveIntegerId(jobId, "job id");
+
+  return requestJson<JobDuplicateList>(
+    `/api/jobs/${jobId}/duplicates`,
+    { signal },
+  );
+}
+
+export async function saveJob(
+  jobId: number,
+  notes?: string,
+  signal?: AbortSignal,
+): Promise<SavedJob> {
+  assertPositiveIntegerId(jobId, "job id");
+
+  return requestJsonBody<SavedJob>(
+    "/api/saved-jobs",
+    "POST",
+    notes ? { job_id: jobId, notes } : { job_id: jobId },
+    signal,
+  );
+}
+
+export async function getSavedJobs(
+  page = 1,
+  pageSize = 50,
+  reviewStatus?: SavedJobReviewStatus,
+  signal?: AbortSignal,
+): Promise<SavedJobPage> {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+
+  if (reviewStatus) {
+    params.set("review_status", reviewStatus);
+  }
+
+  return requestJson<SavedJobPage>(
+    `/api/saved-jobs?${params.toString()}`,
+    { signal },
+  );
+}
+
+export async function updateSavedJob(
+  savedJobId: number,
+  input: SavedJobUpdateInput,
+  signal?: AbortSignal,
+): Promise<SavedJob> {
+  assertPositiveIntegerId(
+    savedJobId,
+    "saved job id",
+  );
+
+  return requestJsonBody<SavedJob>(
+    `/api/saved-jobs/${savedJobId}`,
+    "PATCH",
+    input,
+    signal,
+  );
 }

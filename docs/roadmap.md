@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.9.9
-**Last Updated:** 2026-07-02 (Phase 13 committed and COMPLETED)
-**Status:** Actively in development — Phase 13 COMPLETED (application-layer security; infra controls deferred to Phase 14); next milestone Phase 14 (Production Database and Deployment) NOT STARTED
+**Version:** 0.9.10
+**Last Updated:** 2026-07-02 (Phase 14 code-level groundwork committed)
+**Status:** Actively in development — Phases 1–13 COMPLETED; Phase 14 (Production Database and Deployment) IN PROGRESS — code groundwork committed, infrastructure provisioning/deployment remaining
 
 ---
 
@@ -2343,7 +2343,16 @@ alembic current               # Show database's current revision
 
 ### Phase 14 — Production Database and Deployment
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** IN PROGRESS — code-level groundwork committed (Git revision `fc72d03`); infrastructure provisioning and deployment remain (require a real target environment).
+
+**Groundwork Completed (code + docs):**
+- Configurable database engine: `CAREERPILOT_DATABASE_URL` selects SQLite (dev default) or PostgreSQL; the SQLite foreign-key pragma is dialect-guarded and PostgreSQL uses `pool_pre_ping`. Alembic (`alembic/env.py`) honours the configured URL, so `alembic upgrade head` runs against Postgres when set. Explicit URLs passed by tests are unaffected.
+- Object-storage abstraction (`app/services/storage_backend.py`): a `StorageBackend` protocol with a local-filesystem backend (current behaviour) and a lazy-`boto3` S3 backend, sharing key/path-safety validation, plus a `get_storage_backend` factory driven by `CAREERPILOT_STORAGE_BACKEND`.
+- Environment-tiered settings (`environment`, storage/S3, Sentry). Sentry initialisation is gated behind `CAREERPILOT_SENTRY_DSN` (inert without it). `GET /api/health` now reports `environment` and `database` backend.
+- `docs/deployment.md` operator runbook (Postgres, object storage, backend/frontend hosting, SMTP, scheduler, live ingestion, observability, backups, post-deploy checklist) and `backend/.env.example` (placeholders only; `.gitignore` updated to track example env files). No secrets in source.
+- Validation: 9 new infra tests; full backend suite green (468 passed, 1 environment-restricted skip, sharded); Alembic head unchanged; no hardcoded secrets.
+
+**Remaining (infrastructure — needs a real environment):** provisioning PostgreSQL/Supabase and running migrations against it; S3 bucket + migrating existing files and switching services onto the storage abstraction; backend + frontend hosting; TLS enforcement and production CORS; automated backups + restore test; connecting SMTP and a live compliant job source; scheduler wiring.
 
 **Goal:** Migrate from SQLite to production database and deploy system.
 
@@ -2658,7 +2667,7 @@ Follow this workflow for every milestone:
 
 ## Current Project Position
 
-**Last Completed Milestone:** Phase 13 — Authentication, Privacy, and Security (Committed — Git revision `693e5c68a0352c07a0c852dac7f3d80a70de7793`)
+**Last Completed Milestone:** Phase 13 — Authentication, Privacy, and Security (Committed — Git revision `693e5c68a0352c07a0c852dac7f3d80a70de7793`). Phase 14 code-level groundwork committed (Git revision `fc72d03`); Phase 14 remains IN PROGRESS pending infrastructure provisioning/deployment.
 
 **Phase 4 Commit Chain:**
 - Phase 4.1 `cd33a9ae9ba0785635627ded887dd37057608320`
@@ -2668,11 +2677,11 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–13 COMPLETED; no milestone in progress
+**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code-level groundwork committed; infrastructure provisioning/deployment remaining)
 
-**First Not-Started Milestone:** Phase 14 — Production Database and Deployment
+**First Not-Started Milestone:** Phase 14 infrastructure/deployment steps (provisioning, hosting, backups) — see `docs/deployment.md`.
 
-**Immediate Next Action:** Begin Phase 14 only upon explicit request. Committed Alembic head is now `a9b0c1d2e3f4` (Phase 13), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Standing reminders: (1) Phase 10's live Playwright driver and (2) Phase 13's infrastructure security controls (encryption-at-rest, TLS enforcement, backup/restore, retention automation) and (3) global auth enforcement on existing routes are all deferred to Phase 14 / deployment and coordinated with the frontend; Phase 12 workers never auto-submit. Note: Phase 14 is largely a deployment/infrastructure milestone (PostgreSQL/Supabase, object storage, hosting, Sentry, backups) — much of it cannot be executed or validated inside this sandbox and will need a real target environment; scope it explicitly before starting. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
+**Immediate Next Action:** Complete Phase 14 by following `docs/deployment.md` in a real environment: provision PostgreSQL, run `alembic upgrade head` against it, configure object storage/SMTP/Sentry/scheduler, deploy backend and frontend, restrict CORS, enforce TLS, and automate + test backups. Committed Alembic head is now `a9b0c1d2e3f4` (Phase 13), and the real dev database (`backend/careerpilot.db`) has been upgraded to it (additive; existing data preserved). Standing reminders: (1) Phase 10's live Playwright driver and (2) Phase 13's infrastructure security controls (encryption-at-rest, TLS enforcement, backup/restore, retention automation) and (3) global auth enforcement on existing routes are all deferred to Phase 14 / deployment and coordinated with the frontend; Phase 12 workers never auto-submit. Note: Phase 14 is largely a deployment/infrastructure milestone (PostgreSQL/Supabase, object storage, hosting, Sentry, backups) — much of it cannot be executed or validated inside this sandbox and will need a real target environment; scope it explicitly before starting. Local `npm run build` should be run once to confirm the production build (sandbox validation was blocked only by the pre-existing `next/font/google` network requirement).
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`
@@ -2724,8 +2733,8 @@ Follow this workflow for every milestone:
 
 ---
 
-**Roadmap Version:** 0.9.9
+**Roadmap Version:** 0.9.10
 **Last Updated:** 2026-07-02
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
-**Status:** Actively maintained — Phases 1–13 COMPLETED; Phase 14 (Production Database and Deployment) NOT STARTED
+**Status:** Actively maintained — Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code groundwork committed; infrastructure/deployment remaining)

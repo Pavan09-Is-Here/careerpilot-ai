@@ -8,6 +8,7 @@ from sqlalchemy.dialects import sqlite
 
 from app.core.database import Base
 from app.models.application_answer import ApplicationAnswer  # noqa: F401
+from app.models.application_package import ApplicationPackage  # noqa: F401
 from app.models.candidate_profile import CandidateProfile  # noqa: F401
 from app.models.certification import Certification  # noqa: F401
 from app.models.cv_section import CVSection  # noqa: F401
@@ -58,6 +59,7 @@ EXPECTED_APPLICATION_TABLES = {
     "job_matches",
     "job_tailored_cvs",
     "application_answers",
+    "application_packages",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -142,6 +144,10 @@ EXPECTED_FOREIGN_KEYS = {
         ("cv_version_id", "cv_versions", "id", "CASCADE"),
     },
     "application_answers": {
+        ("candidate_profile_id", "candidate_profiles", "id", "CASCADE"),
+    },
+    "application_packages": {
+        ("job_id", "normalized_jobs", "id", "CASCADE"),
         ("candidate_profile_id", "candidate_profiles", "id", "CASCADE"),
     },
 }
@@ -245,6 +251,11 @@ EXPECTED_INDEXES = {
         "ix_application_answers_category",
         "ix_application_answers_candidate_category",
     },
+    "application_packages": {
+        "ix_application_packages_job_id",
+        "ix_application_packages_candidate_profile_id",
+        "ix_application_packages_readiness_status",
+    },
 }
 
 
@@ -277,7 +288,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["b4c5d6e7f8a9"]
+    assert script.get_heads() == ["c5d6e7f8a9b0"]
 
     command.upgrade(config, "head")
 

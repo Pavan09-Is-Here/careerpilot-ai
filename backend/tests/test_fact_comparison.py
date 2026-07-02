@@ -28,7 +28,7 @@ from app.models.skill import Skill
 
 PREVIOUS_HEAD = "c4e7d9a1b2c3"
 NEW_HEAD = "e5f6a7b8c9d0"
-CURRENT_HEAD = "b4c5d6e7f8a9"
+CURRENT_HEAD = "c5d6e7f8a9b0"
 
 
 def profile_payload(**overrides: object) -> dict[str, object]:

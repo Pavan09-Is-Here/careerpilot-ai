@@ -1,4 +1,5 @@
 from app.models.application_answer import ApplicationAnswer
+from app.models.application_package import ApplicationPackage
 from app.models.candidate_profile import (
     CandidateProfile,
 )
@@ -33,6 +34,7 @@ from app.models.skill import Skill
 
 __all__ = [
     "ApplicationAnswer",
+    "ApplicationPackage",
     "CandidateProfile",
     "Certification",
     "CVSection",

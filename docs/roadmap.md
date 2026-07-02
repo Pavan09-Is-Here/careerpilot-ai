@@ -1,8 +1,8 @@
 # CareerPilot AI Development Roadmap
 
-**Version:** 0.8.3
-**Last Updated:** 2026-06-30
-**Status:** Actively in development — Phase 3.8 (Document Management Frontend) completed; Phase 4 next
+**Version:** 0.8.5
+**Last Updated:** 2026-07-02 (added root `CLAUDE.md` — Claude tooling instructions; no milestone changes)
+**Status:** Actively in development — Phase 4.1 (Core Job and Job Source Foundation) in review
 
 ---
 
@@ -78,10 +78,10 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 **Phase 3 CV Document System:** COMPLETED
 
 **In Review:**
-- None
+- Phase 4.1: Core Job and Job Source Foundation (backend schema, source compliance policy, normalized job read APIs)
 
 **Not Started:**
-- Phase 4–14: Job discovery, analysis, matching, tailoring, salary recommendations, application answers, browser automation, tracking, authentication, production deployment
+- Phase 4.2–14: Ingestion, provider adapters, normalization/deduplication/freshness, saved jobs, frontend job discovery, analysis, matching, tailoring, salary recommendations, application answers, browser automation, tracking, authentication, production deployment
 
 ---
 
@@ -126,7 +126,8 @@ backend/
 │   │       ├── document.py        # Document upload, extraction, comparison, original-version adoption
 │   │       ├── fact_comparison.py # Comparison run retrieval
 │   │       ├── cv_version.py      # CV version metadata, lifecycle, master generation
-│   │       └── cv_artifact.py     # Generated CV artifact metadata and downloads
+│   │       ├── cv_artifact.py     # Generated CV artifact metadata and downloads
+│   │       └── job.py             # Phase 4.1 read-only source/job APIs (in review)
 │   ├── core/
 │   │   ├── config.py              # Settings (document storage path, etc.)
 │   │   └── database.py            # SQLAlchemy engine, session, Base
@@ -141,7 +142,8 @@ backend/
 │   │   ├── cv_section.py          # Detected CV sections
 │   │   ├── fact_comparison.py     # Comparison runs and findings
 │   │   ├── cv_version.py          # CV version metadata and lineage
-│   │   └── cv_version_artifact.py # Generated DOCX/PDF artifact metadata
+│   │   ├── cv_version_artifact.py # Generated DOCX/PDF artifact metadata
+│   │   └── job.py                 # Job sources, normalized jobs, location, compensation, skills
 │   ├── schemas/                   # Pydantic request/response schemas
 │   │   ├── candidate_profile.py
 │   │   ├── education.py
@@ -151,7 +153,8 @@ backend/
 │   │   ├── certification.py
 │   │   ├── document.py
 │   │   ├── fact_comparison.py
-│   │   └── cv_version.py
+│   │   ├── cv_version.py
+│   │   └── job.py
 │   ├── services/                  # Business logic
 │   │   ├── document_storage.py    # File validation, safe storage
 │   │   ├── document_extraction.py # PDF/DOCX text extraction
@@ -159,7 +162,8 @@ backend/
 │   │   ├── fact_comparison.py     # Deterministic verified-fact comparison
 │   │   ├── cv_version.py          # CV version lifecycle rules
 │   │   ├── generated_cv_storage.py # Safe generated artifact storage
-│   │   └── verified_master_cv.py  # Verified master CV generation
+│   │   ├── verified_master_cv.py  # Verified master CV generation
+│   │   └── job.py                 # Phase 4.1 compliance, lifecycle, read/filter rules
 │   ├── repositories/              # Database access layer (extensible)
 │   └── utils/
 ├── alembic/
@@ -171,7 +175,8 @@ backend/
 │   │   ├── c4e7d9a1b2c3_add_cv_section_detection.py (committed)
 │   │   ├── e5f6a7b8c9d0_add_fact_comparison.py (committed)
 │   │   ├── f6a7b8c9d0e1_add_cv_version_management.py (committed)
-│   │   └── a7b8c9d0e1f2_add_verified_master_cv_generation.py (committed)
+│   │   ├── a7b8c9d0e1f2_add_verified_master_cv_generation.py (committed)
+│   │   └── b8c9d0e1f2a3_add_phase_4_1_job_foundation.py (in review)
 │   └── alembic.ini                # Migration settings
 ├── tests/
 │   ├── conftest.py                # Fixtures, test database setup
@@ -181,7 +186,8 @@ backend/
 │   ├── test_document_section_detection.py # Section detection tests
 │   ├── test_fact_comparison.py # Verified facts comparison tests
 │   ├── test_cv_version.py      # CV version management tests
-│   └── test_verified_master_cv.py # Verified master CV generation tests
+│   ├── test_verified_master_cv.py # Verified master CV generation tests
+│   └── test_jobs_phase41.py       # Phase 4.1 job source/job foundation tests
 ├── .venv/                         # Virtual environment
 ├── pyproject.toml                 # Tool config (pytest, ruff, mypy)
 ├── requirements.txt               # Production dependencies
@@ -396,7 +402,7 @@ frontend/
   - Revisions properly configured; down_revision set to None (baseline)
 - **Reversible Migrations**: All migrations include `upgrade()` and `downgrade()` functions
 - **Migration Commands**:
-  - `alembic heads` — Check current migration head (currently one head: `a7b8c9d0e1f2`)
+  - `alembic heads` — Check current migration head (working-tree head is `b8c9d0e1f2a3` while Phase 4.1 is in review; committed Phase 3.7 head is `a7b8c9d0e1f2`)
   - `alembic upgrade head` — Apply all pending migrations
   - `alembic downgrade -1` — Rollback one migration
 
@@ -416,8 +422,9 @@ frontend/
 - `e5f6a7b8c9d0_add_fact_comparison` (Phase 3.5, committed and validated)
 - `f6a7b8c9d0e1_add_cv_version_management` (Phase 3.6, committed, safely migrated, and validated)
 - `a7b8c9d0e1f2_add_verified_master_cv_generation` (Phase 3.7, committed, safely migrated, and validated)
+- `b8c9d0e1f2a3_add_phase_4_1_job_foundation` (Phase 4.1, in review; not applied to the real development database)
 
-**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one head: `a7b8c9d0e1f2`
+**Validation:** ✓ Baseline migration tested; reversible structure confirmed; `alembic heads` reports one working-tree head: `b8c9d0e1f2a3`
 **Data Preservation:** ✓ No data loss on upgrade/downgrade
 
 **Existing Database Adoption:** ✓ The local `backend/careerpilot.db` was safely adopted by stamping the verified repair revision `d8e9f0a1b2c3`, applying the Phase 3.4 migration `c4e7d9a1b2c3`, safely upgrading to the Phase 3.5 migration `e5f6a7b8c9d0`, safely upgrading to the Phase 3.6 migration `f6a7b8c9d0e1`, and safely upgrading to the Phase 3.7 migration `a7b8c9d0e1f2`. Database integrity passed; `cv_sections`, `fact_comparison_runs`, `fact_comparison_findings`, `cv_versions`, and `cv_version_artifacts` exist.
@@ -1459,66 +1466,140 @@ alembic current               # Show database's current revision
 
 ### Phase 4 — Job Discovery
 
-**Milestone Status:** NOT STARTED
+**Phase Status:** IN REVIEW (Phase 4.1 only)
 
-**Goal:** Discover job opportunities from compliant sources.
+**Goal:** Build compliant job discovery foundations before any live provider integration.
+
+**Approved Phase 4 Planning Decisions:**
+- Phase 4 is split into independently reviewable sub-milestones.
+- Phase 4.1 is backend schema and compliance-policy foundation only.
+- No live source provider is enabled by Phase 4.1.
+- No provider credentials or API keys are added.
+- No scheduled ingestion worker is added.
+- No server-side fetching of user-supplied URLs is allowed.
+- User-supplied URLs may be stored only as references.
+- Raw source retention target is initially 30 days and is configurable per source.
+- Matching, CV tailoring, automatic applications, browser automation, scraping, email import, and frontend job-discovery UI are out of Phase 4.1 scope.
+
+#### Phase 4.1 — Core Job and Job Source Foundation
+
+**Milestone Status:** IN REVIEW
 
 **Scope:**
-- Integrate with job APIs (Greenhouse, Lever, Ashby, Workable, Adzuna)
-- Parse job postings
-- Detect duplicates
-- Track job expiry
-- Scheduled discovery workers
-- Compliance enforcement (no unauthorized scraping)
+- Job sources and source compliance-policy fields
+- Normalized jobs with mandatory source ownership and provenance
+- Structured job locations
+- Structured compensation
+- Structured skill requirements
+- Core lifecycle status values: `discovered`, `active`, `possibly_stale`, `expired`, `removed`, `unavailable`
+- Safe read-only APIs for sources and jobs
+- Migration, metadata parity, source compliance, URL safety, pagination, and response-shape tests
 
-**Supported Job Sources:**
-- Greenhouse (API)
-- Lever (API)
-- Ashby (API)
-- Workable (API)
-- Adzuna (API)
-- Approved company career pages (explicit permits only)
+**Database Schema (In Review):**
+- New migration `b8c9d0e1f2a3_add_phase_4_1_job_foundation.py` follows committed Phase 3.7 head `a7b8c9d0e1f2`
+- New tables:
+  - `job_sources`
+  - `normalized_jobs`
+  - `job_locations`
+  - `job_compensations`
+  - `job_skill_requirements`
+- Source identity is unique by stable `source_key`
+- Normalized job source identity is unique by `(job_source_id, source_job_id)`
+- Job location, compensation, and skill records cascade from normalized jobs
+- Job source deletion is restricted by normalized job provenance
+- List/filter indexes are added for source, lifecycle, employer, employment type, remote mode, and stable child ordering
 
-**Prohibited Sources:**
-- LinkedIn Jobs (terms-of-service violations)
-- Indeed (web scraping prohibited)
-- Unauthorized scraping of any site
+**Compliance and Safety Rules (In Review):**
+- Job sources default to disabled, unallowlisted, server-fetch disabled, and `not_reviewed`
+- A source cannot be enabled unless allowlisted
+- Manual-review sources cannot be enabled until operational review statuses are resolved
+- Attribution-required sources cannot be enabled without attribution text or reference
+- Server fetching is allowed only for access modes designed for configured server fetching
+- User-supplied URL sources remain metadata-only and cannot allow server fetching
+- Review statuses are operational statuses, not legal compliance guarantees
+- URL references reject malformed, `javascript:`, `data:`, `file:`, localhost, loopback, link-local, private-network, and credential-bearing URLs
+- Employer, title, descriptions, requirements, location text, attribution, and source metadata are treated as untrusted text
+- Null bytes and invalid control characters are rejected
+- Descriptions and source text are bounded
+- Salary, sponsorship, seniority, employment type, remote mode, and skills are not inferred
 
-**Database Schema Changes:**
-- New table `jobs`:
-  - id, source (greenhouse, lever, etc.), source_job_id, source_url
-  - company, title, location, employment_type, salary_min, salary_max, salary_currency
-  - description, required_skills, preferred_skills, required_experience, required_education
-  - work_authorization_required, sponsorship_available
-  - posted_at, deadline, discovered_at, last_checked_at, status (active, expired, withdrawn)
+**Read-Only API Endpoints (In Review):**
+- `GET /api/job-sources`
+- `GET /api/job-sources/{source_id}`
+- `GET /api/jobs`
+- `GET /api/jobs/{job_id}`
 
-**API Endpoints (Planned):**
-- `POST /api/jobs/discover` — Trigger job discovery
-- `GET /api/jobs` — List discovered jobs
-- `GET /api/jobs/{id}` — Job detail
+**Out of Scope for Phase 4.1:**
+- Ingestion runs
+- Raw provider payload storage
+- Provider adapters or HTTP clients
+- API credentials
+- Background workers or scheduled discovery
+- Arbitrary URL fetching
+- Greenhouse, Ashby, USAJOBS, Adzuna, Workable, or Lever integrations
+- Deduplication across providers
+- Job matching
+- Saved jobs
+- Frontend pages
 
-**Compliance Requirements:**
-- No unauthorized scraping
-- All sources explicitly permitted in code
-- API rate limiting respected
-- User-Agent headers correct
-- Robots.txt respected
-
-**Testing Requirements:**
-- API integration works
-- Job parsing correct
-- Duplicate detection working
-- Expiry tracking accurate
-
-**Dependencies:**
-- Requires Phase 1 (Project Foundation) ✓
+**Validation Evidence (In Review):**
+- Targeted Phase 4.1 tests passed: 57 tests
+- Complete backend suite passed: 205 tests, 1 sandbox-restricted Quick Look raster test skipped
+- Real `backend/careerpilot.db` has not been migrated for Phase 4.1 and remains at Alembic revision `a7b8c9d0e1f2` pending review
+- Temporary migration validation upgrades to `b8c9d0e1f2a3`, downgrades to `a7b8c9d0e1f2`, and re-upgrades without touching the real development database
 
 **Definition of Done:**
-- Job discovery integration implemented
-- Database schema for jobs created and migrated
-- Scheduled discovery workers functional
-- All discovery tests pass
-- Compliance verified
+- Phase 4.1 implementation is reviewed and committed
+- Exactly one Alembic head is present in the committed migration chain
+- Migration upgrade/downgrade/re-upgrade is validated on a temporary database outside the repository
+- Read-only source and job APIs are registered and typed
+- Compliance guardrails and URL safety tests pass
+- No provider credentials, source fetching, scheduled ingestion, scraping, matching, saved jobs, or frontend job discovery UI are introduced
+
+#### Phase 4.2 — Ingestion Runs and Source Snapshots
+
+**Milestone Status:** NOT STARTED
+
+**Scope:**
+- Model ingestion runs and raw/source snapshot metadata
+- Track run status, start/end times, source ownership, and safe failure summaries
+- Define retention cleanup rules without deleting normalized job provenance
+- Keep provider payloads bounded and do not expose them through public APIs
+
+#### Phase 4.3 — First Approved Provider Adapter
+
+**Milestone Status:** NOT STARTED
+
+**Scope:**
+- Add the first explicitly approved provider adapter only after source policy review
+- Respect provider access mode, attribution, retention, and server-fetch policy
+- Do not add credentials unless explicitly approved for that milestone
+
+#### Phase 4.4 — Normalization, Deduplication, and Freshness
+
+**Milestone Status:** NOT STARTED
+
+**Scope:**
+- Normalize approved provider data into `normalized_jobs`
+- Detect source-scoped and cross-source duplicates
+- Evaluate freshness and lifecycle transitions without deleting provenance
+
+#### Phase 4.5 — Saved Jobs and Review Workflow
+
+**Milestone Status:** NOT STARTED
+
+**Scope:**
+- Allow candidate review and saving of discovered jobs
+- Preserve removed, expired, unavailable, and stale jobs for inspection
+- Do not implement matching or applications
+
+#### Phase 4.6 — Job Discovery Frontend
+
+**Milestone Status:** NOT STARTED
+
+**Scope:**
+- Add frontend views for safe job source/job browsing after backend read and review workflows are ready
+- Do not add provider setup, credentials, automatic refresh, matching, or applications
 
 ---
 
@@ -2139,7 +2220,17 @@ Phase 3.7 — Master CV Generation ← Phase 2, 3.6
   ↓
 Phase 3.8 — Document Management Frontend ← Phase 3.1, 3.3, 3.4, 3.5, 3.7
   ↓
-Phase 4 — Job Discovery ← Phase 1
+Phase 4.1 — Core Job and Job Source Foundation ← Phase 1
+  ↓
+Phase 4.2 — Ingestion Runs and Source Snapshots ← Phase 4.1
+  ↓
+Phase 4.3 — First Approved Provider Adapter ← Phase 4.2
+  ↓
+Phase 4.4 — Normalization, Deduplication, and Freshness ← Phase 4.3
+  ↓
+Phase 4.5 — Saved Jobs and Review Workflow ← Phase 4.4
+  ↓
+Phase 4.6 — Job Discovery Frontend ← Phase 4.5
   ↓
 Phase 5 — Job Analysis & Matching ← Phase 2, 4
   ↓
@@ -2270,7 +2361,7 @@ Security-related changes (upload, extraction, auth, secrets) require:
 Follow this workflow for every milestone:
 
 1. **Read all guidance:**
-   - Read root `AGENTS.md`
+   - Read root `CLAUDE.md` (Claude sessions) or `AGENTS.md` (Codex sessions)
    - Read `docs/roadmap.md` (this file)
    - Understand current milestone status and blockers
 
@@ -2356,11 +2447,11 @@ Follow this workflow for every milestone:
 
 **Last Completed Milestone:** Phase 3.8 — Document Management Frontend (Committed — Git revision `9790fa6da6ebd7fef44c9c7a01b08a9a533b95eb`)
 
-**Current Status:** Phase 3 CV Document System is COMPLETED
+**Current Status:** Phase 4.1 — Core Job and Job Source Foundation is IN REVIEW
 
-**First Not-Started Milestone:** Phase 4 — Job Discovery
+**First Not-Started Milestone:** Phase 4.2 — Ingestion Runs and Source Snapshots
 
-**Immediate Next Action:** Phase 4 — Job Discovery architecture and source-compliance planning
+**Immediate Next Action:** Code review and commit of Phase 4.1, then begin Phase 4.2 only upon explicit request
 
 **Validation Summary:**
 - ✓ Phase 3.8 implementation committed with Git revision `9790fa6da6ebd7fef44c9c7a01b08a9a533b95eb`
@@ -2375,46 +2466,15 @@ Follow this workflow for every milestone:
 - ✓ Phase 3.8 requires confirmation for destructive archive/delete actions, prevents duplicate upload/comparison/generation submissions, and uses a stable idempotency key for one deliberate generation attempt
 - ✓ Phase 3.8 changed no backend application files and no database files
 - ✓ Phase 3.8 added no PDF, DOCX, TTF, OTF, TTC, generated CV, uploaded CV, secret, or personal document to Git
-- ✓ 33 targeted Phase 3.7 tests passed, 1 sandbox-blocked Quick Look raster test skipped
-- ✓ Focused CV-version and Phase 3.7 tests passed
-- ✓ 148 complete backend tests passed, 1 sandbox-blocked Quick Look raster test skipped
-- ✓ Python compilation passed
-- ✓ FastAPI import and OpenAPI route validation passed with 33 paths and all required Phase 3.7 routes
-- ✓ Alembic metadata parity test passed
-- ✓ Alembic has exactly one head: `a7b8c9d0e1f2`
-- ✓ Migration chain: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1` → `a7b8c9d0e1f2`
-- ✓ Isolated upgrade to `a7b8c9d0e1f2`, downgrade to `f6a7b8c9d0e1`, and re-upgrade to `a7b8c9d0e1f2` passed
-- ✓ Temporary migration validation created, removed, and restored the Phase 3.7 artifact table and generation metadata
-- ✓ Real development database safely upgraded from `f6a7b8c9d0e1` to `a7b8c9d0e1f2`
-- ✓ Database integrity passed
-- ✓ CV version artifact storage schema was created successfully
-- ✓ DOCX structure validation and text re-extraction passed
-- ✓ PDF structure validation and selectable-text re-extraction passed
-- ✓ PDF font-resource validation confirms embedded `/FontFile2` subsets and ToUnicode mappings for packaged Noto Sans and Noto Sans SC
-- ✓ Mixed Latin Extended, Polish, punctuation, and CJK PDF Unicode round-trip validation passed
-- ✓ Line-level PDF pagination correction passed for long single-paragraph fields, long bullets, long project descriptions, mixed Unicode across page boundaries, extraction continuity, and bottom-margin geometry
-- ✓ Long pagination probe used approximately 8,525 characters and approximately 95 wrapped lines over two pages
-- ✓ Every rendered text baseline remained above the configured bottom margin
-- ✓ Long-document pagination validation passed
-- ✓ Long Unicode pagination validation passed
-- ✓ Generated artifact path, hash, size, filename, and cleanup tests passed
-- ✓ Ready/primary lifecycle validates physical generated artifacts before allowing ready or primary status
-- ✓ Database-first deletion leaves artifact files untouched on database commit failure and records safe post-commit cleanup warnings without restoring deleted metadata
-- ✓ Post-commit cleanup failure may leave only inaccessible orphan files, not database metadata pointing to missing files
-- ✓ Deterministic verified-master CV generation from verified Facts Vault records is complete
-- ✓ Verified-only filtering excludes unverified candidate facts and uploaded CV text
-- ✓ Fact-comparison findings are excluded as generation source facts
-- ✓ No facts, dates, achievements, metrics, technologies, qualifications, responsibilities, or summaries are invented
-- ✓ Candidate Facts Vault records remain read-only during generation
-- ✓ Canonical section order is Contact, Professional Summary, Work Experience, Education, Skills, Projects, Certifications
-- ✓ Safe idempotency, failure cleanup, archive preservation, and leaf deletion cleanup are implemented
-- ✓ Generic CV-version metadata creation cannot create artifact-less verified-master versions
-- ✓ Unsupported PDF characters fail safely without creating a ready version or orphan artifacts
-- ✓ Uploaded source documents, extracted text, detected sections, fact comparisons, and Facts Vault records remain untouched
-- ✓ Generated files use safe UUID-based physical filenames; download filenames and headers are sanitized
-- ✓ Metadata and download APIs do not expose full CV text, binary data, physical stored filenames, absolute storage paths, stack traces, database URLs, or secrets
-- ✓ No job tailoring, frontend document management, AI, OCR, embeddings, browser automation, LibreOffice, runtime font downloads, network requests, external converters, or hosted generation services were introduced
-- ✓ Single skipped test is the sandbox-restricted Quick Look raster check; separate local raster validation and automated geometry, embedding, ToUnicode, and extraction checks passed
+- ✓ Phase 3 CV Document System is COMPLETED
+- ✓ Phase 4.1 backend schema and read-only API implementation is in review
+- ✓ Phase 4.1 adds no provider credentials, source fetching, scheduled ingestion, scraping, matching, saved jobs, automatic applications, browser automation, or frontend job-discovery UI
+- ✓ Phase 4.1 targeted backend tests passed: 57 tests
+- ✓ Complete backend suite passed: 205 tests, 1 sandbox-restricted Quick Look raster test skipped
+- ✓ Alembic has exactly one working-tree head: `b8c9d0e1f2a3`
+- ✓ Migration chain in review: `6a528be87510` → `b7a3c8d9e012` → `d8e9f0a1b2c3` → `c4e7d9a1b2c3` → `e5f6a7b8c9d0` → `f6a7b8c9d0e1` → `a7b8c9d0e1f2` → `b8c9d0e1f2a3`
+- ✓ Temporary upgrade to `b8c9d0e1f2a3`, downgrade to `a7b8c9d0e1f2`, and re-upgrade to `b8c9d0e1f2a3` passed
+- ✓ Real development database remains unmigrated for Phase 4.1 by instruction and remains at revision `a7b8c9d0e1f2`
 
 **Immediate Blockers:** None
 
@@ -2440,8 +2500,8 @@ Follow this workflow for every milestone:
 
 ---
 
-**Roadmap Version:** 0.8.3
+**Roadmap Version:** 0.8.4
 **Last Updated:** 2026-06-30
 **Repository:** https://github.com/[your-org]/careerpilot-ai  
 **Maintainer:** CareerPilot AI Development Team  
-**Status:** Actively maintained — in development phase 3
+**Status:** Actively maintained — Phase 4.1 in review

@@ -12,6 +12,13 @@ from app.models.fact_comparison import (
     FactComparisonFinding,
     FactComparisonRun,
 )
+from app.models.job import (
+    JobCompensation,
+    JobLocation,
+    JobSkillRequirement,
+    JobSource,
+    NormalizedJob,
+)
 from app.models.project import Project
 from app.models.skill import Skill
 
@@ -26,6 +33,11 @@ __all__ = [
     "Experience",
     "FactComparisonFinding",
     "FactComparisonRun",
+    "JobCompensation",
+    "JobLocation",
+    "JobSkillRequirement",
+    "JobSource",
+    "NormalizedJob",
     "Project",
     "Skill",
 ]

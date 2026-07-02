@@ -48,6 +48,7 @@ from app.services.verified_master_cv import (
 
 PHASE36_HEAD = "f6a7b8c9d0e1"
 PHASE37_HEAD = "a7b8c9d0e1f2"
+CURRENT_HEAD = "b8c9d0e1f2a3"
 UNICODE_SAMPLE = "José Núñez – Łukasz Żółć 李雷"
 UNICODE_DETAIL = (
     f"{UNICODE_SAMPLE} • Candidate’s résumé – café naïve"
@@ -1976,7 +1977,7 @@ def test_verified_master_cv_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == [PHASE37_HEAD]
+    assert script.get_heads() == [CURRENT_HEAD]
     assert script.get_revision(PHASE37_HEAD).down_revision == PHASE36_HEAD
 
     command.upgrade(config, "head")
@@ -2027,9 +2028,9 @@ def test_verified_master_cv_migration_upgrade_downgrade_reupgrade(
                     )
                 )
             }
-        assert upgraded_tables - downgraded_tables == {
+        assert {
             "cv_version_artifacts",
-        }
+        }.issubset(upgraded_tables - downgraded_tables)
         assert "cv_versions" in downgraded_tables
         downgraded_columns = {
             column["name"]

@@ -17,6 +17,11 @@ from app.models.education import Education  # noqa: F401
 from app.models.experience import Experience  # noqa: F401
 from app.models.fact_comparison import FactComparisonFinding  # noqa: F401
 from app.models.fact_comparison import FactComparisonRun  # noqa: F401
+from app.models.job import JobCompensation  # noqa: F401
+from app.models.job import JobLocation  # noqa: F401
+from app.models.job import JobSkillRequirement  # noqa: F401
+from app.models.job import JobSource  # noqa: F401
+from app.models.job import NormalizedJob  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.skill import Skill  # noqa: F401
 
@@ -34,6 +39,11 @@ EXPECTED_APPLICATION_TABLES = {
     "fact_comparison_findings",
     "cv_versions",
     "cv_version_artifacts",
+    "job_sources",
+    "normalized_jobs",
+    "job_locations",
+    "job_compensations",
+    "job_skill_requirements",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -78,6 +88,18 @@ EXPECTED_FOREIGN_KEYS = {
     "cv_version_artifacts": {
         ("cv_version_id", "cv_versions", "id", "CASCADE"),
     },
+    "normalized_jobs": {
+        ("job_source_id", "job_sources", "id", "RESTRICT"),
+    },
+    "job_locations": {
+        ("job_id", "normalized_jobs", "id", "CASCADE"),
+    },
+    "job_compensations": {
+        ("job_id", "normalized_jobs", "id", "CASCADE"),
+    },
+    "job_skill_requirements": {
+        ("job_id", "normalized_jobs", "id", "CASCADE"),
+    },
 }
 
 EXPECTED_INDEXES = {
@@ -114,6 +136,37 @@ EXPECTED_INDEXES = {
         "ix_cv_version_artifacts_cv_version_id",
         "ix_cv_version_artifacts_artifact_type",
     },
+    "job_sources": {
+        "ix_job_sources_display_name",
+        "ix_job_sources_source_category",
+        "ix_job_sources_access_mode",
+        "ix_job_sources_enabled",
+        "ix_job_sources_allowlisted",
+        "ix_job_sources_server_fetch_allowed",
+    },
+    "normalized_jobs": {
+        "ix_normalized_jobs_job_source_id",
+        "ix_normalized_jobs_lifecycle_status",
+        "ix_normalized_jobs_employer_name",
+        "ix_normalized_jobs_employment_type",
+        "ix_normalized_jobs_remote_mode",
+        "ix_normalized_jobs_source_lifecycle",
+        "ix_normalized_jobs_last_seen",
+    },
+    "job_locations": {
+        "ix_job_locations_job_id",
+        "ix_job_locations_job_order",
+    },
+    "job_compensations": {
+        "ix_job_compensations_job_id",
+        "ix_job_compensations_job_order",
+    },
+    "job_skill_requirements": {
+        "ix_job_skill_requirements_job_id",
+        "ix_job_skill_requirements_job_order",
+        "ix_job_skill_requirements_requirement_type",
+        "ix_job_skill_requirements_normalized_skill_key",
+    },
 }
 
 
@@ -146,7 +199,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["a7b8c9d0e1f2"]
+    assert script.get_heads() == ["b8c9d0e1f2a3"]
 
     command.upgrade(config, "head")
 

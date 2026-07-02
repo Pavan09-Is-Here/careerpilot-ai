@@ -21,6 +21,9 @@ from app.api.routes.experience import (
 from app.api.routes.fact_comparison import (
     router as fact_comparison_router,
 )
+from app.api.routes.job import (
+    router as job_router,
+)
 from app.api.routes.project import (
     router as project_router,
 )
@@ -74,4 +77,8 @@ api_router.include_router(
 
 api_router.include_router(
     cv_artifact_router,
+)
+
+api_router.include_router(
+    job_router,
 )

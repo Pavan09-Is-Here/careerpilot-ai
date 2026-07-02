@@ -14,6 +14,10 @@ from app.services.ingestion import (
     list_ingestion_runs,
     list_run_snapshots,
 )
+from app.services.provider_greenhouse import (
+    GreenhouseAdapterError,
+    ingest_greenhouse_source,
+)
 
 
 router = APIRouter(
@@ -26,6 +30,24 @@ def raise_ingestion_http_error(error: IngestionServiceError) -> None:
         status_code=error.status_code,
         detail=error.safe_message,
     ) from error
+
+
+@router.post(
+    "/job-sources/{source_id}/ingest",
+    response_model=IngestionRunResponse,
+    status_code=201,
+)
+def trigger_source_ingestion(
+    source_id: int,
+    database: Session = Depends(get_db),
+) -> IngestionRunResponse:
+    try:
+        return ingest_greenhouse_source(source_id, database)
+    except GreenhouseAdapterError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
 
 
 @router.get(

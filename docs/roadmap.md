@@ -1608,12 +1608,34 @@ alembic current               # Show database's current revision
 
 #### Phase 4.3 — First Approved Provider Adapter
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** IN REVIEW
 
 **Scope:**
 - Add the first explicitly approved provider adapter only after source policy review
 - Respect provider access mode, attribution, retention, and server-fetch policy
 - Do not add credentials unless explicitly approved for that milestone
+
+**Approved Provider (In Review):** Greenhouse Job Board API — explicitly approved by the user for this milestone. Public, keyless endpoint (`boards-api.greenhouse.io/v1/boards/{board}/jobs`); no credentials are used or stored.
+
+**Adapter Behaviour (In Review):**
+- `app/services/provider_greenhouse.py` with trigger endpoint `POST /api/job-sources/{source_id}/ingest`
+- Fetch is compliance-gated: provider type `greenhouse`, source enabled, allowlisted, `server_fetch_allowed`, access mode `api`, all three policy reviews `approved_for_configured_use`, and a strictly validated `boards-api.greenhouse.io` base URL — no fetch occurs otherwise
+- Full ingestion lifecycle: run created and started, payload snapshot metadata recorded (hash, size, media type), jobs upserted, run completed with counters or failed with a safe generic summary (no URLs, paths, or exception text)
+- Payload bounded by `max_source_snapshot_payload_bytes`; JSON content type enforced; redirects not followed
+- Normalization stores only provider-supplied values: title/description HTML deterministically stripped and bounded, location text preserved verbatim, employer from the source display name, attribution copied from source policy; no compensation, skills, seniority, or sponsorship inference
+- Repeat ingestion touches existing jobs (`last_seen_at`/`ingested_at`) without duplicates; job writes are transactional (no partial writes on failure)
+
+**Out of Scope for Phase 4.3:**
+- Credentials or authenticated providers
+- Additional providers (Lever, Ashby, USAJOBS follow as separate milestones)
+- Scheduled/background ingestion
+- Content-change refresh, deduplication, freshness scoring (Phase 4.4)
+- Frontend job discovery UI
+
+**Validation Evidence (In Review):**
+- Targeted Phase 4.3 tests passed: 23 tests (mocked HTTP transport; no network access in tests)
+- Complete backend suite passed: 272 tests, 1 sandbox-restricted Quick Look raster test skipped
+- No schema change; no migration required; Alembic head remains `c9d0e1f2a3b4`
 
 #### Phase 4.4 — Normalization, Deduplication, and Freshness
 
@@ -2487,11 +2509,11 @@ Follow this workflow for every milestone:
 
 **Last Completed Milestone:** Phase 4.2 — Ingestion Runs and Source Snapshots (Committed — Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`)
 
-**Current Status:** Phase 4.2 COMPLETED; no milestone in progress
+**Current Status:** Phase 4.3 — First Approved Provider Adapter (Greenhouse) is IN REVIEW
 
-**First Not-Started Milestone:** Phase 4.3 — First Approved Provider Adapter
+**First Not-Started Milestone:** Phase 4.4 — Normalization, Deduplication, and Freshness
 
-**Immediate Next Action:** Begin Phase 4.3 only upon explicit request
+**Immediate Next Action:** Code review and commit of Phase 4.3, then begin Phase 4.4 only upon explicit request
 
 **Validation Summary:**
 - ✓ Phase 4.2 implementation committed with Git revision `651170904a5f9f61a562713e97b9f676df2c81ca`

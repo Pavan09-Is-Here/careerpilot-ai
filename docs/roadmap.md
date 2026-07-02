@@ -1780,7 +1780,21 @@ alembic current               # Show database's current revision
 
 ### Phase 6 — Job-Specific CV Tailoring
 
-**Milestone Status:** NOT STARTED
+**Milestone Status:** COMPLETED (revision recorded in Current Project Position)
+
+**Implementation Notes (cv-tailoring-1):**
+- Deterministic tailoring in `app/services/cv_tailoring.py`, reusing the Phase 3.7 verified-master render engine (same DOCX/PDF renderers, artifact validation, and idempotent generation flow)
+- Keywords = structured job skill requirements + the candidate's verified skill names literally present in the posting text (word-boundary match); no semantic inference
+- Experience selection: technology overlap with keywords, top 5, minimum 3 (backfilled by recency); projects top 5 by same rule; skills reordered matching-first; education/certifications unchanged
+- Summary handling: candidate's own summary verbatim plus one deterministic sentence naming matched verified skills — the only generated text, and every word of it is a verified fact
+- Tailored CVs are `cv_versions` rows (`version_type='tailored'`) parented to the ready verified-master version; generation keys are job-scoped for idempotency
+- Job↔CV link tracked in `job_tailored_cvs` (migration `a3b4c5d6e7f8`, one current tailored CV per job; re-tailoring repoints the link, old versions retained)
+- Endpoints: `POST /api/jobs/{id}/tailor-cv`, `GET /api/jobs/{id}/tailored-cv`
+
+**Validation Evidence:**
+- Targeted Phase 6 tests passed: 14 tests, including DOCX-content proofs that unverified skills/experiences never appear and the summary adds only verified skill names; vault records proven unmodified
+- Complete backend suite passed: 348 tests, 1 sandbox-restricted skip
+- Migration validated up/down/re-up; fresh full cycle passed
 
 **Goal:** Generate job-specific CV versions from verified facts, emphasizing relevant experience and skills.
 

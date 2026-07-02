@@ -25,6 +25,7 @@ from app.models.job import (
     NormalizedJob,
 )
 from app.models.job_match import JobMatch
+from app.models.job_tailored_cv import JobTailoredCV
 from app.models.project import Project
 from app.models.saved_job import SavedJob
 from app.models.skill import Skill
@@ -46,6 +47,7 @@ __all__ = [
     "JobLocation",
     "JobMatch",
     "JobSkillRequirement",
+    "JobTailoredCV",
     "JobSource",
     "NormalizedJob",
     "Project",

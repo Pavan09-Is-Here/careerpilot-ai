@@ -21,7 +21,16 @@ from app.services.job import (
     list_normalized_jobs,
     build_job_detail,
 )
+from app.schemas.cv_version import (
+    CVMasterGenerationRequest,
+    CVMasterGenerationResponse,
+)
 from app.schemas.job_match import JobMatchResponse
+from app.services.cv_tailoring import (
+    CVTailoringError,
+    generate_tailored_cv,
+    get_tailored_cv_or_404,
+)
 from app.services.job_match import (
     JobMatchServiceError,
     analyze_job_match,
@@ -172,6 +181,54 @@ def get_job_match(
             status_code=exc.status_code,
             detail=exc.safe_message,
         ) from exc
+
+
+@router.post(
+    "/jobs/{job_id}/tailor-cv",
+    response_model=CVMasterGenerationResponse,
+    status_code=201,
+)
+def tailor_cv_for_job(
+    job_id: int,
+    payload: CVMasterGenerationRequest,
+    database: Session = Depends(get_db),
+) -> CVMasterGenerationResponse:
+    try:
+        result = generate_tailored_cv(job_id, payload, database)
+    except CVTailoringError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
+
+    return CVMasterGenerationResponse(
+        version=result.version,
+        artifacts=result.artifacts,
+        created=result.created,
+    )
+
+
+@router.get(
+    "/jobs/{job_id}/tailored-cv",
+    response_model=CVMasterGenerationResponse,
+)
+def get_tailored_cv_for_job(
+    job_id: int,
+    database: Session = Depends(get_db),
+) -> CVMasterGenerationResponse:
+    try:
+        result = get_tailored_cv_or_404(job_id, database)
+    except CVTailoringError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
+
+    return CVMasterGenerationResponse(
+        version=result.version,
+        artifacts=result.artifacts,
+        created=result.created,
+    )
 
 
 @router.get(

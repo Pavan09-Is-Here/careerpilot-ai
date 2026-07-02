@@ -22,7 +22,7 @@ from app.services import cv_version as cv_version_service
 
 PHASE35_HEAD = "e5f6a7b8c9d0"
 PHASE36_HEAD = "f6a7b8c9d0e1"
-CURRENT_HEAD = "f8a9b0c1d2e3"
+CURRENT_HEAD = "a9b0c1d2e3f4"
 
 
 @pytest.fixture(autouse=True)

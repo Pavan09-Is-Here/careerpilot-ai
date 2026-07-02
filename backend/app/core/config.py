@@ -20,3 +20,9 @@ class Settings(BaseSettings):
     default_job_source_retention_days: int = 30
     max_source_snapshot_payload_bytes: int = 10 * 1024 * 1024
     job_stale_after_days: int = 14
+
+    # Authentication and security (Phase 13).
+    auth_pbkdf2_iterations: int = 480_000
+    session_ttl_minutes: int = 720
+    login_rate_limit_max_attempts: int = 10
+    login_rate_limit_window_seconds: int = 300

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import (
 )
 
 from app.api.router import api_router
+from app.core.security import SecurityHeadersMiddleware
 
 
 app = FastAPI(
@@ -15,6 +16,8 @@ app = FastAPI(
     ),
     version="0.7.0",
 )
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

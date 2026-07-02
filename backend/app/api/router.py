@@ -6,6 +6,12 @@ from app.api.routes.application import (
 from app.api.routes.application_answer import (
     router as application_answer_router,
 )
+from app.api.routes.auth import (
+    router as auth_router,
+)
+from app.api.routes.privacy import (
+    router as privacy_router,
+)
 from app.api.routes.application_package import (
     router as application_package_router,
 )
@@ -122,6 +128,14 @@ api_router.include_router(
 
 api_router.include_router(
     worker_router,
+)
+
+api_router.include_router(
+    auth_router,
+)
+
+api_router.include_router(
+    privacy_router,
 )
 
 api_router.include_router(

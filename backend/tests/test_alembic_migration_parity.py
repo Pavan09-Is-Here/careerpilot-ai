@@ -11,6 +11,8 @@ from app.models.application import Application  # noqa: F401
 from app.models.application_answer import ApplicationAnswer  # noqa: F401
 from app.models.application_package import ApplicationPackage  # noqa: F401
 from app.models.application_run import ApplicationRun  # noqa: F401
+from app.models.auth import AuthCredential  # noqa: F401
+from app.models.auth import AuthSession  # noqa: F401
 from app.models.candidate_profile import CandidateProfile  # noqa: F401
 from app.models.certification import Certification  # noqa: F401
 from app.models.cv_section import CVSection  # noqa: F401
@@ -68,6 +70,8 @@ EXPECTED_APPLICATION_TABLES = {
     "applications",
     "worker_runs",
     "audit_log_entries",
+    "auth_credentials",
+    "auth_sessions",
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -305,6 +309,10 @@ EXPECTED_INDEXES = {
         "ix_audit_log_entries_level",
         "ix_audit_log_entries_created_at",
     },
+    "auth_sessions": {
+        "ix_auth_sessions_token_hash",
+        "ix_auth_sessions_expires_at",
+    },
 }
 
 
@@ -337,7 +345,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["f8a9b0c1d2e3"]
+    assert script.get_heads() == ["a9b0c1d2e3f4"]
 
     command.upgrade(config, "head")
 

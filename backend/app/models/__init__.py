@@ -2,6 +2,7 @@ from app.models.application import Application
 from app.models.application_answer import ApplicationAnswer
 from app.models.application_package import ApplicationPackage
 from app.models.application_run import ApplicationRun
+from app.models.auth import AuthCredential, AuthSession
 from app.models.candidate_profile import (
     CandidateProfile,
 )
@@ -39,6 +40,8 @@ __all__ = [
     "Application",
     "ApplicationAnswer",
     "AuditLogEntry",
+    "AuthCredential",
+    "AuthSession",
     "WorkerRun",
     "ApplicationPackage",
     "ApplicationRun",

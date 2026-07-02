@@ -108,6 +108,12 @@ def list_job_metadata(
     employer: str | None = Query(default=None, min_length=1, max_length=250),
     employment_type: JobEmploymentType | None = Query(default=None),
     remote_mode: JobRemoteMode | None = Query(default=None),
+    posted_within_hours: int | None = Query(
+        default=None, ge=1, le=8760
+    ),
+    updated_within_hours: int | None = Query(
+        default=None, ge=1, le=8760
+    ),
     database: Session = Depends(get_db),
 ) -> dict[str, object]:
     try:
@@ -120,6 +126,8 @@ def list_job_metadata(
             employer=employer,
             employment_type=employment_type,
             remote_mode=remote_mode,
+            posted_within_hours=posted_within_hours,
+            updated_within_hours=updated_within_hours,
         )
     except JobServiceError as exc:
         raise_job_http_error(exc)

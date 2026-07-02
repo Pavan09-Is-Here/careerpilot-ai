@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import ipaddress
 import re
@@ -697,11 +697,28 @@ def list_normalized_jobs(
     employer: str | None = None,
     employment_type: str | None = None,
     remote_mode: str | None = None,
+    posted_within_hours: int | None = None,
+    updated_within_hours: int | None = None,
+    now: datetime | None = None,
 ) -> dict[str, object]:
     statement = select(NormalizedJob)
+    evaluation_time = now or datetime.now(timezone.utc)
 
     if source_id is not None:
         statement = statement.where(NormalizedJob.job_source_id == source_id)
+
+    if posted_within_hours is not None:
+        cutoff = evaluation_time - timedelta(hours=posted_within_hours)
+        statement = statement.where(
+            NormalizedJob.posted_at.is_not(None),
+            NormalizedJob.posted_at >= cutoff,
+        )
+
+    if updated_within_hours is not None:
+        cutoff = evaluation_time - timedelta(hours=updated_within_hours)
+        statement = statement.where(
+            NormalizedJob.last_seen_at >= cutoff,
+        )
 
     if lifecycle_status is not None:
         statement = statement.where(

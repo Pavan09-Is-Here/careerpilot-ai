@@ -1,5 +1,8 @@
 from fastapi import APIRouter
 
+from app.api.routes.application_answer import (
+    router as application_answer_router,
+)
 from app.api.routes.candidate_profile import (
     router as candidate_profile_router,
 )
@@ -67,6 +70,10 @@ api_router.include_router(
 
 api_router.include_router(
     certification_router,
+)
+
+api_router.include_router(
+    application_answer_router,
 )
 
 api_router.include_router(

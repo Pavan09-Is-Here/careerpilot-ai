@@ -1,5 +1,8 @@
 from fastapi import APIRouter
 
+from app.api.routes.application import (
+    router as application_router,
+)
 from app.api.routes.application_answer import (
     router as application_answer_router,
 )
@@ -108,6 +111,10 @@ api_router.include_router(
 
 api_router.include_router(
     application_run_router,
+)
+
+api_router.include_router(
+    application_router,
 )
 
 api_router.include_router(

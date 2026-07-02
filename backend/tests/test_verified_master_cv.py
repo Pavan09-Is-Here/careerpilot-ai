@@ -48,7 +48,7 @@ from app.services.verified_master_cv import (
 
 PHASE36_HEAD = "f6a7b8c9d0e1"
 PHASE37_HEAD = "a7b8c9d0e1f2"
-CURRENT_HEAD = "d6e7f8a9b0c1"
+CURRENT_HEAD = "e7f8a9b0c1d2"
 UNICODE_SAMPLE = "José Núñez – Łukasz Żółć 李雷"
 UNICODE_DETAIL = (
     f"{UNICODE_SAMPLE} • Candidate’s résumé – café naïve"

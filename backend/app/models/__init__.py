@@ -1,3 +1,4 @@
+from app.models.application import Application
 from app.models.application_answer import ApplicationAnswer
 from app.models.application_package import ApplicationPackage
 from app.models.application_run import ApplicationRun
@@ -34,6 +35,7 @@ from app.models.saved_job import SavedJob
 from app.models.skill import Skill
 
 __all__ = [
+    "Application",
     "ApplicationAnswer",
     "ApplicationPackage",
     "ApplicationRun",

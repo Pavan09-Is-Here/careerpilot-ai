@@ -85,6 +85,12 @@ import type {
   ApplicationUpdateInput,
 } from "@/types/application";
 
+import type {
+  ApplicationAnswer,
+  ApplicationAnswerCategory,
+  ApplicationAnswerInput,
+} from "@/types/applicationAnswer";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://127.0.0.1:8000";
@@ -1517,4 +1523,67 @@ export async function addApplicationFollowUp(
     input,
     signal,
   );
+}
+
+export async function getApplicationAnswers(
+  category?: ApplicationAnswerCategory,
+  signal?: AbortSignal,
+): Promise<ApplicationAnswer[]> {
+  const params = new URLSearchParams();
+
+  if (category) {
+    params.set("category", category);
+  }
+
+  const query = params.toString();
+
+  return requestJson<ApplicationAnswer[]>(
+    query
+      ? `/api/application-answers?${query}`
+      : "/api/application-answers",
+    { signal },
+  );
+}
+
+export async function createApplicationAnswer(
+  input: ApplicationAnswerInput,
+  signal?: AbortSignal,
+): Promise<ApplicationAnswer> {
+  return requestJsonBody<ApplicationAnswer>(
+    "/api/application-answers",
+    "POST",
+    input,
+    signal,
+  );
+}
+
+export async function updateApplicationAnswer(
+  answerId: number,
+  input: ApplicationAnswerInput,
+  signal?: AbortSignal,
+): Promise<ApplicationAnswer> {
+  assertPositiveIntegerId(answerId, "answer id");
+
+  return requestJsonBody<ApplicationAnswer>(
+    `/api/application-answers/${answerId}`,
+    "PUT",
+    input,
+    signal,
+  );
+}
+
+export async function deleteApplicationAnswer(
+  answerId: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  assertPositiveIntegerId(answerId, "answer id");
+
+  const response = await fetch(
+    `${API_URL}/api/application-answers/${answerId}`,
+    { method: "DELETE", signal },
+  );
+
+  if (!response.ok && response.status !== 204) {
+    throw new Error(await readErrorMessage(response));
+  }
 }

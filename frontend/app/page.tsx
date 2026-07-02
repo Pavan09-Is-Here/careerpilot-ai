@@ -33,6 +33,10 @@ const jobSections = [
 
 const automationSections = [
   {
+    label: "Application answers",
+    href: "/application-answers",
+  },
+  {
     label: "Applications",
     href: "/applications",
   },

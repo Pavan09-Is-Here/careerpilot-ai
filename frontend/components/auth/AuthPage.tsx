@@ -1,11 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   changePassword,
@@ -14,7 +10,7 @@ import {
   isAbortError,
   login,
   logout,
-  setupPassword,
+  register,
 } from "@/lib/api";
 import {
   clearAuthToken,
@@ -31,17 +27,24 @@ function formatDateTime(value: string): string {
     : parsed.toLocaleString();
 }
 
+const inputClass =
+  "mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200";
+
 export default function AuthPage() {
-  const [configured, setConfigured] = useState<boolean | null>(
-    null,
-  );
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // "login" or "register" for the logged-out view.
+  const [mode, setMode] = useState<"login" | "register">("login");
+
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
@@ -50,10 +53,11 @@ export default function AuthPage() {
     setError(null);
 
     try {
-      const status = await getAuthStatus(signal);
-      setConfigured(status.configured);
+      // Keep /status for connectivity, but the UI no longer gates on it:
+      // registration is always available.
+      await getAuthStatus(signal);
 
-      if (status.configured && getAuthToken()) {
+      if (getAuthToken()) {
         try {
           setSession(await getSession(signal));
         } catch {
@@ -105,6 +109,13 @@ export default function AuthPage() {
     [],
   );
 
+  const resetCredentialFields = () => {
+    setUsername("");
+    setPassword("");
+    setFullName("");
+    setEmail("");
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
       <div className="mx-auto max-w-md">
@@ -129,38 +140,6 @@ export default function AuthPage() {
 
         {loading ? (
           <p className="mt-6 text-sm text-slate-400">Loading…</p>
-        ) : configured === false ? (
-          <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-              Set a password
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Choose a password (at least 8 characters) to secure your
-              account.
-            </p>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="New password"
-              className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
-            />
-            <button
-              type="button"
-              disabled={busy || password.length < 8}
-              onClick={() =>
-                run(async () => {
-                  await setupPassword(password);
-                  setPassword("");
-                  setNotice("Password set. You can now log in.");
-                  await refresh();
-                })
-              }
-              className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
-            >
-              Set password
-            </button>
-          </section>
         ) : session ? (
           <>
             <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
@@ -168,6 +147,10 @@ export default function AuthPage() {
                 Signed in
               </h2>
               <dl className="mt-3 space-y-1 text-sm text-slate-300">
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Username</dt>
+                  <dd>{session.username}</dd>
+                </div>
                 <div className="flex justify-between">
                   <dt className="text-slate-500">Session expires</dt>
                   <dd>{formatDateTime(session.expires_at)}</dd>
@@ -205,16 +188,14 @@ export default function AuthPage() {
                   setCurrentPassword(event.target.value)
                 }
                 placeholder="Current password"
-                className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                className={inputClass}
               />
               <input
                 type="password"
                 value={newPassword}
-                onChange={(event) =>
-                  setNewPassword(event.target.value)
-                }
+                onChange={(event) => setNewPassword(event.target.value)}
                 placeholder="New password (min 8 chars)"
-                className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                className={inputClass}
               />
               <button
                 type="button"
@@ -230,9 +211,7 @@ export default function AuthPage() {
                     setNewPassword("");
                     clearAuthToken();
                     setSession(null);
-                    setNotice(
-                      "Password changed. Please sign in again.",
-                    );
+                    setNotice("Password changed. Please sign in again.");
                     await refresh();
                   })
                 }
@@ -242,26 +221,116 @@ export default function AuthPage() {
               </button>
             </section>
           </>
+        ) : mode === "register" ? (
+          <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+              Create account
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Pick a username and password. Your profile and data are
+              private to your account.
+            </p>
+            <input
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Username (letters, numbers, . _ -)"
+              autoComplete="username"
+              className={inputClass}
+            />
+            <input
+              type="text"
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              placeholder="Full name"
+              className={inputClass}
+            />
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Email"
+              autoComplete="email"
+              className={inputClass}
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Password (min 8 chars)"
+              autoComplete="new-password"
+              className={inputClass}
+            />
+            <button
+              type="button"
+              disabled={
+                busy ||
+                username.trim().length < 3 ||
+                password.length < 8 ||
+                fullName.trim().length < 1 ||
+                email.trim().length < 3
+              }
+              onClick={() =>
+                run(async () => {
+                  const result = await register({
+                    username: username.trim(),
+                    password,
+                    full_name: fullName.trim(),
+                    email: email.trim(),
+                  });
+                  setAuthToken(result.token);
+                  resetCredentialFields();
+                  setNotice(`Welcome, ${result.username}. Account created.`);
+                  await refresh();
+                })
+              }
+              className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+            >
+              Create account
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("login");
+                setError(null);
+                setNotice(null);
+              }}
+              className="mt-3 w-full text-center text-sm text-blue-300 hover:text-blue-200"
+            >
+              Already have an account? Sign in
+            </button>
+          </section>
         ) : (
           <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
               Sign in
             </h2>
             <input
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Username"
+              autoComplete="username"
+              className={inputClass}
+            />
+            <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Password"
-              className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              autoComplete="current-password"
+              className={inputClass}
             />
             <button
               type="button"
-              disabled={busy || password.length < 1}
+              disabled={
+                busy || username.trim().length < 1 || password.length < 1
+              }
               onClick={() =>
                 run(async () => {
-                  const result = await login(password);
+                  const result = await login(username.trim(), password);
                   setAuthToken(result.token);
-                  setPassword("");
+                  resetCredentialFields();
                   setNotice("Signed in.");
                   await refresh();
                 })
@@ -269,6 +338,17 @@ export default function AuthPage() {
               className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
             >
               Sign in
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("register");
+                setError(null);
+                setNotice(null);
+              }}
+              className="mt-3 w-full text-center text-sm text-blue-300 hover:text-blue-200"
+            >
+              New here? Create an account
             </button>
           </section>
         )}

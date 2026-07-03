@@ -103,6 +103,7 @@ import type {
   AuthStatus,
   LoginResult,
   MessageResult,
+  RegisterInput,
 } from "@/types/auth";
 
 import { authHeader } from "@/lib/auth";
@@ -1709,26 +1710,27 @@ export async function getAuthStatus(
   return requestJson<AuthStatus>("/api/auth/status", { signal });
 }
 
-export async function setupPassword(
-  password: string,
+export async function register(
+  input: RegisterInput,
   signal?: AbortSignal,
-): Promise<MessageResult> {
-  return requestJsonBody<MessageResult>(
-    "/api/auth/setup",
+): Promise<LoginResult> {
+  return requestJsonBody<LoginResult>(
+    "/api/auth/register",
     "POST",
-    { password },
+    { ...input },
     signal,
   );
 }
 
 export async function login(
+  username: string,
   password: string,
   signal?: AbortSignal,
 ): Promise<LoginResult> {
   return requestJsonBody<LoginResult>(
     "/api/auth/login",
     "POST",
-    { password },
+    { username, password },
     signal,
   );
 }

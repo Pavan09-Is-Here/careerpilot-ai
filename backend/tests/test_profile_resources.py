@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.schemas.project import ProjectCreate
+from tests.conftest import Account
 
 
 def profile_payload(**overrides: object) -> dict[str, object]:
@@ -35,10 +36,11 @@ def profile_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def create_profile(client: TestClient) -> dict[str, Any]:
+def create_profile(client: TestClient, account: Account) -> dict[str, Any]:
     response = client.put(
         "/api/profile",
         json=profile_payload(),
+        headers=account.headers,
     )
 
     assert response.status_code == 200
@@ -47,10 +49,14 @@ def create_profile(client: TestClient) -> dict[str, Any]:
 
 def assert_deleted(
     client: TestClient,
+    account: Account,
     path: str,
     record_id: int,
 ) -> None:
-    response = client.delete(f"{path}/{record_id}")
+    response = client.delete(
+        f"{path}/{record_id}",
+        headers=account.headers,
+    )
 
     assert response.status_code == 204
     assert response.content == b""
@@ -58,18 +64,22 @@ def assert_deleted(
 
 def test_profile_can_be_created_read_and_updated(
     client: TestClient,
+    account: Account,
 ) -> None:
-    missing_response = client.get("/api/profile")
+    # Registration already creates the caller's profile, so the
+    # authenticated GET returns 200 with the registered full name.
+    existing_response = client.get("/api/profile", headers=account.headers)
 
-    assert missing_response.status_code == 404
+    assert existing_response.status_code == 200
+    assert existing_response.json()["full_name"] == "Test Candidate"
 
-    created_profile = create_profile(client)
+    created_profile = create_profile(client, account)
 
-    assert created_profile["id"] == 1
+    assert created_profile["id"] == account.profile_id
     assert created_profile["email"] == "candidate@example.com"
     assert created_profile["facts_verified"] is True
 
-    fetched_response = client.get("/api/profile")
+    fetched_response = client.get("/api/profile", headers=account.headers)
 
     assert fetched_response.status_code == 200
     assert fetched_response.json()["full_name"] == "Test Candidate"
@@ -80,6 +90,7 @@ def test_profile_can_be_created_read_and_updated(
             professional_title="Backend Engineer",
             facts_verified=False,
         ),
+        headers=account.headers,
     )
 
     assert updated_response.status_code == 200
@@ -176,20 +187,22 @@ def test_profile_can_be_created_read_and_updated(
         ),
     ],
 )
-def test_child_records_require_candidate_profile(
+def test_child_records_require_authentication(
     client: TestClient,
     path: str,
     payload: dict[str, object],
     expected_detail: str,
 ) -> None:
+    # The candidate profile now always exists for an authenticated caller,
+    # so the "create the profile first" branch is unreachable while
+    # authenticated. An UNAUTHENTICATED request must be rejected with 401.
     response = client.post(path, json=payload)
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == expected_detail
+    assert response.status_code == 401
 
 
-def test_education_crud(client: TestClient) -> None:
-    create_profile(client)
+def test_education_crud(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
 
     payload = {
         "institution": "Example University",
@@ -204,17 +217,19 @@ def test_education_crud(client: TestClient) -> None:
         "verified": True,
     }
 
-    created_response = client.post("/api/education", json=payload)
+    created_response = client.post(
+        "/api/education", json=payload, headers=account.headers
+    )
 
     assert created_response.status_code == 201
 
     created = created_response.json()
     record_id = created["id"]
 
-    assert created["candidate_profile_id"] == 1
+    assert created["candidate_profile_id"] == account.profile_id
     assert created["degree"] == "MSc Computer Science"
 
-    list_response = client.get("/api/education")
+    list_response = client.get("/api/education", headers=account.headers)
 
     assert list_response.status_code == 200
     assert len(list_response.json()) == 1
@@ -226,6 +241,7 @@ def test_education_crud(client: TestClient) -> None:
     updated_response = client.put(
         f"/api/education/{record_id}",
         json=updated_payload,
+        headers=account.headers,
     )
 
     assert updated_response.status_code == 200
@@ -233,12 +249,12 @@ def test_education_crud(client: TestClient) -> None:
         "MSc Artificial Intelligence"
     )
 
-    assert_deleted(client, "/api/education", record_id)
-    assert client.get("/api/education").json() == []
+    assert_deleted(client, account, "/api/education", record_id)
+    assert client.get("/api/education", headers=account.headers).json() == []
 
 
-def test_experience_crud(client: TestClient) -> None:
-    create_profile(client)
+def test_experience_crud(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
 
     payload = {
         "company": "Example Ltd",
@@ -255,15 +271,17 @@ def test_experience_crud(client: TestClient) -> None:
         "verified": True,
     }
 
-    created_response = client.post("/api/experience", json=payload)
+    created_response = client.post(
+        "/api/experience", json=payload, headers=account.headers
+    )
 
     assert created_response.status_code == 201
 
     record_id = created_response.json()["id"]
 
-    assert client.get("/api/experience").json()[0]["company"] == (
-        "Example Ltd"
-    )
+    assert client.get(
+        "/api/experience", headers=account.headers
+    ).json()[0]["company"] == ("Example Ltd")
 
     updated_response = client.put(
         f"/api/experience/{record_id}",
@@ -272,20 +290,22 @@ def test_experience_crud(client: TestClient) -> None:
             "job_title": "Backend Engineer",
             "technologies": ["Python", "SQL"],
         },
+        headers=account.headers,
     )
 
     assert updated_response.status_code == 200
     assert updated_response.json()["job_title"] == "Backend Engineer"
     assert updated_response.json()["technologies"] == ["Python", "SQL"]
 
-    assert_deleted(client, "/api/experience", record_id)
-    assert client.get("/api/experience").json() == []
+    assert_deleted(client, account, "/api/experience", record_id)
+    assert client.get("/api/experience", headers=account.headers).json() == []
 
 
 def test_project_crud_and_trimmed_required_text_validation(
     client: TestClient,
+    account: Account,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
 
     with pytest.raises(ValidationError):
         ProjectCreate(
@@ -310,6 +330,7 @@ def test_project_crud_and_trimmed_required_text_validation(
             "achievements": [],
             "verified": False,
         },
+        headers=account.headers,
     )
 
     assert invalid_response.status_code == 422
@@ -330,15 +351,17 @@ def test_project_crud_and_trimmed_required_text_validation(
         "verified": True,
     }
 
-    created_response = client.post("/api/projects", json=payload)
+    created_response = client.post(
+        "/api/projects", json=payload, headers=account.headers
+    )
 
     assert created_response.status_code == 201
 
     record_id = created_response.json()["id"]
 
-    assert client.get("/api/projects").json()[0]["name"] == (
-        "Verified Project"
-    )
+    assert client.get(
+        "/api/projects", headers=account.headers
+    ).json()[0]["name"] == ("Verified Project")
 
     updated_response = client.put(
         f"/api/projects/{record_id}",
@@ -347,19 +370,21 @@ def test_project_crud_and_trimmed_required_text_validation(
             "name": "Updated Verified Project",
             "achievements": ["Added persistent storage"],
         },
+        headers=account.headers,
     )
 
     assert updated_response.status_code == 200
     assert updated_response.json()["name"] == "Updated Verified Project"
 
-    assert_deleted(client, "/api/projects", record_id)
-    assert client.get("/api/projects").json() == []
+    assert_deleted(client, account, "/api/projects", record_id)
+    assert client.get("/api/projects", headers=account.headers).json() == []
 
 
 def test_skill_crud_and_duplicate_name_check(
     client: TestClient,
+    account: Account,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
 
     payload = {
         "name": "Python",
@@ -371,7 +396,9 @@ def test_skill_crud_and_duplicate_name_check(
         "verified": True,
     }
 
-    created_response = client.post("/api/skills", json=payload)
+    created_response = client.post(
+        "/api/skills", json=payload, headers=account.headers
+    )
 
     assert created_response.status_code == 201
 
@@ -383,6 +410,7 @@ def test_skill_crud_and_duplicate_name_check(
             **payload,
             "name": " python ",
         },
+        headers=account.headers,
     )
 
     assert duplicate_response.status_code == 409
@@ -394,18 +422,19 @@ def test_skill_crud_and_duplicate_name_check(
             "proficiency": "Expert",
             "years_experience": 4,
         },
+        headers=account.headers,
     )
 
     assert updated_response.status_code == 200
     assert updated_response.json()["proficiency"] == "Expert"
     assert updated_response.json()["years_experience"] == 4
 
-    assert_deleted(client, "/api/skills", record_id)
-    assert client.get("/api/skills").json() == []
+    assert_deleted(client, account, "/api/skills", record_id)
+    assert client.get("/api/skills", headers=account.headers).json() == []
 
 
-def test_certification_crud(client: TestClient) -> None:
-    create_profile(client)
+def test_certification_crud(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
 
     payload = {
         "name": "Example Certification",
@@ -423,15 +452,16 @@ def test_certification_crud(client: TestClient) -> None:
     created_response = client.post(
         "/api/certifications",
         json=payload,
+        headers=account.headers,
     )
 
     assert created_response.status_code == 201
 
     record_id = created_response.json()["id"]
 
-    assert client.get("/api/certifications").json()[0]["name"] == (
-        "Example Certification"
-    )
+    assert client.get(
+        "/api/certifications", headers=account.headers
+    ).json()[0]["name"] == ("Example Certification")
 
     updated_response = client.put(
         f"/api/certifications/{record_id}",
@@ -440,10 +470,13 @@ def test_certification_crud(client: TestClient) -> None:
             "credential_id": "XYZ-789",
             "skills": ["Python"],
         },
+        headers=account.headers,
     )
 
     assert updated_response.status_code == 200
     assert updated_response.json()["credential_id"] == "XYZ-789"
 
-    assert_deleted(client, "/api/certifications", record_id)
-    assert client.get("/api/certifications").json() == []
+    assert_deleted(client, account, "/api/certifications", record_id)
+    assert client.get(
+        "/api/certifications", headers=account.headers
+    ).json() == []

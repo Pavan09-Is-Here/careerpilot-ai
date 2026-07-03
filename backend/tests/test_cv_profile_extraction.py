@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.models.candidate_profile import CandidateProfile
 from app.models.document import Document
 from app.models.skill import Skill
+from tests.conftest import Account
 
 
 CV_TEXT = """Jane Doe
@@ -41,9 +42,18 @@ BSc Computer Science, Example University (2015 - 2018)
 """
 
 
-def seed_profile(database: Session, **overrides: object) -> CandidateProfile:
+def seed_profile(
+    database: Session,
+    account: Account,
+    **overrides: object,
+) -> CandidateProfile:
+    """Reset the authenticated account's own profile to a known baseline.
+
+    Registration already creates the caller's profile, so instead of
+    inserting a second row we mutate the existing one into the placeholder
+    state these tests rely on.
+    """
     values: dict[str, object] = {
-        "id": 1,
         "full_name": "",
         "email": "",
         "requires_sponsorship": False,
@@ -57,8 +67,10 @@ def seed_profile(database: Session, **overrides: object) -> CandidateProfile:
         "facts_verified": False,
     }
     values.update(overrides)
-    profile = CandidateProfile(**values)
-    database.add(profile)
+    profile = database.get(CandidateProfile, account.profile_id)
+    assert profile is not None
+    for key, value in values.items():
+        setattr(profile, key, value)
     database.commit()
     database.refresh(profile)
     return profile
@@ -66,13 +78,14 @@ def seed_profile(database: Session, **overrides: object) -> CandidateProfile:
 
 def make_document(
     database: Session,
+    account: Account,
     *,
     extracted_text: str | None = CV_TEXT,
     extraction_status: str = "completed",
 ) -> Document:
     token = uuid4().hex
     document = Document(
-        candidate_profile_id=1,
+        candidate_profile_id=account.profile_id,
         original_filename=f"cv-{token}.pdf",
         stored_filename=f"{token}.pdf",
         file_extension=".pdf",
@@ -100,12 +113,14 @@ def make_document(
 def test_profile_suggestion_preview(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
-    document = make_document(db_session)
+    seed_profile(db_session, account)
+    document = make_document(db_session, account)
 
     response = client.get(
-        f"/api/documents/{document.id}/profile-suggestion"
+        f"/api/documents/{document.id}/profile-suggestion",
+        headers=account.headers,
     )
     assert response.status_code == 200
     body = response.json()
@@ -136,17 +151,34 @@ def test_profile_suggestion_preview(
 def test_preview_requires_extracted_text(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
     document = make_document(
         db_session,
+        account,
         extraction_status="pending",
         extracted_text=None,
     )
     response = client.get(
-        f"/api/documents/{document.id}/profile-suggestion"
+        f"/api/documents/{document.id}/profile-suggestion",
+        headers=account.headers,
     )
     assert response.status_code == 400
+
+
+def test_preview_requires_authentication(
+    client: TestClient,
+    db_session: Session,
+    account: Account,
+) -> None:
+    seed_profile(db_session, account)
+    document = make_document(db_session, account)
+
+    response = client.get(
+        f"/api/documents/{document.id}/profile-suggestion"
+    )
+    assert response.status_code == 401
 
 
 # --- Apply ----------------------------------------------------------------
@@ -155,13 +187,15 @@ def test_preview_requires_extracted_text(
 def test_apply_fills_placeholder_profile_unverified(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
-    document = make_document(db_session)
+    seed_profile(db_session, account)
+    document = make_document(db_session, account)
 
     response = client.post(
         f"/api/documents/{document.id}/apply-profile-suggestion",
         json={},
+        headers=account.headers,
     )
     assert response.status_code == 200
     body = response.json()
@@ -173,7 +207,7 @@ def test_apply_fills_placeholder_profile_unverified(
     assert any(item.get("field") == "phone" for item in body["manual_review"])
 
     db_session.expire_all()
-    profile = db_session.get(CandidateProfile, 1)
+    profile = db_session.get(CandidateProfile, account.profile_id)
     assert profile.full_name == "Jane Doe"
     assert profile.email == "jane.doe@example.com"
     assert profile.facts_verified is False  # never auto-verified
@@ -188,24 +222,27 @@ def test_apply_fills_placeholder_profile_unverified(
 def test_apply_skips_existing_then_overwrites(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
     seed_profile(
         db_session,
+        account,
         full_name="Existing Name",
         email="existing@example.com",
         facts_verified=True,
     )
-    document = make_document(db_session)
+    document = make_document(db_session, account)
 
     first = client.post(
         f"/api/documents/{document.id}/apply-profile-suggestion",
         json={},
+        headers=account.headers,
     ).json()
     assert "full_name" in first["skipped_existing_fields"]
     assert "professional_title" in first["applied_fields"]
 
     db_session.expire_all()
-    profile = db_session.get(CandidateProfile, 1)
+    profile = db_session.get(CandidateProfile, account.profile_id)
     assert profile.full_name == "Existing Name"
     # Introducing unverified CV data resets verification.
     assert profile.facts_verified is False
@@ -213,24 +250,30 @@ def test_apply_skips_existing_then_overwrites(
     client.post(
         f"/api/documents/{document.id}/apply-profile-suggestion",
         json={"overwrite": True},
+        headers=account.headers,
     )
     db_session.expire_all()
-    assert db_session.get(CandidateProfile, 1).full_name == "Jane Doe"
+    assert (
+        db_session.get(CandidateProfile, account.profile_id).full_name
+        == "Jane Doe"
+    )
 
 
 def test_apply_include_sensitive(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
-    document = make_document(db_session)
+    seed_profile(db_session, account)
+    document = make_document(db_session, account)
 
     client.post(
         f"/api/documents/{document.id}/apply-profile-suggestion",
         json={"include_sensitive": True},
+        headers=account.headers,
     )
     db_session.expire_all()
-    profile = db_session.get(CandidateProfile, 1)
+    profile = db_session.get(CandidateProfile, account.profile_id)
     assert profile.phone is not None
     assert profile.location is not None
 
@@ -238,22 +281,24 @@ def test_apply_include_sensitive(
 def test_apply_dedupes_existing_skills(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
     db_session.add(
         Skill(
-            candidate_profile_id=1,
+            candidate_profile_id=account.profile_id,
             name="Python",
             proficiency="Advanced",
             verified=True,
         )
     )
     db_session.commit()
-    document = make_document(db_session)
+    document = make_document(db_session, account)
 
     body = client.post(
         f"/api/documents/{document.id}/apply-profile-suggestion",
         json={},
+        headers=account.headers,
     ).json()
     assert "Python" not in body["added_skills"]
 
@@ -267,14 +312,22 @@ def test_apply_dedupes_existing_skills(
 def test_apply_skills_only_when_no_profile_fields(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session, full_name="Set Name", email="set@example.com")
+    seed_profile(
+        db_session,
+        account,
+        full_name="Set Name",
+        email="set@example.com",
+    )
     document = make_document(
         db_session,
+        account,
         extracted_text="SKILLS\nPython, Docker\n",
     )
     body = client.post(
         f"/api/documents/{document.id}/apply-profile-suggestion",
         json={},
+        headers=account.headers,
     ).json()
     assert set(body["added_skills"]) == {"Python", "Docker"}

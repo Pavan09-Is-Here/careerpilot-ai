@@ -40,7 +40,6 @@ from app.services.salary import SalaryServiceError, recommend_salary
 
 
 ASSEMBLY_VERSION = "application-package-1"
-CANDIDATE_PROFILE_ID = 1
 
 REQUIRED_ANSWER_CATEGORIES = (
     "work_authorization",
@@ -121,8 +120,11 @@ def get_job_or_404(job_id: int, database: Session) -> NormalizedJob:
     return job
 
 
-def require_profile(database: Session) -> CandidateProfile:
-    profile = database.get(CandidateProfile, CANDIDATE_PROFILE_ID)
+def require_profile(
+    database: Session,
+    candidate_profile_id: int,
+) -> CandidateProfile:
+    profile = database.get(CandidateProfile, candidate_profile_id)
     if profile is None:
         raise ApplicationPackageServiceError(
             "Create the candidate profile before preparing "
@@ -162,13 +164,16 @@ def load_tailored_cv(
     return version, artifacts
 
 
-def load_answers(database: Session) -> list[ApplicationAnswer]:
+def load_answers(
+    database: Session,
+    candidate_profile_id: int,
+) -> list[ApplicationAnswer]:
     return list(
         database.scalars(
             select(ApplicationAnswer)
             .where(
                 ApplicationAnswer.candidate_profile_id
-                == CANDIDATE_PROFILE_ID
+                == candidate_profile_id
             )
             .order_by(
                 ApplicationAnswer.category.asc(),
@@ -439,13 +444,14 @@ def determine_readiness(
 def prepare_application_package(
     job_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationPackage:
     job = get_job_or_404(job_id, database)
-    profile = require_profile(database)
+    profile = require_profile(database, candidate_profile_id)
 
     match = load_job_match(job.id, database)
     tailored = load_tailored_cv(job.id, database)
-    answers = load_answers(database)
+    answers = load_answers(database, candidate_profile_id)
 
     try:
         salary = recommend_salary(job.id, database)
@@ -643,11 +649,12 @@ def build_salary_summary(job_id: int, database: Session) -> dict[str, object] | 
 def build_package_response(
     package: ApplicationPackage,
     database: Session,
+    candidate_profile_id: int,
 ) -> dict[str, object]:
     job = get_job_or_404(package.job_id, database)
     match = load_job_match(job.id, database)
     tailored = load_tailored_cv(job.id, database)
-    answers = load_answers(database)
+    answers = load_answers(database, candidate_profile_id)
 
     return {
         "job_id": package.job_id,

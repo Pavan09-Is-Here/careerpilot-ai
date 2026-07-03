@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.schemas.cv_version import CVVersionArtifactResponse
 from app.services.cv_version import CVVersionServiceError
@@ -31,9 +32,12 @@ def raise_artifact_http_error(error: CVVersionServiceError) -> None:
 def get_generated_cv_artifact_metadata(
     artifact_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVVersionArtifactResponse:
     try:
-        return get_cv_version_artifact_or_404(artifact_id, database)
+        return get_cv_version_artifact_or_404(
+            artifact_id, database, candidate_profile_id=profile_id
+        )
     except CVVersionServiceError as exc:
         raise_artifact_http_error(exc)
 
@@ -44,9 +48,12 @@ def get_generated_cv_artifact_metadata(
 def download_generated_cv_artifact(
     artifact_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> FileResponse:
     try:
-        artifact = get_cv_version_artifact_or_404(artifact_id, database)
+        artifact = get_cv_version_artifact_or_404(
+            artifact_id, database, candidate_profile_id=profile_id
+        )
         artifact_path = resolve_artifact_download_path(artifact)
     except CVVersionServiceError as exc:
         raise_artifact_http_error(exc)

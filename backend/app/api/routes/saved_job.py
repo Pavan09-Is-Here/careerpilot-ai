@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.schemas.saved_job import (
     SavedJobCreate,
@@ -39,9 +40,10 @@ def raise_saved_job_http_error(error: SavedJobServiceError) -> None:
 def save_job(
     payload: SavedJobCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
-        return create_saved_job(payload, database)
+        return create_saved_job(payload, database, profile_id)
     except SavedJobServiceError as exc:
         raise_saved_job_http_error(exc)
 
@@ -55,10 +57,12 @@ def list_saved_job_records(
     page_size: int = Query(default=50, ge=1, le=100),
     review_status: SavedJobReviewStatus | None = Query(default=None),
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
         return list_saved_jobs(
             database,
+            candidate_profile_id=profile_id,
             page=page,
             page_size=page_size,
             review_status=review_status,
@@ -74,9 +78,10 @@ def list_saved_job_records(
 def get_saved_job_record(
     saved_job_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
-        saved = get_saved_job_or_404(saved_job_id, database)
+        saved = get_saved_job_or_404(saved_job_id, database, profile_id)
         return build_saved_job_payload(saved, database)
     except SavedJobServiceError as exc:
         raise_saved_job_http_error(exc)
@@ -90,8 +95,9 @@ def update_saved_job_record(
     saved_job_id: int,
     payload: SavedJobUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
-        return update_saved_job(saved_job_id, payload, database)
+        return update_saved_job(saved_job_id, payload, database, profile_id)
     except SavedJobServiceError as exc:
         raise_saved_job_http_error(exc)

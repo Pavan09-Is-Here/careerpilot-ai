@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.application import Application
 from app.schemas.application import (
@@ -45,9 +46,10 @@ def raise_application_http_error(
 def track_job_application(
     job_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Application:
     try:
-        return track_application(job_id, database)
+        return track_application(job_id, database, profile_id)
     except ApplicationServiceError as exc:
         raise_application_http_error(exc)
 
@@ -59,8 +61,9 @@ def track_job_application(
 def list_all_applications(
     status: ApplicationStatus | None = Query(default=None),
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[Application]:
-    return list(list_applications(database, status=status))
+    return list(list_applications(database, profile_id, status=status))
 
 
 @router.get(
@@ -70,9 +73,12 @@ def list_all_applications(
 def get_application_detail(
     application_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
-        application = get_application_or_404(application_id, database)
+        application = get_application_or_404(
+            application_id, database, profile_id
+        )
         return build_detail(application, database)
     except ApplicationServiceError as exc:
         raise_application_http_error(exc)
@@ -86,9 +92,12 @@ def update_application_record(
     application_id: int,
     payload: ApplicationUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Application:
     try:
-        return update_application(application_id, payload, database)
+        return update_application(
+            application_id, payload, database, profile_id
+        )
     except ApplicationServiceError as exc:
         raise_application_http_error(exc)
 
@@ -102,9 +111,10 @@ def add_application_note(
     application_id: int,
     payload: ApplicationNoteCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Application:
     try:
-        return add_note(application_id, payload, database)
+        return add_note(application_id, payload, database, profile_id)
     except ApplicationServiceError as exc:
         raise_application_http_error(exc)
 
@@ -118,8 +128,11 @@ def add_application_follow_up(
     application_id: int,
     payload: ApplicationFollowUpCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Application:
     try:
-        return add_follow_up(application_id, payload, database)
+        return add_follow_up(
+            application_id, payload, database, profile_id
+        )
     except ApplicationServiceError as exc:
         raise_application_http_error(exc)

@@ -2677,7 +2677,7 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code-level groundwork committed; infrastructure provisioning/deployment remaining)
+**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code groundwork committed; deployed to Supabase + Render + Vercel). Phase 15 — Multi-tenant accounts IN PROGRESS: 15A (users table, username+password login, per-account sessions/profile) COMMITTED; 15B (all personal API routes scoped to the authenticated user's candidate profile; cross-user isolation tests) COMPLETE and validated (full suite green; upgrade/downgrade validated on SQLite and real PostgreSQL; alembic head `d2e3f4a5b6c7`). 15C (frontend registration + username login) and per-user background workers (the auto-apply/matching pipeline still operates on a single candidate profile and must be looped over all profiles) remain.
 
 **First Not-Started Milestone:** Phase 14 infrastructure/deployment steps (provisioning, hosting, backups) — see `docs/deployment.md`.
 

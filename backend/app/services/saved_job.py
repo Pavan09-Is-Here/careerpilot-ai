@@ -66,9 +66,10 @@ def validate_review_transition(
 def get_saved_job_or_404(
     saved_job_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> SavedJob:
     saved = database.get(SavedJob, saved_job_id)
-    if saved is None:
+    if saved is None or saved.candidate_profile_id != candidate_profile_id:
         raise SavedJobServiceError(
             "Saved job was not found.",
             status_code=404,
@@ -99,6 +100,7 @@ def build_saved_job_payload(
 def create_saved_job(
     data: SavedJobCreate,
     database: Session,
+    candidate_profile_id: int,
 ) -> dict[str, object]:
     job = database.get(NormalizedJob, data.job_id)
     if job is None:
@@ -111,6 +113,7 @@ def create_saved_job(
 
     now = current_utc_time()
     saved = SavedJob(
+        candidate_profile_id=candidate_profile_id,
         job_id=job.id,
         review_status="saved",
         notes=data.notes,
@@ -137,8 +140,13 @@ def update_saved_job(
     saved_job_id: int,
     data: SavedJobUpdate,
     database: Session,
+    candidate_profile_id: int,
 ) -> dict[str, object]:
-    saved = get_saved_job_or_404(saved_job_id, database)
+    saved = get_saved_job_or_404(
+        saved_job_id,
+        database,
+        candidate_profile_id,
+    )
     now = current_utc_time()
 
     if data.review_status is not None:
@@ -172,11 +180,14 @@ def update_saved_job(
 def list_saved_jobs(
     database: Session,
     *,
+    candidate_profile_id: int,
     page: int = 1,
     page_size: int = 50,
     review_status: str | None = None,
 ) -> dict[str, object]:
-    statement = select(SavedJob)
+    statement = select(SavedJob).where(
+        SavedJob.candidate_profile_id == candidate_profile_id
+    )
 
     if review_status is not None:
         statement = statement.where(

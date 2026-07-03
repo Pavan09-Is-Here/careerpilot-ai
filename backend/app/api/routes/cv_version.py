@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.schemas.cv_version import (
     CVMasterGenerationRequest,
@@ -49,9 +50,10 @@ def raise_cv_version_http_error(error: CVVersionServiceError) -> None:
 def create_cv_version_metadata(
     data: CVVersionCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVVersionResponse:
     try:
-        return create_cv_version(data, database)
+        return create_cv_version(data, database, candidate_profile_id=profile_id)
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
 
@@ -62,8 +64,9 @@ def create_cv_version_metadata(
 )
 def list_cv_version_metadata(
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[CVVersionResponse]:
-    return list_cv_versions(database)
+    return list_cv_versions(database, candidate_profile_id=profile_id)
 
 
 @router.get(
@@ -73,9 +76,12 @@ def list_cv_version_metadata(
 def get_cv_version_metadata(
     version_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVVersionResponse:
     try:
-        return get_cv_version_or_404(version_id, database)
+        return get_cv_version_or_404(
+            version_id, database, candidate_profile_id=profile_id
+        )
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
 
@@ -90,12 +96,14 @@ def generate_verified_master_cv_metadata(
     request: CVMasterGenerationRequest,
     response: Response,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVMasterGenerationResponse:
     try:
         result = generate_verified_master_cv(
             parent_version_id,
             request,
             database,
+            candidate_profile_id=profile_id,
         )
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
@@ -117,10 +125,15 @@ def generate_verified_master_cv_metadata(
 def list_generated_cv_artifacts(
     version_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[CVVersionArtifactResponse]:
     try:
-        get_cv_version_or_404(version_id, database)
-        return list_cv_version_artifacts(version_id, database)
+        get_cv_version_or_404(
+            version_id, database, candidate_profile_id=profile_id
+        )
+        return list_cv_version_artifacts(
+            version_id, database, candidate_profile_id=profile_id
+        )
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
 
@@ -133,9 +146,12 @@ def update_cv_version_metadata(
     version_id: int,
     data: CVVersionUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVVersionResponse:
     try:
-        return update_cv_version(version_id, data, database)
+        return update_cv_version(
+            version_id, data, database, candidate_profile_id=profile_id
+        )
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
 
@@ -147,9 +163,12 @@ def update_cv_version_metadata(
 def set_primary_cv_version_metadata(
     version_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVVersionResponse:
     try:
-        return set_primary_cv_version(version_id, database)
+        return set_primary_cv_version(
+            version_id, database, candidate_profile_id=profile_id
+        )
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
 
@@ -161,9 +180,12 @@ def set_primary_cv_version_metadata(
 def archive_cv_version_metadata(
     version_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVVersionResponse:
     try:
-        return archive_cv_version(version_id, database)
+        return archive_cv_version(
+            version_id, database, candidate_profile_id=profile_id
+        )
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
 
@@ -175,9 +197,12 @@ def archive_cv_version_metadata(
 def delete_cv_version_metadata(
     version_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Response:
     try:
-        delete_cv_version(version_id, database)
+        delete_cv_version(
+            version_id, database, candidate_profile_id=profile_id
+        )
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)
 
@@ -191,8 +216,11 @@ def delete_cv_version_metadata(
 def get_cv_version_history_metadata(
     version_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
-        return get_cv_version_history(version_id, database)
+        return get_cv_version_history(
+            version_id, database, candidate_profile_id=profile_id
+        )
     except CVVersionServiceError as exc:
         raise_cv_version_http_error(exc)

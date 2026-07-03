@@ -24,9 +24,6 @@ from app.models.candidate_profile import CandidateProfile
 from app.models.notification import Notification
 
 
-CANDIDATE_PROFILE_ID = 1
-
-
 class NotificationServiceError(RuntimeError):
     def __init__(self, message: str, status_code: int = 400) -> None:
         super().__init__(message)
@@ -38,8 +35,11 @@ def current_utc_time() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def candidate_recipient(database: Session) -> str | None:
-    profile = database.get(CandidateProfile, CANDIDATE_PROFILE_ID)
+def candidate_recipient(
+    database: Session,
+    candidate_profile_id: int,
+) -> str | None:
+    profile = database.get(CandidateProfile, candidate_profile_id)
     if profile is None or not profile.email:
         return None
     return profile.email
@@ -48,6 +48,7 @@ def candidate_recipient(database: Session) -> str | None:
 def create_notification(
     database: Session,
     *,
+    candidate_profile_id: int,
     category: str,
     subject: str,
     body: str,
@@ -57,7 +58,10 @@ def create_notification(
 ) -> Notification | None:
     """Record a notification. Returns None if a duplicate (dedupe_key)
     already exists or no recipient is available."""
-    to_address = recipient or candidate_recipient(database)
+    to_address = recipient or candidate_recipient(
+        database,
+        candidate_profile_id,
+    )
     if to_address is None:
         return None
 
@@ -71,6 +75,7 @@ def create_notification(
             return existing
 
     notification = Notification(
+        candidate_profile_id=candidate_profile_id,
         category=category,
         channel="email",
         recipient=to_address,
@@ -175,12 +180,15 @@ def deliver_pending(
 def list_notifications(
     database: Session,
     *,
+    candidate_profile_id: int,
     category: str | None = None,
     status: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> dict[str, object]:
-    filters = []
+    filters = [
+        Notification.candidate_profile_id == candidate_profile_id
+    ]
     if category is not None:
         filters.append(Notification.category == category)
     if status is not None:
@@ -214,9 +222,13 @@ def list_notifications(
 def get_notification_or_404(
     notification_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Notification:
     notification = database.get(Notification, notification_id)
-    if notification is None:
+    if (
+        notification is None
+        or notification.candidate_profile_id != candidate_profile_id
+    ):
         raise NotificationServiceError(
             "Notification was not found.",
             status_code=404,

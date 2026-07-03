@@ -143,6 +143,7 @@ EXPECTED_FOREIGN_KEYS = {
     },
     "saved_jobs": {
         ("job_id", "normalized_jobs", "id", "RESTRICT"),
+        ("candidate_profile_id", "candidate_profiles", "id", "CASCADE"),
     },
     "job_matches": {
         ("job_id", "normalized_jobs", "id", "CASCADE"),
@@ -184,6 +185,7 @@ EXPECTED_FOREIGN_KEYS = {
     },
     "notifications": {
         ("related_job_id", "normalized_jobs", "id", "SET NULL"),
+        ("candidate_profile_id", "candidate_profiles", "id", "CASCADE"),
     },
 }
 
@@ -271,6 +273,7 @@ EXPECTED_INDEXES = {
     "saved_jobs": {
         "ix_saved_jobs_job_id",
         "ix_saved_jobs_review_status",
+        "ix_saved_jobs_candidate_profile_id",
     },
     "job_matches": {
         "ix_job_matches_job_id",
@@ -355,7 +358,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["c1d2e3f4a5b6"]
+    assert script.get_heads() == ["d2e3f4a5b6c7"]
 
     command.upgrade(config, "head")
 

@@ -8,6 +8,7 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.candidate_profile import (
     CandidateProfile,
@@ -29,6 +30,7 @@ router = APIRouter(
 def get_project_or_404(
     project_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Project:
     project = database.get(
         Project,
@@ -37,7 +39,7 @@ def get_project_or_404(
 
     if (
         project is None
-        or project.candidate_profile_id != 1
+        or project.candidate_profile_id != candidate_profile_id
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -53,11 +55,12 @@ def get_project_or_404(
 )
 def list_projects(
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[Project]:
     statement = (
         select(Project)
         .where(
-            Project.candidate_profile_id == 1
+            Project.candidate_profile_id == profile_id
         )
         .order_by(
             Project.start_date.desc(),
@@ -78,10 +81,11 @@ def list_projects(
 def create_project(
     payload: ProjectCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Project:
     profile = database.get(
         CandidateProfile,
-        1,
+        profile_id,
     )
 
     if profile is None:
@@ -94,7 +98,7 @@ def create_project(
         )
 
     project = Project(
-        candidate_profile_id=1,
+        candidate_profile_id=profile_id,
         **payload.model_dump(),
     )
 
@@ -113,10 +117,12 @@ def update_project(
     project_id: int,
     payload: ProjectUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Project:
     project = get_project_or_404(
         project_id,
         database,
+        profile_id,
     )
 
     for field_name, field_value in (
@@ -141,10 +147,12 @@ def update_project(
 def delete_project(
     project_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Response:
     project = get_project_or_404(
         project_id,
         database,
+        profile_id,
     )
 
     database.delete(project)

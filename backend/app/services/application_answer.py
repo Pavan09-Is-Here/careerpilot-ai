@@ -23,9 +23,6 @@ from app.schemas.application_answer import (
 )
 
 
-CANDIDATE_PROFILE_ID = 1
-
-
 # Categories that are legal declarations by nature and always require
 # explicit manual confirmation before an answer may be verified.
 SENSITIVE_CATEGORIES: frozenset[str] = frozenset(
@@ -130,8 +127,11 @@ def guard_verified_state(
         )
 
 
-def ensure_candidate_profile(database: Session) -> None:
-    profile = database.get(CandidateProfile, CANDIDATE_PROFILE_ID)
+def ensure_candidate_profile(
+    database: Session,
+    candidate_profile_id: int,
+) -> None:
+    profile = database.get(CandidateProfile, candidate_profile_id)
 
     if profile is None:
         raise ApplicationAnswerServiceError(
@@ -143,12 +143,13 @@ def ensure_candidate_profile(database: Session) -> None:
 def get_answer_or_404(
     answer_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationAnswer:
     answer = database.get(ApplicationAnswer, answer_id)
 
     if (
         answer is None
-        or answer.candidate_profile_id != CANDIDATE_PROFILE_ID
+        or answer.candidate_profile_id != candidate_profile_id
     ):
         raise ApplicationAnswerServiceError(
             "Application answer was not found.",
@@ -161,8 +162,9 @@ def get_answer_or_404(
 def create_application_answer(
     data: ApplicationAnswerCreate,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationAnswer:
-    ensure_candidate_profile(database)
+    ensure_candidate_profile(database, candidate_profile_id)
 
     requires_confirmation = evaluate_requires_manual_confirmation(
         data.category,
@@ -177,7 +179,7 @@ def create_application_answer(
 
     now = current_utc_time()
     answer = ApplicationAnswer(
-        candidate_profile_id=CANDIDATE_PROFILE_ID,
+        candidate_profile_id=candidate_profile_id,
         category=data.category,
         question_label=data.question_label,
         answer_text=data.answer_text,
@@ -207,8 +209,9 @@ def update_application_answer(
     answer_id: int,
     data: ApplicationAnswerUpdate,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationAnswer:
-    answer = get_answer_or_404(answer_id, database)
+    answer = get_answer_or_404(answer_id, database, candidate_profile_id)
 
     requires_confirmation = evaluate_requires_manual_confirmation(
         data.category,
@@ -245,11 +248,12 @@ def update_application_answer(
 
 def list_application_answers(
     database: Session,
+    candidate_profile_id: int,
     *,
     category: str | None = None,
 ) -> list[ApplicationAnswer]:
     statement = select(ApplicationAnswer).where(
-        ApplicationAnswer.candidate_profile_id == CANDIDATE_PROFILE_ID
+        ApplicationAnswer.candidate_profile_id == candidate_profile_id
     )
 
     if category is not None:
@@ -269,7 +273,8 @@ def list_application_answers(
 def delete_application_answer(
     answer_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> None:
-    answer = get_answer_or_404(answer_id, database)
+    answer = get_answer_or_404(answer_id, database, candidate_profile_id)
     database.delete(answer)
     database.commit()

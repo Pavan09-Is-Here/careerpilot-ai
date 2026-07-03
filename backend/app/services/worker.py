@@ -287,6 +287,15 @@ def worker_job_analysis(ctx: WorkerContext) -> None:
 
 
 def worker_application_preparation(ctx: WorkerContext) -> None:
+    profile = ctx.database.get(CandidateProfile, CANDIDATE_PROFILE_ID)
+    if profile is None:
+        ctx.audit(
+            "preparation_skipped",
+            "No candidate profile exists; preparation skipped.",
+            level="warning",
+        )
+        return
+
     prepared_ids = select(ApplicationPackage.job_id)
     eligible_ids = select(JobMatch.job_id).where(
         JobMatch.eligibility_status.in_(
@@ -309,7 +318,9 @@ def worker_application_preparation(ctx: WorkerContext) -> None:
 
     def handle(job: object) -> str:
         assert isinstance(job, NormalizedJob)
-        package = prepare_application_package(job.id, ctx.database)
+        package = prepare_application_package(
+            job.id, ctx.database, profile.id
+        )
         return (
             f"Prepared application package for '{job.title}' — "
             f"readiness {package.readiness_status}. Submission is "
@@ -454,6 +465,7 @@ def worker_auto_apply_pipeline(ctx: WorkerContext) -> None:
                 except CVTailoringError as exc:
                     create_notification(
                         ctx.database,
+                        candidate_profile_id=profile.id,
                         category="manual_action_required",
                         subject=f"Action needed to apply: {job.title}",
                         body=(
@@ -476,13 +488,16 @@ def worker_auto_apply_pipeline(ctx: WorkerContext) -> None:
                     ctx.succeeded += 1
                     continue
 
-            package = prepare_application_package(job.id, ctx.database)
+            package = prepare_application_package(
+                job.id, ctx.database, profile.id
+            )
 
             if package.readiness_status == (
                 "ready_for_automatic_application"
             ):
                 create_notification(
                     ctx.database,
+                    candidate_profile_id=profile.id,
                     category="application_prepared",
                     subject=(
                         f"Ready to submit: {job.title} at "
@@ -506,6 +521,7 @@ def worker_auto_apply_pipeline(ctx: WorkerContext) -> None:
             else:
                 create_notification(
                     ctx.database,
+                    candidate_profile_id=profile.id,
                     category="manual_action_required",
                     subject=f"Review needed: {job.title}",
                     body=(

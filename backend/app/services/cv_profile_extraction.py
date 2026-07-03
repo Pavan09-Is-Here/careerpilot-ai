@@ -418,9 +418,14 @@ SENSITIVE_PROFILE_FIELDS = ("phone", "location")
 REQUIRED_PROFILE_FIELDS = ("full_name", "email")
 
 
-def _existing_skill_names(database: Session) -> set[str]:
+def _existing_skill_names(
+    database: Session,
+    candidate_profile_id: int,
+) -> set[str]:
     names = database.scalars(
-        select(Skill.name).where(Skill.candidate_profile_id == 1)
+        select(Skill.name).where(
+            Skill.candidate_profile_id == candidate_profile_id
+        )
     ).all()
     return {name.casefold() for name in names}
 
@@ -428,6 +433,7 @@ def _existing_skill_names(database: Session) -> set[str]:
 def apply_profile_suggestion(
     document: Document,
     database: Session,
+    candidate_profile_id: int,
     *,
     apply_profile: bool = True,
     apply_skills: bool = True,
@@ -440,30 +446,14 @@ def apply_profile_suggestion(
     applied_fields: list[str] = []
     skipped_fields: list[str] = []
 
-    profile = database.get(CandidateProfile, 1)
+    profile = database.get(CandidateProfile, candidate_profile_id)
+    if profile is None:
+        raise CVProfileExtractionError(
+            "No candidate profile exists for this account.",
+            status_code=404,
+        )
 
     if apply_profile:
-        if profile is None:
-            missing = [
-                name
-                for name in REQUIRED_PROFILE_FIELDS
-                if name not in fields_by_name
-            ]
-            if missing:
-                raise CVProfileExtractionError(
-                    "Could not extract the required "
-                    f"{', '.join(missing)} to create a profile; add "
-                    "these manually.",
-                )
-            profile = CandidateProfile(
-                id=1,
-                full_name=fields_by_name["full_name"].value,
-                email=fields_by_name["email"].value,
-                facts_verified=False,
-            )
-            database.add(profile)
-            applied_fields.extend(["full_name", "email"])
-
         candidate_fields = list(AUTO_PROFILE_FIELDS)
         if include_sensitive:
             candidate_fields += list(SENSITIVE_PROFILE_FIELDS)
@@ -488,7 +478,7 @@ def apply_profile_suggestion(
 
     added_skills: list[str] = []
     if apply_skills and suggestion.skills:
-        existing = _existing_skill_names(database)
+        existing = _existing_skill_names(database, candidate_profile_id)
         for skill in suggestion.skills:
             key = skill.name.casefold()
             if key in existing:
@@ -496,7 +486,7 @@ def apply_profile_suggestion(
             existing.add(key)
             database.add(
                 Skill(
-                    candidate_profile_id=1,
+                    candidate_profile_id=candidate_profile_id,
                     name=skill.name,
                     verified=False,
                 )

@@ -16,9 +16,17 @@ from sqlalchemy.orm import Session
 
 from app.models.document import Document
 from app.schemas.document import DocumentType
+from tests.conftest import Account
 
 
 WORD_NAMESPACE = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter() -> None:
+    from app.api.routes.auth import login_rate_limiter
+
+    login_rate_limiter.reset()
 
 
 def profile_payload(**overrides: object) -> dict[str, object]:
@@ -49,8 +57,12 @@ def profile_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def create_profile(client: TestClient) -> dict[str, Any]:
-    response = client.put("/api/profile", json=profile_payload())
+def create_profile(client: TestClient, account: Account) -> dict[str, Any]:
+    response = client.put(
+        "/api/profile",
+        json=profile_payload(),
+        headers=account.headers,
+    )
     assert response.status_code == 200
     return cast(dict[str, Any], response.json())
 
@@ -173,6 +185,7 @@ def upload_document(
     file_bytes: bytes,
     document_type: DocumentType = "original_cv",
     content_type: str | None = None,
+    account: Account | None = None,
 ) -> Any:
     files = [
         (
@@ -187,7 +200,12 @@ def upload_document(
         ("is_primary", (None, "false")),
     ]
 
-    return client.post("/api/documents/upload", files=files)
+    headers = account.headers if account is not None else None
+    return client.post(
+        "/api/documents/upload",
+        files=files,
+        headers=headers,
+    )
 
 
 def stored_file_path(document_payload: dict[str, Any]) -> Path:
@@ -213,19 +231,21 @@ def set_document_storage_dir(
 
 def test_pdf_extraction_success_and_response_shapes(
     client: TestClient,
+    account: Account,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.pdf",
         make_text_pdf_bytes(["Page one text", "Page two text"]),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
     assert upload_response.json()["extraction_status"] == "pending"
 
     document_id = upload_response.json()["id"]
-    extract_response = client.post(f"/api/documents/{document_id}/extract")
+    extract_response = client.post(f"/api/documents/{document_id}/extract", headers=account.headers)
 
     expected_text = "Page one text\n\nPage two text"
     assert extract_response.status_code == 200
@@ -235,21 +255,22 @@ def test_pdf_extraction_success_and_response_shapes(
     assert extraction_data["extracted_character_count"] == len(expected_text)
     assert "extracted_text" not in extraction_data
 
-    list_response = client.get("/api/documents")
+    list_response = client.get("/api/documents", headers=account.headers)
     assert list_response.status_code == 200
     list_item = list_response.json()[0]
     assert list_item["extraction_status"] == "completed"
     assert "extracted_text" not in list_item
 
-    detail_response = client.get(f"/api/documents/{document_id}")
+    detail_response = client.get(f"/api/documents/{document_id}", headers=account.headers)
     assert detail_response.status_code == 200
     assert detail_response.json()["extracted_text"] == expected_text
 
 
 def test_docx_extraction_preserves_paragraph_boundaries(
     client: TestClient,
+    account: Account,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.docx",
@@ -258,12 +279,13 @@ def test_docx_extraction_preserves_paragraph_boundaries(
             "application/vnd.openxmlformats-officedocument.wordprocessingml"
             ".document"
         ),
+        account=account,
     )
     assert upload_response.status_code == 201
 
     document_id = upload_response.json()["id"]
-    extract_response = client.post(f"/api/documents/{document_id}/extract")
-    detail_response = client.get(f"/api/documents/{document_id}")
+    extract_response = client.post(f"/api/documents/{document_id}/extract", headers=account.headers)
+    detail_response = client.get(f"/api/documents/{document_id}", headers=account.headers)
 
     assert extract_response.status_code == 200
     assert extract_response.json()["extraction_status"] == "completed"
@@ -273,9 +295,9 @@ def test_docx_extraction_preserves_paragraph_boundaries(
     )
 
 
-def test_extract_missing_document_returns_404(client: TestClient) -> None:
-    create_profile(client)
-    response = client.post("/api/documents/9999/extract")
+def test_extract_missing_document_returns_404(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
+    response = client.post("/api/documents/9999/extract", headers=account.headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Document was not found."
@@ -283,14 +305,16 @@ def test_extract_missing_document_returns_404(client: TestClient) -> None:
 
 def test_unvalidated_document_is_rejected(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.pdf",
         make_text_pdf_bytes(["Verified text"]),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
     document_id = upload_response.json()["id"]
@@ -300,21 +324,23 @@ def test_unvalidated_document_is_rejected(
     document.upload_status = "uploaded"
     db_session.commit()
 
-    response = client.post(f"/api/documents/{document_id}/extract")
+    response = client.post(f"/api/documents/{document_id}/extract", headers=account.headers)
     assert response.status_code == 400
     assert response.json()["detail"] == "Only validated documents can be extracted."
 
 
 def test_unsupported_format_is_rejected(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.pdf",
         make_text_pdf_bytes(["Verified text"]),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
     document_id = upload_response.json()["id"]
@@ -324,25 +350,26 @@ def test_unsupported_format_is_rejected(
     document.file_extension = ".txt"
     db_session.commit()
 
-    response = client.post(f"/api/documents/{document_id}/extract")
+    response = client.post(f"/api/documents/{document_id}/extract", headers=account.headers)
     assert response.status_code == 400
     assert response.json()["detail"] == "Unsupported document format."
 
 
-def test_missing_stored_file_fails_safely(client: TestClient) -> None:
-    create_profile(client)
+def test_missing_stored_file_fails_safely(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.pdf",
         make_text_pdf_bytes(["Verified text"]),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
     upload_payload = upload_response.json()
     path = stored_file_path(upload_payload)
     path.unlink()
 
-    response = client.post(f"/api/documents/{upload_payload['id']}/extract")
+    response = client.post(f"/api/documents/{upload_payload['id']}/extract", headers=account.headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -351,13 +378,14 @@ def test_missing_stored_file_fails_safely(client: TestClient) -> None:
     assert str(path.parent) not in data["extraction_error"]
 
 
-def test_corrupt_pdf_fails_safely(client: TestClient) -> None:
-    create_profile(client)
+def test_corrupt_pdf_fails_safely(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.pdf",
         make_text_pdf_bytes(["Verified text"]),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
     upload_payload = upload_response.json()
@@ -365,15 +393,15 @@ def test_corrupt_pdf_fails_safely(client: TestClient) -> None:
         b"%PDF-1.7\nnot a readable pdf\n%%EOF\n"
     )
 
-    response = client.post(f"/api/documents/{upload_payload['id']}/extract")
+    response = client.post(f"/api/documents/{upload_payload['id']}/extract", headers=account.headers)
 
     assert response.status_code == 200
     assert response.json()["extraction_status"] == "failed"
     assert "PDF" in response.json()["extraction_error"]
 
 
-def test_corrupt_docx_fails_safely(client: TestClient) -> None:
-    create_profile(client)
+def test_corrupt_docx_fails_safely(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.docx",
@@ -382,30 +410,33 @@ def test_corrupt_docx_fails_safely(client: TestClient) -> None:
             "application/vnd.openxmlformats-officedocument.wordprocessingml"
             ".document"
         ),
+        account=account,
     )
     assert upload_response.status_code == 201
     upload_payload = upload_response.json()
     stored_file_path(upload_payload).write_bytes(b"not a zip archive")
 
-    response = client.post(f"/api/documents/{upload_payload['id']}/extract")
+    response = client.post(f"/api/documents/{upload_payload['id']}/extract", headers=account.headers)
 
     assert response.status_code == 200
     assert response.json()["extraction_status"] == "failed"
     assert "DOCX" in response.json()["extraction_error"]
 
 
-def test_encrypted_pdf_fails_safely(client: TestClient) -> None:
-    create_profile(client)
+def test_encrypted_pdf_fails_safely(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "encrypted.pdf",
         make_encrypted_pdf_bytes(),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
 
     response = client.post(
-        f"/api/documents/{upload_response.json()['id']}/extract"
+        f"/api/documents/{upload_response.json()['id']}/extract",
+        headers=account.headers,
     )
 
     assert response.status_code == 200
@@ -415,18 +446,20 @@ def test_encrypted_pdf_fails_safely(client: TestClient) -> None:
     )
 
 
-def test_textless_pdf_returns_no_text(client: TestClient) -> None:
-    create_profile(client)
+def test_textless_pdf_returns_no_text(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "blank.pdf",
         make_blank_pdf_bytes(),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
 
     response = client.post(
-        f"/api/documents/{upload_response.json()['id']}/extract"
+        f"/api/documents/{upload_response.json()['id']}/extract",
+        headers=account.headers,
     )
 
     assert response.status_code == 200
@@ -437,25 +470,26 @@ def test_textless_pdf_returns_no_text(client: TestClient) -> None:
     assert "OCR is not available" in data["extraction_error"]
 
 
-def test_re_extraction_clears_stale_error(client: TestClient) -> None:
-    create_profile(client)
+def test_re_extraction_clears_stale_error(client: TestClient, account: Account) -> None:
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.pdf",
         make_text_pdf_bytes(["Verified text"]),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
     upload_payload = upload_response.json()
     path = stored_file_path(upload_payload)
     path.write_bytes(b"%PDF-1.7\nbroken\n%%EOF\n")
 
-    first_response = client.post(f"/api/documents/{upload_payload['id']}/extract")
+    first_response = client.post(f"/api/documents/{upload_payload['id']}/extract", headers=account.headers)
     assert first_response.status_code == 200
     assert first_response.json()["extraction_status"] == "failed"
 
     path.write_bytes(make_text_pdf_bytes(["Fresh verified text"]))
-    second_response = client.post(f"/api/documents/{upload_payload['id']}/extract")
+    second_response = client.post(f"/api/documents/{upload_payload['id']}/extract", headers=account.headers)
 
     assert second_response.status_code == 200
     assert second_response.json()["extraction_status"] == "completed"
@@ -464,14 +498,16 @@ def test_re_extraction_clears_stale_error(client: TestClient) -> None:
 
 def test_path_traversal_stored_filename_fails_safely(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.pdf",
         make_text_pdf_bytes(["Verified text"]),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
     document_id = upload_response.json()["id"]
@@ -481,7 +517,7 @@ def test_path_traversal_stored_filename_fails_safely(
     document.stored_filename = "../evil.pdf"
     db_session.commit()
 
-    response = client.post(f"/api/documents/{document_id}/extract")
+    response = client.post(f"/api/documents/{document_id}/extract", headers=account.headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -492,23 +528,26 @@ def test_path_traversal_stored_filename_fails_safely(
 
 def test_extracted_text_limit_is_enforced(
     client: TestClient,
+    account: Account,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(
         "CAREERPILOT_MAX_DOCUMENT_EXTRACTED_TEXT_CHARACTERS",
         "20",
     )
-    create_profile(client)
+    create_profile(client, account)
     upload_response = upload_document(
         client,
         "resume.pdf",
         make_text_pdf_bytes(["This extracted text is intentionally long."]),
         content_type="application/pdf",
+        account=account,
     )
     assert upload_response.status_code == 201
 
     response = client.post(
-        f"/api/documents/{upload_response.json()['id']}/extract"
+        f"/api/documents/{upload_response.json()['id']}/extract",
+        headers=account.headers,
     )
 
     assert response.status_code == 200
@@ -528,7 +567,7 @@ def test_document_extraction_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["c1d2e3f4a5b6"]
+    assert script.get_heads() == ["d2e3f4a5b6c7"]
     assert script.get_revision("b7a3c8d9e012").revision == "b7a3c8d9e012"
 
     command.upgrade(config, "head")

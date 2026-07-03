@@ -1,7 +1,15 @@
 """Phase 8 — Verified Application Answer Vault tests."""
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+
+from app.api.routes.auth import login_rate_limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
 
 from app.models.application_answer import ApplicationAnswer
 from app.models.candidate_profile import CandidateProfile
@@ -15,24 +23,16 @@ from app.services.application_answer import (
     evaluate_requires_manual_confirmation,
     update_application_answer,
 )
+from tests.conftest import Account, register_account
 
 
-def seed_profile(database: Session) -> CandidateProfile:
-    profile = CandidateProfile(
-        full_name="Test Candidate",
-        email="candidate@example.com",
-        requires_sponsorship=False,
-        willing_to_relocate=False,
-        preferred_work_modes=[],
-        target_roles=[],
-        preferred_locations=[],
-        salary_currency="GBP",
-        minimum_match_score=50,
-        auto_apply_enabled=False,
-        facts_verified=True,
-    )
-    database.add(profile)
+def seed_profile(database: Session, account: Account) -> CandidateProfile:
+    """Return the account's own profile with the fields the tests rely on."""
+    profile = database.get(CandidateProfile, account.profile_id)
+    assert profile is not None
+    profile.facts_verified = True
     database.commit()
+    database.refresh(profile)
     return profile
 
 
@@ -94,23 +94,25 @@ def test_non_sensitive_answer_not_flagged() -> None:
 # --- Create ---
 
 
-def test_create_requires_profile(client: TestClient) -> None:
+def test_create_requires_authentication(client: TestClient) -> None:
     response = client.post(
         "/api/application-answers",
         json=answer_payload(),
     )
-    assert response.status_code == 400
+    assert response.status_code == 401
 
 
 def test_create_non_sensitive_answer(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     response = client.post(
         "/api/application-answers",
         json=answer_payload(),
+        headers=account.headers,
     )
     assert response.status_code == 201
 
@@ -119,15 +121,16 @@ def test_create_non_sensitive_answer(
     assert body["answer_text"] == "Available to start immediately."
     assert body["verified"] is True
     assert body["requires_manual_confirmation"] is False
-    assert body["candidate_profile_id"] == 1
+    assert body["candidate_profile_id"] == account.profile_id
     assert "id" in body
 
 
 def test_create_sensitive_requires_confirmation_before_verified(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     response = client.post(
         "/api/application-answers",
@@ -138,6 +141,7 @@ def test_create_sensitive_requires_confirmation_before_verified(
             verified=True,
             manually_confirmed=False,
         ),
+        headers=account.headers,
     )
     assert response.status_code == 400
     assert "manually confirmed" in response.json()["detail"].lower()
@@ -146,8 +150,9 @@ def test_create_sensitive_requires_confirmation_before_verified(
 def test_create_sensitive_with_confirmation_succeeds(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     response = client.post(
         "/api/application-answers",
@@ -158,6 +163,7 @@ def test_create_sensitive_with_confirmation_succeeds(
             verified=True,
             manually_confirmed=True,
         ),
+        headers=account.headers,
     )
     assert response.status_code == 201
 
@@ -170,8 +176,9 @@ def test_create_sensitive_with_confirmation_succeeds(
 def test_create_sensitive_unverified_allowed_without_confirmation(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     response = client.post(
         "/api/application-answers",
@@ -182,6 +189,7 @@ def test_create_sensitive_unverified_allowed_without_confirmation(
             verified=False,
             manually_confirmed=False,
         ),
+        headers=account.headers,
     )
     assert response.status_code == 201
     body = response.json()
@@ -192,12 +200,14 @@ def test_create_sensitive_unverified_allowed_without_confirmation(
 def test_create_rejects_invalid_category(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     response = client.post(
         "/api/application-answers",
         json=answer_payload(category="not_a_category"),
+        headers=account.headers,
     )
     assert response.status_code == 422
 
@@ -205,12 +215,14 @@ def test_create_rejects_invalid_category(
 def test_create_rejects_empty_answer(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     response = client.post(
         "/api/application-answers",
         json=answer_payload(answer_text="   "),
+        headers=account.headers,
     )
     assert response.status_code == 422
 
@@ -218,12 +230,14 @@ def test_create_rejects_empty_answer(
 def test_create_duplicate_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     first = client.post(
         "/api/application-answers",
         json=answer_payload(),
+        headers=account.headers,
     )
     assert first.status_code == 201
 
@@ -232,6 +246,7 @@ def test_create_duplicate_rejected(
         json=answer_payload(
             answer_text="Available in two weeks.",
         ),
+        headers=account.headers,
     )
     assert duplicate.status_code == 409
 
@@ -242,12 +257,14 @@ def test_create_duplicate_rejected(
 def test_list_and_filter_by_category(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     client.post(
         "/api/application-answers",
         json=answer_payload(),
+        headers=account.headers,
     )
     client.post(
         "/api/application-answers",
@@ -256,15 +273,20 @@ def test_list_and_filter_by_category(
             question_label="Are you willing to relocate?",
             answer_text="Willing to relocate to the Bay Area.",
         ),
+        headers=account.headers,
     )
 
-    all_answers = client.get("/api/application-answers")
+    all_answers = client.get(
+        "/api/application-answers",
+        headers=account.headers,
+    )
     assert all_answers.status_code == 200
     assert len(all_answers.json()) == 2
 
     filtered = client.get(
         "/api/application-answers",
         params={"category": "relocation"},
+        headers=account.headers,
     )
     assert filtered.status_code == 200
     filtered_body = filtered.json()
@@ -275,10 +297,14 @@ def test_list_and_filter_by_category(
 def test_get_missing_answer_returns_404(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
-    response = client.get("/api/application-answers/999")
+    response = client.get(
+        "/api/application-answers/999",
+        headers=account.headers,
+    )
     assert response.status_code == 404
 
 
@@ -288,12 +314,14 @@ def test_get_missing_answer_returns_404(
 def test_update_recomputes_sensitivity(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     created = client.post(
         "/api/application-answers",
         json=answer_payload(),
+        headers=account.headers,
     ).json()
     answer_id = created["id"]
 
@@ -308,6 +336,7 @@ def test_update_recomputes_sensitivity(
             verified=True,
             manually_confirmed=False,
         ),
+        headers=account.headers,
     )
     assert blocked.status_code == 400
 
@@ -321,6 +350,7 @@ def test_update_recomputes_sensitivity(
             verified=True,
             manually_confirmed=True,
         ),
+        headers=account.headers,
     )
     assert confirmed.status_code == 200
     assert confirmed.json()["requires_manual_confirmation"] is True
@@ -329,12 +359,14 @@ def test_update_recomputes_sensitivity(
 def test_update_missing_returns_404(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     response = client.put(
         "/api/application-answers/999",
         json=answer_payload(),
+        headers=account.headers,
     )
     assert response.status_code == 404
 
@@ -345,32 +377,47 @@ def test_update_missing_returns_404(
 def test_delete_answer(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     created = client.post(
         "/api/application-answers",
         json=answer_payload(),
+        headers=account.headers,
     ).json()
     answer_id = created["id"]
 
-    deleted = client.delete(f"/api/application-answers/{answer_id}")
+    deleted = client.delete(
+        f"/api/application-answers/{answer_id}",
+        headers=account.headers,
+    )
     assert deleted.status_code == 204
 
-    missing = client.get(f"/api/application-answers/{answer_id}")
+    missing = client.get(
+        f"/api/application-answers/{answer_id}",
+        headers=account.headers,
+    )
     assert missing.status_code == 404
 
-    remaining = client.get("/api/application-answers")
+    remaining = client.get(
+        "/api/application-answers",
+        headers=account.headers,
+    )
     assert remaining.json() == []
 
 
 def test_delete_missing_returns_404(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
-    response = client.delete("/api/application-answers/999")
+    response = client.delete(
+        "/api/application-answers/999",
+        headers=account.headers,
+    )
     assert response.status_code == 404
 
 
@@ -379,8 +426,9 @@ def test_delete_missing_returns_404(
 
 def test_service_rejects_verified_sensitive_without_confirmation(
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     try:
         create_application_answer(
@@ -392,6 +440,7 @@ def test_service_rejects_verified_sensitive_without_confirmation(
                 manually_confirmed=False,
             ),
             db_session,
+            candidate_profile_id=account.profile_id,
         )
     except ApplicationAnswerServiceError as exc:
         assert exc.status_code == 400
@@ -401,8 +450,9 @@ def test_service_rejects_verified_sensitive_without_confirmation(
 
 def test_service_update_persists_fields(
     db_session: Session,
+    account: Account,
 ) -> None:
-    seed_profile(db_session)
+    seed_profile(db_session, account)
 
     answer = create_application_answer(
         ApplicationAnswerCreate(
@@ -413,6 +463,7 @@ def test_service_update_persists_fields(
             manually_confirmed=False,
         ),
         db_session,
+        candidate_profile_id=account.profile_id,
     )
 
     updated = update_application_answer(
@@ -425,6 +476,7 @@ def test_service_update_persists_fields(
             manually_confirmed=False,
         ),
         db_session,
+        candidate_profile_id=account.profile_id,
     )
 
     assert isinstance(updated, ApplicationAnswer)

@@ -24,11 +24,21 @@ from app.models.fact_comparison import (
 )
 from app.models.project import Project
 from app.models.skill import Skill
+from tests.conftest import Account
+
+import pytest
 
 
 PREVIOUS_HEAD = "c4e7d9a1b2c3"
 NEW_HEAD = "e5f6a7b8c9d0"
-CURRENT_HEAD = "c1d2e3f4a5b6"
+CURRENT_HEAD = "d2e3f4a5b6c7"
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter() -> None:
+    from app.api.routes.auth import login_rate_limiter
+
+    login_rate_limiter.reset()
 
 
 def profile_payload(**overrides: object) -> dict[str, object]:
@@ -60,9 +70,14 @@ def profile_payload(**overrides: object) -> dict[str, object]:
 
 def create_profile(
     client: TestClient,
+    account: Account,
     **overrides: object,
 ) -> dict[str, Any]:
-    response = client.put("/api/profile", json=profile_payload(**overrides))
+    response = client.put(
+        "/api/profile",
+        json=profile_payload(**overrides),
+        headers=account.headers,
+    )
     assert response.status_code == 200
     return cast(dict[str, Any], response.json())
 
@@ -70,6 +85,7 @@ def create_profile(
 def create_ready_document(
     database: Session,
     sections: list[tuple[str, str, str]],
+    candidate_profile_id: int,
     *,
     extraction_status: str = "completed",
     section_detection_status: str = "completed",
@@ -77,7 +93,7 @@ def create_ready_document(
     extracted_text = "\n\n".join(content for _, _, content in sections)
     digest = sha256(f"{extracted_text}-{uuid4().hex}".encode()).hexdigest()
     document = Document(
-        candidate_profile_id=1,
+        candidate_profile_id=candidate_profile_id,
         original_filename="synthetic-resume.pdf",
         stored_filename=f"{uuid4().hex}.pdf",
         file_extension=".pdf",
@@ -259,8 +275,12 @@ def add_certification(
 def compare_document(
     client: TestClient,
     document_id: int,
+    account: Account,
 ) -> dict[str, Any]:
-    response = client.post(f"/api/documents/{document_id}/compare-facts")
+    response = client.post(
+        f"/api/documents/{document_id}/compare-facts",
+        headers=account.headers,
+    )
     assert response.status_code == 200
     return cast(dict[str, Any], response.json())
 
@@ -311,9 +331,10 @@ def matching_findings(
 
 def test_profile_facts_and_harmless_formatting_are_confirmed(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     document = create_ready_document(
         db_session,
         [
@@ -332,9 +353,10 @@ def test_profile_facts_and_harmless_formatting_are_confirmed(
                 ),
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert payload["status"] == "completed"
     assert finding_exists(
@@ -359,9 +381,10 @@ def test_profile_facts_and_harmless_formatting_are_confirmed(
 
 def test_profile_mismatch_detection_requires_manual_review(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     document = create_ready_document(
         db_session,
         [
@@ -371,9 +394,10 @@ def test_profile_mismatch_detection_requires_manual_review(
                 "Different Candidate\nwrong@example.com\nNew York, NY",
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert finding_exists(
         payload,
@@ -386,10 +410,11 @@ def test_profile_mismatch_detection_requires_manual_review(
 
 def test_education_match_and_date_conflict(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_education(db_session)
+    create_profile(client, account)
+    add_education(db_session, candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -403,9 +428,10 @@ def test_education_match_and_date_conflict(
                 ),
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert finding_exists(
         payload,
@@ -423,10 +449,11 @@ def test_education_match_and_date_conflict(
 
 def test_work_experience_org_variant_and_date_conflict(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_experience(db_session)
+    create_profile(client, account)
+    add_experience(db_session, candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -440,9 +467,10 @@ def test_work_experience_org_variant_and_date_conflict(
                 ),
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert finding_exists(
         payload,
@@ -460,9 +488,10 @@ def test_work_experience_org_variant_and_date_conflict(
 
 def test_verified_work_descriptions_do_not_become_unverified_claims(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     add_experience(
         db_session,
         responsibilities=[
@@ -470,6 +499,7 @@ def test_verified_work_descriptions_do_not_become_unverified_claims(
             "Processed 2023 customer records",
         ],
         achievements=["Reduced incidents in 2021"],
+        candidate_profile_id=account.profile_id,
     )
     document = create_ready_document(
         db_session,
@@ -487,9 +517,10 @@ def test_verified_work_descriptions_do_not_become_unverified_claims(
                 ),
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     for verified_line in [
         "Built reliable APIs at scale",
@@ -519,12 +550,14 @@ def test_verified_work_descriptions_do_not_become_unverified_claims(
 
 def test_standalone_verified_work_year_is_not_date_evidence(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     add_experience(
         db_session,
         achievements=["Reduced incidents in 2021"],
+        candidate_profile_id=account.profile_id,
     )
     document = create_ready_document(
         db_session,
@@ -535,9 +568,10 @@ def test_standalone_verified_work_year_is_not_date_evidence(
                 "Example Ltd - Software Engineer\nReduced incidents in 2021",
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert not matching_findings(
         payload,
@@ -561,10 +595,11 @@ def test_standalone_verified_work_year_is_not_date_evidence(
 
 def test_genuine_unmatched_work_claim_is_still_unverified(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_experience(db_session)
+    create_profile(client, account)
+    add_experience(db_session, candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -574,9 +609,10 @@ def test_genuine_unmatched_work_claim_is_still_unverified(
                 "Unverified Corp - Staff Engineer\n2020 - 2021",
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert matching_findings(
         payload,
@@ -594,15 +630,17 @@ def test_genuine_unmatched_work_claim_is_still_unverified(
 
 def test_month_year_and_current_work_date_ranges_match(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     add_experience(
         db_session,
         company="Month Co",
         job_title="Data Engineer",
         start_date=date(2021, 1, 1),
         end_date=date(2023, 3, 1),
+        candidate_profile_id=account.profile_id,
     )
     add_experience(
         db_session,
@@ -611,6 +649,7 @@ def test_month_year_and_current_work_date_ranges_match(
         start_date=date(2021, 1, 1),
         end_date=None,
         is_current=True,
+        candidate_profile_id=account.profile_id,
     )
     document = create_ready_document(
         db_session,
@@ -626,9 +665,10 @@ def test_month_year_and_current_work_date_ranges_match(
                 ),
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     confirmed_date_findings = matching_findings(
         payload,
@@ -647,10 +687,11 @@ def test_month_year_and_current_work_date_ranges_match(
 
 def test_ambiguous_work_date_evidence_requires_manual_review(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_experience(db_session)
+    create_profile(client, account)
+    add_experience(db_session, candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -660,9 +701,10 @@ def test_ambiguous_work_date_evidence_requires_manual_review(
                 "Example Ltd - Software Engineer\nStart date: 2020",
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert finding_exists(
         payload,
@@ -686,10 +728,11 @@ def test_ambiguous_work_date_evidence_requires_manual_review(
 
 def test_labelled_start_and_end_work_dates_match(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_experience(db_session)
+    create_profile(client, account)
+    add_experience(db_session, candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -703,9 +746,10 @@ def test_labelled_start_and_end_work_dates_match(
                 ),
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert finding_exists(
         payload,
@@ -735,12 +779,13 @@ def test_labelled_start_and_end_work_dates_match(
 
 def test_project_skill_and_certification_matching(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_project(db_session)
-    add_skill(db_session)
-    add_certification(db_session)
+    create_profile(client, account)
+    add_project(db_session, candidate_profile_id=account.profile_id)
+    add_skill(db_session, candidate_profile_id=account.profile_id)
+    add_certification(db_session, candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -765,9 +810,10 @@ def test_project_skill_and_certification_matching(
                 ),
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert finding_exists(
         payload,
@@ -791,13 +837,15 @@ def test_project_skill_and_certification_matching(
 
 def test_verified_project_descriptions_do_not_become_unverified_claims(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     add_project(
         db_session,
         features=["Built the 2024 reporting dashboard"],
         achievements=["Processed 2023 customer records"],
+        candidate_profile_id=account.profile_id,
     )
     document = create_ready_document(
         db_session,
@@ -814,9 +862,10 @@ def test_verified_project_descriptions_do_not_become_unverified_claims(
                 ),
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     for verified_line in [
         "Built the 2024 reporting dashboard",
@@ -845,10 +894,11 @@ def test_verified_project_descriptions_do_not_become_unverified_claims(
 
 def test_genuine_unmatched_project_claim_is_still_unverified(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_project(db_session)
+    create_profile(client, account)
+    add_project(db_session, candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -858,9 +908,10 @@ def test_genuine_unmatched_project_claim_is_still_unverified(
                 "Unlisted Analytics Portal\n2024 - 2025",
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert matching_findings(
         payload,
@@ -878,10 +929,11 @@ def test_genuine_unmatched_project_claim_is_still_unverified(
 
 def test_skill_unverified_claim_and_ambiguous_manual_review(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_skill(db_session, name="React")
+    create_profile(client, account)
+    add_skill(db_session, name="React", candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -891,9 +943,10 @@ def test_skill_unverified_claim_and_ambiguous_manual_review(
                 "React Native, Go",
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert finding_exists(
         payload,
@@ -912,10 +965,11 @@ def test_skill_unverified_claim_and_ambiguous_manual_review(
 
 def test_missing_verified_fact_and_unverified_cv_claim(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_education(db_session, institution="Verified University")
+    create_profile(client, account)
+    add_education(db_session, institution="Verified University", candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [
@@ -925,9 +979,10 @@ def test_missing_verified_fact_and_unverified_cv_claim(
                 "Unlisted University, MSc Data Science, 2020 - 2021",
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert finding_exists(
         payload,
@@ -944,16 +999,18 @@ def test_missing_verified_fact_and_unverified_cv_claim(
 
 def test_only_verified_vault_records_are_treated_as_truth(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client, facts_verified=False)
-    skill = add_skill(db_session, name="Rust", verified=False)
+    create_profile(client, account, facts_verified=False)
+    skill = add_skill(db_session, name="Rust", verified=False, candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [("skills", "Skills", "Rust")],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
 
     assert not finding_exists(
         payload,
@@ -976,12 +1033,13 @@ def test_only_verified_vault_records_are_treated_as_truth(
 
 def test_comparison_does_not_modify_candidate_facts_vault(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    skill = add_skill(db_session, name="Python")
-    education = add_education(db_session)
-    profile = db_session.get(CandidateProfile, 1)
+    create_profile(client, account)
+    skill = add_skill(db_session, name="Python", candidate_profile_id=account.profile_id)
+    education = add_education(db_session, candidate_profile_id=account.profile_id)
+    profile = db_session.get(CandidateProfile, account.profile_id)
     assert profile is not None
     original_profile_updated_at = profile.updated_at
     original_skill_updated_at = skill.updated_at
@@ -996,9 +1054,10 @@ def test_comparison_does_not_modify_candidate_facts_vault(
                 "Example University, BSc Computer Science, 2018 - 2021",
             ),
         ],
+        candidate_profile_id=account.profile_id,
     )
 
-    compare_document(client, document.id)
+    compare_document(client, document.id, account)
 
     db_session.refresh(profile)
     db_session.refresh(skill)
@@ -1013,16 +1072,19 @@ def test_comparison_does_not_modify_candidate_facts_vault(
 
 def test_comparison_precondition_errors_and_missing_document(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     not_extracted = create_ready_document(
         db_session,
         [("skills", "Skills", "Python")],
         extraction_status="pending",
+        candidate_profile_id=account.profile_id,
     )
     extraction_response = client.post(
-        f"/api/documents/{not_extracted.id}/compare-facts"
+        f"/api/documents/{not_extracted.id}/compare-facts",
+        headers=account.headers,
     )
     assert extraction_response.status_code == 400
     assert "completed text extraction" in extraction_response.json()["detail"]
@@ -1031,32 +1093,36 @@ def test_comparison_precondition_errors_and_missing_document(
         db_session,
         [("skills", "Skills", "Python")],
         section_detection_status="pending",
+        candidate_profile_id=account.profile_id,
     )
     section_response = client.post(
-        f"/api/documents/{no_sections.id}/compare-facts"
+        f"/api/documents/{no_sections.id}/compare-facts",
+        headers=account.headers,
     )
     assert section_response.status_code == 400
     assert "completed section detection" in section_response.json()["detail"]
 
-    missing_response = client.post("/api/documents/9999/compare-facts")
+    missing_response = client.post("/api/documents/9999/compare-facts", headers=account.headers)
     assert missing_response.status_code == 404
     assert missing_response.json()["detail"] == "Document was not found."
 
 
 def test_stable_ordering_safe_recomparison_and_no_duplicate_active_findings(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_skill(db_session, name="Python")
-    add_skill(db_session, name="SQL")
+    create_profile(client, account)
+    add_skill(db_session, name="Python", candidate_profile_id=account.profile_id)
+    add_skill(db_session, name="SQL", candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [("skills", "Skills", "SQL, Python, Go")],
+        candidate_profile_id=account.profile_id,
     )
 
-    first_payload = compare_document(client, document.id)
-    second_payload = compare_document(client, document.id)
+    first_payload = compare_document(client, document.id, account)
+    second_payload = compare_document(client, document.id, account)
 
     first_order = [
         (
@@ -1093,16 +1159,18 @@ def test_stable_ordering_safe_recomparison_and_no_duplicate_active_findings(
 
 def test_previous_success_preserved_after_failed_recomparison(
     client: TestClient,
+    account: Account,
     db_session: Session,
     monkeypatch: Any,
 ) -> None:
-    create_profile(client)
-    add_skill(db_session, name="Python")
+    create_profile(client, account)
+    add_skill(db_session, name="Python", candidate_profile_id=account.profile_id)
     document = create_ready_document(
         db_session,
         [("skills", "Skills", "Python")],
+        candidate_profile_id=account.profile_id,
     )
-    success_payload = compare_document(client, document.id)
+    success_payload = compare_document(client, document.id, account)
 
     def fail_comparison(**_kwargs: object) -> object:
         raise RuntimeError("database secret at /internal/path")
@@ -1114,7 +1182,8 @@ def test_previous_success_preserved_after_failed_recomparison(
     )
 
     failed_response = client.post(
-        f"/api/documents/{document.id}/compare-facts"
+        f"/api/documents/{document.id}/compare-facts",
+        headers=account.headers,
     )
     assert failed_response.status_code == 200
     failed_payload = failed_response.json()
@@ -1124,7 +1193,8 @@ def test_previous_success_preserved_after_failed_recomparison(
     assert failed_payload["status"] != "processing"
 
     latest_response = client.get(
-        f"/api/documents/{document.id}/fact-comparison"
+        f"/api/documents/{document.id}/fact-comparison",
+        headers=account.headers,
     )
     assert latest_response.status_code == 200
     assert latest_response.json()["id"] == success_payload["id"]
@@ -1132,17 +1202,19 @@ def test_previous_success_preserved_after_failed_recomparison(
 
 def test_evidence_limits_and_document_response_shapes(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
-    add_education(db_session, institution="Verified University")
+    create_profile(client, account)
+    add_education(db_session, institution="Verified University", candidate_profile_id=account.profile_id)
     long_claim = f"Unlisted University {'X' * 900}"
     document = create_ready_document(
         db_session,
         [("education", "Education", long_claim)],
+        candidate_profile_id=account.profile_id,
     )
 
-    payload = compare_document(client, document.id)
+    payload = compare_document(client, document.id, account)
     long_finding = next(
         finding
         for finding in payload["findings"]
@@ -1151,18 +1223,18 @@ def test_evidence_limits_and_document_response_shapes(
     assert len(long_finding["cv_value"]) <= 500
     assert len(long_finding["explanation"]) <= 500
 
-    list_response = client.get("/api/documents")
+    list_response = client.get("/api/documents", headers=account.headers)
     assert list_response.status_code == 200
     assert "fact_comparison_summary" not in list_response.json()[0]
     assert "findings" not in list_response.json()[0]
 
-    detail_response = client.get(f"/api/documents/{document.id}")
+    detail_response = client.get(f"/api/documents/{document.id}", headers=account.headers)
     assert detail_response.status_code == 200
     detail_payload = detail_response.json()
     assert detail_payload["fact_comparison_summary"]["id"] == payload["id"]
     assert "findings" not in detail_payload["fact_comparison_summary"]
 
-    run_response = client.get(f"/api/fact-comparisons/{payload['id']}")
+    run_response = client.get(f"/api/fact-comparisons/{payload['id']}", headers=account.headers)
     assert run_response.status_code == 200
     assert run_response.json()["findings"] == payload["findings"]
 

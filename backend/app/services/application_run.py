@@ -31,7 +31,6 @@ from app.services.application_package import (
 
 
 WORKFLOW_VERSION = "browser-assist-1"
-CANDIDATE_PROFILE_ID = 1
 PREVIEW_LIMIT = 200
 
 TERMINAL_STATUSES = frozenset({"submitted", "cancelled", "failed"})
@@ -113,8 +112,9 @@ def build_fill_plan_and_manual(
     profile: CandidateProfile,
     package: ApplicationPackage,
     database: Session,
+    candidate_profile_id: int,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    answers = load_answers(database)
+    answers = load_answers(database, candidate_profile_id)
     tailored = load_tailored_cv(package.job_id, database)
 
     fill_plan: list[dict[str, object]] = []
@@ -282,8 +282,11 @@ def get_job_or_404(job_id: int, database: Session) -> NormalizedJob:
     return job
 
 
-def require_profile(database: Session) -> CandidateProfile:
-    profile = database.get(CandidateProfile, CANDIDATE_PROFILE_ID)
+def require_profile(
+    database: Session,
+    candidate_profile_id: int,
+) -> CandidateProfile:
+    profile = database.get(CandidateProfile, candidate_profile_id)
     if profile is None:
         raise ApplicationRunServiceError(
             "Create the candidate profile before applying.",
@@ -309,9 +312,10 @@ def active_run_for_job(
 def start_application_run(
     job_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationRun:
     job = get_job_or_404(job_id, database)
-    profile = require_profile(database)
+    profile = require_profile(database, candidate_profile_id)
 
     package = database.scalar(
         select(ApplicationPackage).where(
@@ -349,6 +353,7 @@ def start_application_run(
         profile,
         package,
         database,
+        candidate_profile_id,
     )
     gates = build_gates(package)
     current = first_unacknowledged_gate(gates)
@@ -381,9 +386,10 @@ def start_application_run(
 def get_run_or_404(
     run_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationRun:
     run = database.get(ApplicationRun, run_id)
-    if run is None or run.candidate_profile_id != CANDIDATE_PROFILE_ID:
+    if run is None or run.candidate_profile_id != candidate_profile_id:
         raise ApplicationRunServiceError(
             "Application run was not found.",
             status_code=404,
@@ -395,8 +401,9 @@ def resume_application_run(
     run_id: int,
     confirmation_number: str | None,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationRun:
-    run = get_run_or_404(run_id, database)
+    run = get_run_or_404(run_id, database, candidate_profile_id)
 
     if run.status in TERMINAL_STATUSES:
         raise ApplicationRunServiceError(
@@ -443,8 +450,9 @@ def resume_application_run(
 def cancel_application_run(
     run_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationRun:
-    run = get_run_or_404(run_id, database)
+    run = get_run_or_404(run_id, database, candidate_profile_id)
 
     if run.status in TERMINAL_STATUSES:
         raise ApplicationRunServiceError(

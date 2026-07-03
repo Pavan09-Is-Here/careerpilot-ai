@@ -8,6 +8,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.schemas.application_answer import (
     ApplicationAnswerCategory,
@@ -47,9 +48,10 @@ def raise_answer_http_error(
 def list_answers(
     category: ApplicationAnswerCategory | None = Query(default=None),
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[object]:
     return list(
-        list_application_answers(database, category=category)
+        list_application_answers(database, profile_id, category=category)
     )
 
 
@@ -60,9 +62,10 @@ def list_answers(
 def get_answer(
     answer_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> object:
     try:
-        return get_answer_or_404(answer_id, database)
+        return get_answer_or_404(answer_id, database, profile_id)
     except ApplicationAnswerServiceError as exc:
         raise_answer_http_error(exc)
 
@@ -75,9 +78,10 @@ def get_answer(
 def create_answer(
     payload: ApplicationAnswerCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> object:
     try:
-        return create_application_answer(payload, database)
+        return create_application_answer(payload, database, profile_id)
     except ApplicationAnswerServiceError as exc:
         raise_answer_http_error(exc)
 
@@ -90,12 +94,14 @@ def update_answer(
     answer_id: int,
     payload: ApplicationAnswerUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> object:
     try:
         return update_application_answer(
             answer_id,
             payload,
             database,
+            profile_id,
         )
     except ApplicationAnswerServiceError as exc:
         raise_answer_http_error(exc)
@@ -108,9 +114,10 @@ def update_answer(
 def delete_answer(
     answer_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Response:
     try:
-        delete_application_answer(answer_id, database)
+        delete_application_answer(answer_id, database, profile_id)
     except ApplicationAnswerServiceError as exc:
         raise_answer_http_error(exc)
 

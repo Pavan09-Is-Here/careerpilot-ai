@@ -28,8 +28,6 @@ from app.schemas.application import (
 from app.services.application_package import load_tailored_cv
 
 
-CANDIDATE_PROFILE_ID = 1
-
 TERMINAL_STATUSES = frozenset({"rejected", "withdrawn"})
 
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
@@ -150,11 +148,12 @@ def get_job_or_404(job_id: int, database: Session) -> NormalizedJob:
 def get_application_or_404(
     application_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Application:
     application = database.get(Application, application_id)
     if (
         application is None
-        or application.candidate_profile_id != CANDIDATE_PROFILE_ID
+        or application.candidate_profile_id != candidate_profile_id
     ):
         raise ApplicationServiceError(
             "Application was not found.",
@@ -169,6 +168,7 @@ def get_application_or_404(
 def track_application(
     job_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Application:
     job = get_job_or_404(job_id, database)
 
@@ -196,7 +196,7 @@ def track_application(
     now = current_utc_time()
     application = Application(
         job_id=job.id,
-        candidate_profile_id=CANDIDATE_PROFILE_ID,
+        candidate_profile_id=candidate_profile_id,
         cv_id=cv_id,
         status=status,
         applied_at=applied_at,
@@ -223,11 +223,12 @@ def track_application(
 
 def list_applications(
     database: Session,
+    candidate_profile_id: int,
     *,
     status: str | None = None,
 ) -> list[Application]:
     statement = select(Application).where(
-        Application.candidate_profile_id == CANDIDATE_PROFILE_ID
+        Application.candidate_profile_id == candidate_profile_id
     )
     if status is not None:
         statement = statement.where(Application.status == status)
@@ -243,8 +244,11 @@ def update_application(
     application_id: int,
     data: ApplicationUpdate,
     database: Session,
+    candidate_profile_id: int,
 ) -> Application:
-    application = get_application_or_404(application_id, database)
+    application = get_application_or_404(
+        application_id, database, candidate_profile_id
+    )
     fields = data.model_dump(exclude_unset=True)
 
     now = current_utc_time()
@@ -309,6 +313,7 @@ def _notify_application_submitted(
     try:
         create_notification(
             database,
+            candidate_profile_id=application.candidate_profile_id,
             category="application_submitted",
             subject=f"You applied to {title} at {employer}",
             body=(
@@ -326,8 +331,11 @@ def add_note(
     application_id: int,
     data: ApplicationNoteCreate,
     database: Session,
+    candidate_profile_id: int,
 ) -> Application:
-    application = get_application_or_404(application_id, database)
+    application = get_application_or_404(
+        application_id, database, candidate_profile_id
+    )
     now = current_utc_time()
 
     notes = list(application.notes)
@@ -344,8 +352,11 @@ def add_follow_up(
     application_id: int,
     data: ApplicationFollowUpCreate,
     database: Session,
+    candidate_profile_id: int,
 ) -> Application:
-    application = get_application_or_404(application_id, database)
+    application = get_application_or_404(
+        application_id, database, candidate_profile_id
+    )
     now = current_utc_time()
 
     follow_ups = list(application.follow_ups)

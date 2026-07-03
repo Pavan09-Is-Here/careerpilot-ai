@@ -8,6 +8,7 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.candidate_profile import (
     CandidateProfile,
@@ -29,6 +30,7 @@ router = APIRouter(
 def get_certification_or_404(
     certification_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Certification:
     certification = database.get(
         Certification,
@@ -37,7 +39,7 @@ def get_certification_or_404(
 
     if (
         certification is None
-        or certification.candidate_profile_id != 1
+        or certification.candidate_profile_id != candidate_profile_id
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -55,11 +57,12 @@ def get_certification_or_404(
 )
 def list_certifications(
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[Certification]:
     statement = (
         select(Certification)
         .where(
-            Certification.candidate_profile_id == 1
+            Certification.candidate_profile_id == profile_id
         )
         .order_by(
             Certification.issue_date.desc(),
@@ -80,10 +83,11 @@ def list_certifications(
 def create_certification(
     payload: CertificationCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Certification:
     profile = database.get(
         CandidateProfile,
-        1,
+        profile_id,
     )
 
     if profile is None:
@@ -96,7 +100,7 @@ def create_certification(
         )
 
     certification = Certification(
-        candidate_profile_id=1,
+        candidate_profile_id=profile_id,
         **payload.model_dump(),
     )
 
@@ -115,10 +119,12 @@ def update_certification(
     certification_id: int,
     payload: CertificationUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Certification:
     certification = get_certification_or_404(
         certification_id,
         database,
+        profile_id,
     )
 
     for field_name, field_value in (
@@ -143,10 +149,12 @@ def update_certification(
 def delete_certification(
     certification_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Response:
     certification = get_certification_or_404(
         certification_id,
         database,
+        profile_id,
     )
 
     database.delete(certification)

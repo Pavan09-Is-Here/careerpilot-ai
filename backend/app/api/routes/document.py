@@ -14,6 +14,7 @@ from fastapi import (
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.candidate_profile import CandidateProfile
 from app.models.certification import Certification
@@ -93,10 +94,11 @@ router = APIRouter(
 def get_document_or_404(
     document_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Document:
     document = database.get(Document, document_id)
 
-    if document is None or document.candidate_profile_id != 1:
+    if document is None or document.candidate_profile_id != candidate_profile_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document was not found.",
@@ -326,9 +328,12 @@ def record_section_detection_failure(
     document_id: int,
     message: str,
     database: Session,
+    candidate_profile_id: int,
 ) -> dict[str, object]:
     try:
-        document = get_document_or_404(document_id, database)
+        document = get_document_or_404(
+            document_id, database, candidate_profile_id
+        )
         preserved_sections = list_document_sections(document.id, database)
         document.section_detection_status = "failed"
         document.section_detection_error = message
@@ -409,8 +414,9 @@ def upload_document(
     document_type: DocumentType = Form(...),
     is_primary: bool = Form(False),
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Document:
-    profile = database.get(CandidateProfile, 1)
+    profile = database.get(CandidateProfile, profile_id)
 
     if profile is None:
         raise HTTPException(
@@ -440,7 +446,7 @@ def upload_document(
     duplicate = database.scalars(
         select(Document)
         .where(
-            Document.candidate_profile_id == 1,
+            Document.candidate_profile_id == profile_id,
             Document.sha256_hash == document_data["sha256_hash"],
         )
     ).one_or_none()
@@ -465,7 +471,7 @@ def upload_document(
             database.execute(
                 update(Document)
                 .where(
-                    Document.candidate_profile_id == 1,
+                    Document.candidate_profile_id == profile_id,
                     Document.document_type == "original_cv",
                     Document.is_primary.is_(True),
                 )
@@ -473,7 +479,7 @@ def upload_document(
             )
 
         document = Document(
-            candidate_profile_id=1,
+            candidate_profile_id=profile_id,
             **document_data,
         )
 
@@ -498,10 +504,11 @@ def upload_document(
 )
 def list_documents(
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[Document]:
     documents = database.scalars(
         select(Document)
-        .where(Document.candidate_profile_id == 1)
+        .where(Document.candidate_profile_id == profile_id)
         .order_by(Document.created_at.desc(), Document.id.desc())
     ).all()
 
@@ -515,8 +522,9 @@ def list_documents(
 def get_document(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
 
     return build_document_response(document, database)
 
@@ -530,12 +538,14 @@ def adopt_document_as_cv_version(
     document_id: int,
     request: CVVersionAdoptRequest | None = None,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVVersionResponse:
     try:
         return adopt_original_version_from_document(
             document_id,
             request or CVVersionAdoptRequest(),
             database,
+            candidate_profile_id=profile_id,
         )
     except CVVersionServiceError as exc:
         raise HTTPException(
@@ -544,51 +554,61 @@ def adopt_document_as_cv_version(
         ) from exc
 
 
-def list_candidate_education(database: Session) -> list[Education]:
+def list_candidate_education(
+    database: Session, candidate_profile_id: int
+) -> list[Education]:
     return list(
         database.scalars(
             select(Education)
-            .where(Education.candidate_profile_id == 1)
+            .where(Education.candidate_profile_id == candidate_profile_id)
             .order_by(Education.start_date.desc(), Education.id.asc())
         ).all()
     )
 
 
-def list_candidate_experience(database: Session) -> list[Experience]:
+def list_candidate_experience(
+    database: Session, candidate_profile_id: int
+) -> list[Experience]:
     return list(
         database.scalars(
             select(Experience)
-            .where(Experience.candidate_profile_id == 1)
+            .where(Experience.candidate_profile_id == candidate_profile_id)
             .order_by(Experience.start_date.desc(), Experience.id.asc())
         ).all()
     )
 
 
-def list_candidate_projects(database: Session) -> list[Project]:
+def list_candidate_projects(
+    database: Session, candidate_profile_id: int
+) -> list[Project]:
     return list(
         database.scalars(
             select(Project)
-            .where(Project.candidate_profile_id == 1)
+            .where(Project.candidate_profile_id == candidate_profile_id)
             .order_by(Project.start_date.desc(), Project.id.asc())
         ).all()
     )
 
 
-def list_candidate_skills(database: Session) -> list[Skill]:
+def list_candidate_skills(
+    database: Session, candidate_profile_id: int
+) -> list[Skill]:
     return list(
         database.scalars(
             select(Skill)
-            .where(Skill.candidate_profile_id == 1)
+            .where(Skill.candidate_profile_id == candidate_profile_id)
             .order_by(Skill.name.asc(), Skill.id.asc())
         ).all()
     )
 
 
-def list_candidate_certifications(database: Session) -> list[Certification]:
+def list_candidate_certifications(
+    database: Session, candidate_profile_id: int
+) -> list[Certification]:
     return list(
         database.scalars(
             select(Certification)
-            .where(Certification.candidate_profile_id == 1)
+            .where(Certification.candidate_profile_id == candidate_profile_id)
             .order_by(
                 Certification.issue_date.desc(),
                 Certification.id.asc(),
@@ -604,8 +624,9 @@ def list_candidate_certifications(database: Session) -> list[Certification]:
 def compare_document_facts(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
     sections = list_document_sections(document.id, database)
     validate_fact_comparison_ready(document, sections)
     started_at = datetime.now(timezone.utc)
@@ -614,12 +635,14 @@ def compare_document_facts(
         comparison_result = compare_document_to_verified_facts(
             document=document,
             sections=sections,
-            profile=database.get(CandidateProfile, 1),
-            education_records=list_candidate_education(database),
-            experience_records=list_candidate_experience(database),
-            project_records=list_candidate_projects(database),
-            skill_records=list_candidate_skills(database),
-            certification_records=list_candidate_certifications(database),
+            profile=database.get(CandidateProfile, profile_id),
+            education_records=list_candidate_education(database, profile_id),
+            experience_records=list_candidate_experience(database, profile_id),
+            project_records=list_candidate_projects(database, profile_id),
+            skill_records=list_candidate_skills(database, profile_id),
+            certification_records=list_candidate_certifications(
+                database, profile_id
+            ),
         )
     except FactComparisonError as exc:
         raise HTTPException(
@@ -661,8 +684,9 @@ def compare_document_facts(
 def get_document_fact_comparison(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
     comparison_run = get_latest_fact_comparison_run(
         document.id,
         database,
@@ -684,8 +708,9 @@ def get_document_fact_comparison(
 def extract_document(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Document:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
 
     if document.upload_status != "validated":
         raise HTTPException(
@@ -728,8 +753,9 @@ def extract_document(
 def get_document_profile_suggestion(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> object:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
     try:
         return asdict(build_profile_suggestion(document))
     except CVProfileExtractionError as exc:
@@ -747,13 +773,15 @@ def apply_document_profile_suggestion(
     document_id: int,
     payload: ApplyProfileSuggestionRequest | None = None,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
     request = payload or ApplyProfileSuggestionRequest()
     try:
         return apply_profile_suggestion(
             document,
             database,
+            profile_id,
             apply_profile=request.apply_profile,
             apply_skills=request.apply_skills,
             include_sensitive=request.include_sensitive,
@@ -773,8 +801,9 @@ def apply_document_profile_suggestion(
 def detect_document_cv_sections(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
 
     if document.extraction_status != "completed" or not document.extracted_text:
         raise HTTPException(
@@ -800,6 +829,7 @@ def detect_document_cv_sections(
             document_id,
             exc.safe_message,
             database,
+            profile_id,
         )
     except Exception:
         database.rollback()
@@ -807,6 +837,7 @@ def detect_document_cv_sections(
             document_id,
             "CV section detection failed.",
             database,
+            profile_id,
         )
 
     sections = list_document_sections(document.id, database)
@@ -820,8 +851,9 @@ def detect_document_cv_sections(
 def get_document_cv_sections(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[CVSection]:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
 
     return list_document_sections(document.id, database)
 
@@ -833,8 +865,9 @@ def get_document_cv_sections(
 def set_primary_document(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Document:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
 
     if document.document_type != "original_cv":
         raise HTTPException(
@@ -845,7 +878,7 @@ def set_primary_document(
     database.execute(
         update(Document)
         .where(
-            Document.candidate_profile_id == 1,
+            Document.candidate_profile_id == profile_id,
             Document.document_type == "original_cv",
         )
         .values(is_primary=False)
@@ -865,8 +898,9 @@ def set_primary_document(
 def delete_document(
     document_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Response:
-    document = get_document_or_404(document_id, database)
+    document = get_document_or_404(document_id, database, profile_id)
 
     remove_uploaded_file(document.stored_filename)
     database.delete(document)

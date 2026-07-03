@@ -6,6 +6,7 @@ from decimal import Decimal
 from hashlib import sha256
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -33,8 +34,19 @@ from app.services.notification import (
 )
 from app.services.worker import run_worker
 
+from tests.conftest import Account
+
 
 NOW = datetime(2026, 7, 2, 12, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter() -> None:
+    # Registration reuses the login rate limiter; reset it so repeated
+    # account registration across tests does not trip the 429 guard.
+    from app.api.routes.auth import login_rate_limiter
+
+    login_rate_limiter.reset()
 
 
 def content_hash(seed: str | None = None) -> str:
@@ -176,11 +188,11 @@ def add_tailored_cv(database, job, profile) -> None:
     database.commit()
 
 
-def add_all_answers(database) -> None:
+def add_all_answers(database, candidate_profile_id: int = 1) -> None:
     def add(cat, sensitive=False):
         database.add(
             ApplicationAnswer(
-                candidate_profile_id=1,
+                candidate_profile_id=candidate_profile_id,
                 category=cat,
                 question_label=f"{cat}?",
                 answer_text=f"Verified {cat}.",
@@ -204,9 +216,10 @@ def add_all_answers(database) -> None:
 
 
 def test_create_and_dedupe_notification(db_session: Session) -> None:
-    make_profile(db_session)
+    profile = make_profile(db_session)
     first = create_notification(
         db_session,
+        candidate_profile_id=profile.id,
         category="application_submitted",
         subject="You applied",
         body="body",
@@ -218,19 +231,26 @@ def test_create_and_dedupe_notification(db_session: Session) -> None:
 
     dup = create_notification(
         db_session,
+        candidate_profile_id=profile.id,
         category="application_submitted",
         subject="You applied again",
         body="body",
         dedupe_key="k1",
     )
     assert dup.id == first.id  # deduped, not a new row
-    assert list_notifications(db_session)["total"] == 1
+    assert (
+        list_notifications(
+            db_session, candidate_profile_id=profile.id
+        )["total"]
+        == 1
+    )
 
 
 def test_deliver_without_smtp_leaves_pending(db_session: Session) -> None:
-    make_profile(db_session)
+    profile = make_profile(db_session)
     create_notification(
         db_session,
+        candidate_profile_id=profile.id,
         category="application_prepared",
         subject="Ready",
         body="body",
@@ -239,14 +259,20 @@ def test_deliver_without_smtp_leaves_pending(db_session: Session) -> None:
     assert result["skipped"] == 1
     assert result["sent"] == 0
     assert (
-        list_notifications(db_session, status="pending")["total"] == 1
+        list_notifications(
+            db_session,
+            candidate_profile_id=profile.id,
+            status="pending",
+        )["total"]
+        == 1
     )
 
 
 def test_no_recipient_records_nothing(db_session: Session) -> None:
-    # No profile -> no recipient email.
+    # Missing profile -> no recipient email -> nothing recorded.
     result = create_notification(
         db_session,
+        candidate_profile_id=999999,
         category="application_prepared",
         subject="Ready",
         body="body",
@@ -261,21 +287,27 @@ def test_marking_submitted_notifies(db_session: Session) -> None:
     profile = make_profile(db_session)
     job = make_job(db_session)
     add_match(db_session, job, profile)
-    app_id = track_application(job.id, db_session).id
+    app_id = track_application(
+        job.id, db_session, candidate_profile_id=profile.id
+    ).id
 
     update_application(
         app_id,
         ApplicationUpdate(status="ready_to_apply"),
         db_session,
+        candidate_profile_id=profile.id,
     )
     update_application(
         app_id,
         ApplicationUpdate(status="submitted", confirmation_number="C-9"),
         db_session,
+        candidate_profile_id=profile.id,
     )
 
     notes = list_notifications(
-        db_session, category="application_submitted"
+        db_session,
+        candidate_profile_id=profile.id,
+        category="application_submitted",
     )
     assert notes["total"] == 1
     body = notes["items"][0].body
@@ -291,14 +323,16 @@ def test_auto_apply_prepares_and_notifies(db_session: Session) -> None:
     job = make_job(db_session, title="Platform Engineer", with_salary=True)
     add_match(db_session, job, profile)
     add_tailored_cv(db_session, job, profile)  # skip real CV generation
-    add_all_answers(db_session)
+    add_all_answers(db_session, candidate_profile_id=profile.id)
 
     run = run_worker("auto_apply_pipeline", db_session, now=NOW)
     assert run.status in {"success", "partial"}
     assert run.items_processed == 1
 
     prepared = list_notifications(
-        db_session, category="application_prepared"
+        db_session,
+        candidate_profile_id=profile.id,
+        category="application_prepared",
     )
     assert prepared["total"] == 1
     assert "Ready to submit" in prepared["items"][0].subject
@@ -306,7 +340,9 @@ def test_auto_apply_prepares_and_notifies(db_session: Session) -> None:
     # The pipeline never submits: no submitted notification, no run.
     assert (
         list_notifications(
-            db_session, category="application_submitted"
+            db_session,
+            candidate_profile_id=profile.id,
+            category="application_submitted",
         )["total"]
         == 0
     )
@@ -317,11 +353,16 @@ def test_auto_apply_skips_non_target_jobs(db_session: Session) -> None:
     job = make_job(db_session, title="Platform Engineer")
     add_match(db_session, job, profile)
     add_tailored_cv(db_session, job, profile)
-    add_all_answers(db_session)
+    add_all_answers(db_session, candidate_profile_id=profile.id)
 
     run = run_worker("auto_apply_pipeline", db_session, now=NOW)
     assert run.items_processed == 0
-    assert list_notifications(db_session)["total"] == 0
+    assert (
+        list_notifications(
+            db_session, candidate_profile_id=profile.id
+        )["total"]
+        == 0
+    )
 
 
 def test_auto_apply_without_target_roles_warns(db_session: Session) -> None:
@@ -333,20 +374,33 @@ def test_auto_apply_without_target_roles_warns(db_session: Session) -> None:
 # --- API ------------------------------------------------------------------
 
 
-def test_notifications_api(client: TestClient, db_session: Session) -> None:
-    make_profile(db_session)
+def test_notifications_api(
+    client: TestClient, db_session: Session, account: Account
+) -> None:
+    # Registration already creates the caller's profile (with an email),
+    # so seed the notification against the authenticated account's profile.
     create_notification(
         db_session,
+        candidate_profile_id=account.profile_id,
         category="manual_action_required",
         subject="Action needed",
         body="body",
     )
-    listing = client.get(
+    unauthenticated = client.get(
         "/api/notifications", params={"category": "manual_action_required"}
+    )
+    assert unauthenticated.status_code == 401
+
+    listing = client.get(
+        "/api/notifications",
+        params={"category": "manual_action_required"},
+        headers=account.headers,
     )
     assert listing.status_code == 200
     assert listing.json()["total"] == 1
 
-    deliver = client.post("/api/notifications/deliver")
+    deliver = client.post(
+        "/api/notifications/deliver", headers=account.headers
+    )
     assert deliver.status_code == 200
     assert deliver.json()["skipped"] == 1

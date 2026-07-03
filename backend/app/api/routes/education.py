@@ -8,6 +8,7 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.candidate_profile import (
     CandidateProfile,
@@ -29,6 +30,7 @@ router = APIRouter(
 def get_education_or_404(
     education_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Education:
     education = database.get(
         Education,
@@ -37,7 +39,7 @@ def get_education_or_404(
 
     if (
         education is None
-        or education.candidate_profile_id != 1
+        or education.candidate_profile_id != candidate_profile_id
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -53,11 +55,12 @@ def get_education_or_404(
 )
 def list_education(
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[Education]:
     statement = (
         select(Education)
         .where(
-            Education.candidate_profile_id == 1
+            Education.candidate_profile_id == profile_id
         )
         .order_by(
             Education.start_date.desc(),
@@ -78,10 +81,11 @@ def list_education(
 def create_education(
     payload: EducationCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Education:
     profile = database.get(
         CandidateProfile,
-        1,
+        profile_id,
     )
 
     if profile is None:
@@ -94,7 +98,7 @@ def create_education(
         )
 
     education = Education(
-        candidate_profile_id=1,
+        candidate_profile_id=profile_id,
         **payload.model_dump(),
     )
 
@@ -113,10 +117,12 @@ def update_education(
     education_id: int,
     payload: EducationUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Education:
     education = get_education_or_404(
         education_id,
         database,
+        profile_id,
     )
 
     for field_name, field_value in (
@@ -141,10 +147,12 @@ def update_education(
 def delete_education(
     education_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Response:
     education = get_education_or_404(
         education_id,
         database,
+        profile_id,
     )
 
     database.delete(education)

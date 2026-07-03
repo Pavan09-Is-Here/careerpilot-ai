@@ -18,11 +18,21 @@ from app.models.cv_version import CVVersion
 from app.models.document import Document
 from app.models.fact_comparison import FactComparisonRun
 from app.services import cv_version as cv_version_service
+from tests.conftest import Account
 
 
 PHASE35_HEAD = "e5f6a7b8c9d0"
 PHASE36_HEAD = "f6a7b8c9d0e1"
-CURRENT_HEAD = "c1d2e3f4a5b6"
+CURRENT_HEAD = "d2e3f4a5b6c7"
+
+
+@pytest.fixture(autouse=True)
+def reset_auth_rate_limiter() -> None:
+    from app.api.routes.auth import login_rate_limiter
+
+    login_rate_limiter.reset()
+    yield
+    login_rate_limiter.reset()
 
 
 @pytest.fixture(autouse=True)
@@ -37,34 +47,51 @@ def clear_cv_versions_after_test(db_session: Session) -> None:
 
 def make_profile(
     database: Session,
+    account: Account,
     *,
-    profile_id: int = 1,
+    profile_id: int | None = None,
     full_name: str = "Test Candidate",
 ) -> CandidateProfile:
-    profile = CandidateProfile(
-        id=profile_id,
-        full_name=full_name,
-        email=f"candidate-{profile_id}@example.com",
-        phone=None,
-        location="London",
-        professional_title="Software Engineer",
-        professional_summary=None,
-        linkedin_url=None,
-        github_url=None,
-        portfolio_url=None,
-        work_authorization="Right to work confirmed",
-        requires_sponsorship=False,
-        willing_to_relocate=False,
-        preferred_work_modes=["Remote"],
-        target_roles=["Backend Engineer"],
-        preferred_locations=["London"],
-        minimum_salary=50000,
-        salary_currency="GBP",
-        minimum_match_score=85,
-        auto_apply_enabled=False,
-        facts_verified=True,
-    )
-    database.add(profile)
+    """Return a candidate profile in the state these tests expect.
+
+    Registration already created the caller's profile, so when the
+    requested id is the account's own profile we fetch-and-mutate it.
+    Any other id (a genuinely separate candidate used by cross-candidate
+    isolation tests) is inserted as a new profile.
+    """
+    target_id = account.profile_id if profile_id is None else profile_id
+    fields: dict[str, object] = {
+        "full_name": full_name,
+        "email": f"candidate-{target_id}@example.com",
+        "phone": None,
+        "location": "London",
+        "professional_title": "Software Engineer",
+        "professional_summary": None,
+        "linkedin_url": None,
+        "github_url": None,
+        "portfolio_url": None,
+        "work_authorization": "Right to work confirmed",
+        "requires_sponsorship": False,
+        "willing_to_relocate": False,
+        "preferred_work_modes": ["Remote"],
+        "target_roles": ["Backend Engineer"],
+        "preferred_locations": ["London"],
+        "minimum_salary": 50000,
+        "salary_currency": "GBP",
+        "minimum_match_score": 85,
+        "auto_apply_enabled": False,
+        "facts_verified": True,
+    }
+
+    if target_id == account.profile_id:
+        profile = database.get(CandidateProfile, account.profile_id)
+        assert profile is not None
+        for key, value in fields.items():
+            setattr(profile, key, value)
+    else:
+        profile = CandidateProfile(id=target_id, **fields)
+        database.add(profile)
+
     database.commit()
     database.refresh(profile)
     return profile
@@ -188,8 +215,9 @@ def assert_outside_repository(path: Path) -> None:
 def test_adopt_original_version_from_validated_document(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     document = make_document(db_session, original_filename="base-cv.pdf")
     original_metadata = {
         "stored_filename": document.stored_filename,
@@ -205,6 +233,7 @@ def test_adopt_original_version_from_validated_document(
             "status": "ready",
             "is_primary": True,
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -230,14 +259,16 @@ def test_adopt_original_version_from_validated_document(
 def test_original_adoption_is_idempotent(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     document = make_document(db_session)
 
-    first = client.post(f"/api/documents/{document.id}/cv-version")
+    first = client.post(f"/api/documents/{document.id}/cv-version", headers=account.headers)
     second = client.post(
         f"/api/documents/{document.id}/cv-version",
         json={"display_name": "Duplicate request", "is_primary": True},
+        headers=account.headers,
     )
 
     assert first.status_code == 201
@@ -250,10 +281,11 @@ def test_original_adoption_is_idempotent(
 def test_adoption_rejects_missing_document(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
 
-    response = client.post("/api/documents/999999/cv-version")
+    response = client.post("/api/documents/999999/cv-version", headers=account.headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Document was not found."
@@ -269,17 +301,18 @@ def test_adoption_rejects_missing_document(
 def test_adoption_rejects_invalid_document(
     client: TestClient,
     db_session: Session,
+    account: Account,
     document_type: str,
     upload_status: str,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     document = make_document(
         db_session,
         document_type=document_type,
         upload_status=upload_status,
     )
 
-    response = client.post(f"/api/documents/{document.id}/cv-version")
+    response = client.post(f"/api/documents/{document.id}/cv-version", headers=account.headers)
 
     assert response.status_code == 400
     assert "Only" in response.json()["detail"]
@@ -288,8 +321,9 @@ def test_adoption_rejects_invalid_document(
 def test_create_parsed_version_from_original(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(db_session, version_type="original")
 
     response = client.post(
@@ -300,6 +334,7 @@ def test_create_parsed_version_from_original(
             "status": "ready",
             "display_name": "Parsed CV",
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -312,8 +347,9 @@ def test_create_parsed_version_from_original(
 def test_generic_create_verified_master_is_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(db_session, version_type="original")
     parsed = make_cv_version(
         db_session,
@@ -329,6 +365,7 @@ def test_generic_create_verified_master_is_rejected(
             "status": "ready",
             "display_name": "Verified Master",
         },
+        headers=account.headers,
     )
 
     assert first.status_code == 400
@@ -341,8 +378,9 @@ def test_generic_create_verified_master_is_rejected(
 def test_create_tailored_version_from_verified_master(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(db_session, version_type="original")
     parsed = make_cv_version(
         db_session,
@@ -364,6 +402,7 @@ def test_create_tailored_version_from_verified_master(
             "display_name": "Tailored for Example Role",
             "job_reference": "Example Role",
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -381,10 +420,11 @@ def test_create_tailored_version_from_verified_master(
 def test_invalid_parent_types_are_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
     version_type: str,
     parent_type: str,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_cv_version(db_session, version_type=parent_type)
 
     response = client.post(
@@ -394,6 +434,7 @@ def test_invalid_parent_types_are_rejected(
             "parent_version_id": parent.id,
             "display_name": "Invalid child",
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 400
@@ -405,13 +446,15 @@ def test_invalid_parent_types_are_rejected(
 def test_self_parent_update_is_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_cv_version(db_session, version_type="original")
 
     response = client.patch(
         f"/api/cv-versions/{version.id}",
         json={"parent_version_id": version.id},
+        headers=account.headers,
     )
 
     assert response.status_code == 400
@@ -421,8 +464,9 @@ def test_self_parent_update_is_rejected(
 def test_circular_ancestry_is_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(db_session, version_type="original")
     parsed = make_cv_version(
         db_session,
@@ -444,6 +488,7 @@ def test_circular_ancestry_is_rejected(
             "parent_version_id": original.id,
             "display_name": "Cycle child",
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 400
@@ -455,9 +500,10 @@ def test_circular_ancestry_is_rejected(
 def test_cross_candidate_parent_is_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session, profile_id=1)
-    make_profile(db_session, profile_id=2, full_name="Other Candidate")
+    make_profile(db_session, account, profile_id=1)
+    make_profile(db_session, account, profile_id=2, full_name="Other Candidate")
     other_parent = make_cv_version(
         db_session,
         candidate_profile_id=2,
@@ -471,6 +517,7 @@ def test_cross_candidate_parent_is_rejected(
             "parent_version_id": other_parent.id,
             "display_name": "Cross-candidate child",
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 404
@@ -480,9 +527,10 @@ def test_cross_candidate_parent_is_rejected(
 def test_cross_candidate_source_document_is_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session, profile_id=1)
-    make_profile(db_session, profile_id=2, full_name="Other Candidate")
+    make_profile(db_session, account, profile_id=1)
+    make_profile(db_session, account, profile_id=2, full_name="Other Candidate")
     other_document = make_document(db_session, candidate_profile_id=2)
 
     response = client.post(
@@ -492,6 +540,7 @@ def test_cross_candidate_source_document_is_rejected(
             "source_document_id": other_document.id,
             "display_name": "Cross-candidate original",
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 404
@@ -501,8 +550,9 @@ def test_cross_candidate_source_document_is_rejected(
 def test_list_versions_in_stable_order(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     timestamp = datetime.now(timezone.utc)
     oldest = make_cv_version(
         db_session,
@@ -520,7 +570,7 @@ def test_list_versions_in_stable_order(
         created_at=timestamp + timedelta(seconds=1),
     )
 
-    response = client.get("/api/cv-versions")
+    response = client.get("/api/cv-versions", headers=account.headers)
 
     assert response.status_code == 200
     assert [item["id"] for item in response.json()] == [
@@ -533,15 +583,16 @@ def test_list_versions_in_stable_order(
 def test_retrieve_one_version_returns_metadata_only(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_cv_version(
         db_session,
         version_type="original",
         storage_path="/internal/storage/generated.pdf",
     )
 
-    response = client.get(f"/api/cv-versions/{version.id}")
+    response = client.get(f"/api/cv-versions/{version.id}", headers=account.headers)
 
     assert response.status_code == 200
     payload = response.json()
@@ -552,18 +603,28 @@ def test_retrieve_one_version_returns_metadata_only(
 
 def test_missing_version_returns_404(
     client: TestClient,
+    account: Account,
 ) -> None:
-    response = client.get("/api/cv-versions/999999")
+    response = client.get("/api/cv-versions/999999", headers=account.headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "CV version was not found."
 
 
+def test_cv_versions_require_authentication(
+    client: TestClient,
+) -> None:
+    response = client.get("/api/cv-versions")
+
+    assert response.status_code == 401
+
+
 def test_update_allowed_metadata(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_cv_version(db_session, version_type="original")
 
     response = client.patch(
@@ -574,6 +635,7 @@ def test_update_allowed_metadata(
             "job_reference": "Reference",
             "status": "draft",
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 200
@@ -595,12 +657,13 @@ def test_update_allowed_metadata(
 def test_immutable_relationship_fields_are_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
     payload: dict[str, int | str],
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_cv_version(db_session, version_type="original")
 
-    response = client.patch(f"/api/cv-versions/{version.id}", json=payload)
+    response = client.patch(f"/api/cv-versions/{version.id}", json=payload, headers=account.headers)
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
@@ -611,11 +674,12 @@ def test_immutable_relationship_fields_are_rejected(
 def test_set_primary_version(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_cv_version(db_session, version_type="original")
 
-    response = client.patch(f"/api/cv-versions/{version.id}/primary")
+    response = client.patch(f"/api/cv-versions/{version.id}/primary", headers=account.headers)
 
     assert response.status_code == 200
     assert response.json()["is_primary"] is True
@@ -627,8 +691,9 @@ def test_set_primary_version(
 def test_prior_primary_of_same_type_is_unset(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(db_session, version_type="original")
     first = make_cv_version(
         db_session,
@@ -642,7 +707,7 @@ def test_prior_primary_of_same_type_is_unset(
         parent_version_id=original.id,
     )
 
-    response = client.patch(f"/api/cv-versions/{second.id}/primary")
+    response = client.patch(f"/api/cv-versions/{second.id}/primary", headers=account.headers)
 
     assert response.status_code == 200
     refreshed_first = get_version(db_session, first.id)
@@ -656,8 +721,9 @@ def test_prior_primary_of_same_type_is_unset(
 def test_different_version_types_can_each_have_primary(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(
         db_session,
         version_type="original",
@@ -669,7 +735,7 @@ def test_different_version_types_can_each_have_primary(
         parent_version_id=original.id,
     )
 
-    response = client.patch(f"/api/cv-versions/{parsed.id}/primary")
+    response = client.patch(f"/api/cv-versions/{parsed.id}/primary", headers=account.headers)
 
     assert response.status_code == 200
     refreshed_original = get_version(db_session, original.id)
@@ -690,17 +756,18 @@ def test_different_version_types_can_each_have_primary(
 def test_archived_and_failed_versions_cannot_be_primary(
     client: TestClient,
     db_session: Session,
+    account: Account,
     status_value: str,
     message: str,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_cv_version(
         db_session,
         version_type="original",
         status=status_value,
     )
 
-    response = client.patch(f"/api/cv-versions/{version.id}/primary")
+    response = client.patch(f"/api/cv-versions/{version.id}/primary", headers=account.headers)
 
     assert response.status_code == 400
     assert response.json()["detail"] == message
@@ -709,15 +776,16 @@ def test_archived_and_failed_versions_cannot_be_primary(
 def test_archiving_primary_version_clears_primary_state(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_cv_version(
         db_session,
         version_type="original",
         is_primary=True,
     )
 
-    response = client.patch(f"/api/cv-versions/{version.id}/archive")
+    response = client.patch(f"/api/cv-versions/{version.id}/archive", headers=account.headers)
 
     assert response.status_code == 200
     payload = response.json()
@@ -729,8 +797,9 @@ def test_archiving_primary_version_clears_primary_state(
 def test_archive_preserves_children_and_history(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(db_session, version_type="original")
     parsed = make_cv_version(
         db_session,
@@ -738,8 +807,8 @@ def test_archive_preserves_children_and_history(
         parent_version_id=original.id,
     )
 
-    archive_response = client.patch(f"/api/cv-versions/{original.id}/archive")
-    history_response = client.get(f"/api/cv-versions/{parsed.id}/history")
+    archive_response = client.patch(f"/api/cv-versions/{original.id}/archive", headers=account.headers)
+    history_response = client.get(f"/api/cv-versions/{parsed.id}/history", headers=account.headers)
 
     assert archive_response.status_code == 200
     assert history_response.status_code == 200
@@ -754,8 +823,9 @@ def test_archive_preserves_children_and_history(
 def test_unsafe_deletion_with_child_versions_is_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(db_session, version_type="original")
     child = make_cv_version(
         db_session,
@@ -763,7 +833,7 @@ def test_unsafe_deletion_with_child_versions_is_rejected(
         parent_version_id=original.id,
     )
 
-    response = client.delete(f"/api/cv-versions/{original.id}")
+    response = client.delete(f"/api/cv-versions/{original.id}", headers=account.headers)
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
@@ -776,11 +846,12 @@ def test_unsafe_deletion_with_child_versions_is_rejected(
 def test_safe_deletion_without_children_succeeds(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_cv_version(db_session, version_type="original")
 
-    response = client.delete(f"/api/cv-versions/{version.id}")
+    response = client.delete(f"/api/cv-versions/{version.id}", headers=account.headers)
 
     assert response.status_code == 204
     assert get_version(db_session, version.id) is None
@@ -789,8 +860,9 @@ def test_safe_deletion_without_children_succeeds(
 def test_source_document_sections_and_comparisons_survive_version_delete(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     document = make_document(db_session)
     section = CVSection(
         document_id=document.id,
@@ -832,7 +904,7 @@ def test_source_document_sections_and_comparisons_survive_version_delete(
         document.sha256_hash,
     )
 
-    response = client.delete(f"/api/cv-versions/{version.id}")
+    response = client.delete(f"/api/cv-versions/{version.id}", headers=account.headers)
 
     assert response.status_code == 204
     db_session.expire_all()
@@ -849,8 +921,9 @@ def test_source_document_sections_and_comparisons_survive_version_delete(
 def test_version_history_ancestry_is_returned_in_order(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     original = make_cv_version(db_session, version_type="original")
     parsed = make_cv_version(
         db_session,
@@ -868,7 +941,7 @@ def test_version_history_ancestry_is_returned_in_order(
         parent_version_id=verified.id,
     )
 
-    response = client.get(f"/api/cv-versions/{tailored.id}/history")
+    response = client.get(f"/api/cv-versions/{tailored.id}/history", headers=account.headers)
 
     assert response.status_code == 200
     payload = response.json()
@@ -890,9 +963,10 @@ def test_version_history_ancestry_is_returned_in_order(
 def test_failed_primary_switch_preserves_prior_primary(
     client: TestClient,
     db_session: Session,
+    account: Account,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     first = make_cv_version(
         db_session,
         version_type="original",
@@ -911,7 +985,7 @@ def test_failed_primary_switch_preserves_prior_primary(
         fail_after_clear,
     )
 
-    response = client.patch(f"/api/cv-versions/{second.id}/primary")
+    response = client.patch(f"/api/cv-versions/{second.id}/primary", headers=account.headers)
 
     assert response.status_code == 500
     detail = response.json()["detail"]
@@ -928,9 +1002,10 @@ def test_failed_primary_switch_preserves_prior_primary(
 def test_failed_primary_create_does_not_leave_partial_version(
     client: TestClient,
     db_session: Session,
+    account: Account,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     existing_primary = make_cv_version(
         db_session,
         version_type="original",
@@ -957,6 +1032,7 @@ def test_failed_primary_create_does_not_leave_partial_version(
             "display_name": "Will roll back",
             "is_primary": True,
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 500
@@ -970,8 +1046,9 @@ def test_failed_primary_create_does_not_leave_partial_version(
 def test_duplicate_original_versions_are_prevented(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     document = make_document(db_session)
 
     first = client.post(
@@ -981,6 +1058,7 @@ def test_duplicate_original_versions_are_prevented(
             "source_document_id": document.id,
             "display_name": "Original",
         },
+        headers=account.headers,
     )
     second = client.post(
         "/api/cv-versions",
@@ -990,6 +1068,7 @@ def test_duplicate_original_versions_are_prevented(
             "display_name": "Duplicate original",
             "is_primary": True,
         },
+        headers=account.headers,
     )
 
     assert first.status_code == 201
@@ -1002,15 +1081,16 @@ def test_duplicate_original_versions_are_prevented(
 def test_general_list_responses_exclude_private_storage_and_content(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    make_profile(db_session)
+    make_profile(db_session, account)
     make_cv_version(
         db_session,
         version_type="original",
         storage_path="/internal/storage/private.pdf",
     )
 
-    response = client.get("/api/cv-versions")
+    response = client.get("/api/cv-versions", headers=account.headers)
 
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -1020,8 +1100,9 @@ def test_general_list_responses_exclude_private_storage_and_content(
 def test_candidate_facts_vault_records_are_not_modified(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     document = make_document(db_session)
     expected_profile_state = {
         "full_name": profile.full_name,
@@ -1029,9 +1110,9 @@ def test_candidate_facts_vault_records_are_not_modified(
         "target_roles": list(profile.target_roles),
     }
 
-    adopt_response = client.post(f"/api/documents/{document.id}/cv-version")
+    adopt_response = client.post(f"/api/documents/{document.id}/cv-version", headers=account.headers)
     version_id = adopt_response.json()["id"]
-    archive_response = client.patch(f"/api/cv-versions/{version_id}/archive")
+    archive_response = client.patch(f"/api/cv-versions/{version_id}/archive", headers=account.headers)
 
     assert adopt_response.status_code == 201
     assert archive_response.status_code == 200

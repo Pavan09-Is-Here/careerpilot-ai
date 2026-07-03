@@ -25,10 +25,8 @@ from app.models.experience import Experience
 from app.models.job_match import JobMatch
 from app.models.project import Project
 from app.models.skill import Skill
-from app.services.auth import revoke_all_sessions
+from app.services.auth import revoke_user_sessions
 
-
-CANDIDATE_PROFILE_ID = 1
 
 # Internal columns that must never leave the system in an export.
 SENSITIVE_COLUMNS = {
@@ -65,19 +63,26 @@ def _row_to_dict(row: object) -> dict[str, object]:
     return result
 
 
-def _rows(model: type, database: Session) -> list[dict[str, object]]:
+def _rows(
+    model: type,
+    database: Session,
+    candidate_profile_id: int,
+) -> list[dict[str, object]]:
     items = list(
         database.scalars(
             select(model).where(
-                model.candidate_profile_id == CANDIDATE_PROFILE_ID
+                model.candidate_profile_id == candidate_profile_id
             )
         ).all()
     )
     return [_row_to_dict(item) for item in items]
 
 
-def export_candidate_data(database: Session) -> dict[str, object]:
-    profile = database.get(CandidateProfile, CANDIDATE_PROFILE_ID)
+def export_candidate_data(
+    database: Session,
+    candidate_profile_id: int,
+) -> dict[str, object]:
+    profile = database.get(CandidateProfile, candidate_profile_id)
     if profile is None:
         raise PrivacyServiceError(
             "No candidate profile exists to export.",
@@ -87,26 +92,36 @@ def export_candidate_data(database: Session) -> dict[str, object]:
     return {
         "exported_at": datetime.now().astimezone().isoformat(),
         "candidate_profile": _row_to_dict(profile),
-        "education": _rows(Education, database),
-        "experience": _rows(Experience, database),
-        "projects": _rows(Project, database),
-        "skills": _rows(Skill, database),
-        "certifications": _rows(Certification, database),
-        "documents": _rows(Document, database),
-        "cv_versions": _rows(CVVersion, database),
-        "application_answers": _rows(ApplicationAnswer, database),
-        "application_packages": _rows(ApplicationPackage, database),
-        "applications": _rows(Application, database),
+        "education": _rows(Education, database, candidate_profile_id),
+        "experience": _rows(Experience, database, candidate_profile_id),
+        "projects": _rows(Project, database, candidate_profile_id),
+        "skills": _rows(Skill, database, candidate_profile_id),
+        "certifications": _rows(
+            Certification, database, candidate_profile_id
+        ),
+        "documents": _rows(Document, database, candidate_profile_id),
+        "cv_versions": _rows(CVVersion, database, candidate_profile_id),
+        "application_answers": _rows(
+            ApplicationAnswer, database, candidate_profile_id
+        ),
+        "application_packages": _rows(
+            ApplicationPackage, database, candidate_profile_id
+        ),
+        "applications": _rows(Application, database, candidate_profile_id),
     }
 
 
-def _count(model: type, database: Session) -> int:
+def _count(
+    model: type,
+    database: Session,
+    candidate_profile_id: int,
+) -> int:
     return int(
         database.scalar(
             select(func.count())
             .select_from(model)
             .where(
-                model.candidate_profile_id == CANDIDATE_PROFILE_ID
+                model.candidate_profile_id == candidate_profile_id
             )
         )
         or 0
@@ -115,6 +130,7 @@ def _count(model: type, database: Session) -> int:
 
 def delete_candidate_data(
     database: Session,
+    candidate_profile_id: int,
     *,
     confirm: bool,
 ) -> dict[str, object]:
@@ -124,29 +140,41 @@ def delete_candidate_data(
             "erases all candidate data and cannot be undone.",
         )
 
-    profile = database.get(CandidateProfile, CANDIDATE_PROFILE_ID)
+    profile = database.get(CandidateProfile, candidate_profile_id)
     if profile is None:
         raise PrivacyServiceError(
             "No candidate profile exists to delete.",
             status_code=404,
         )
 
+    owner_user_id = profile.user_id
+
     summary = {
-        "education": _count(Education, database),
-        "experience": _count(Experience, database),
-        "projects": _count(Project, database),
-        "skills": _count(Skill, database),
-        "certifications": _count(Certification, database),
-        "documents": _count(Document, database),
-        "cv_versions": _count(CVVersion, database),
-        "application_answers": _count(ApplicationAnswer, database),
-        "application_packages": _count(ApplicationPackage, database),
-        "applications": _count(Application, database),
-        "job_matches": _count(JobMatch, database),
-        "application_runs": _count(ApplicationRun, database),
+        "education": _count(Education, database, candidate_profile_id),
+        "experience": _count(Experience, database, candidate_profile_id),
+        "projects": _count(Project, database, candidate_profile_id),
+        "skills": _count(Skill, database, candidate_profile_id),
+        "certifications": _count(
+            Certification, database, candidate_profile_id
+        ),
+        "documents": _count(Document, database, candidate_profile_id),
+        "cv_versions": _count(CVVersion, database, candidate_profile_id),
+        "application_answers": _count(
+            ApplicationAnswer, database, candidate_profile_id
+        ),
+        "application_packages": _count(
+            ApplicationPackage, database, candidate_profile_id
+        ),
+        "applications": _count(Application, database, candidate_profile_id),
+        "job_matches": _count(JobMatch, database, candidate_profile_id),
+        "application_runs": _count(
+            ApplicationRun, database, candidate_profile_id
+        ),
     }
 
-    where = lambda model: model.candidate_profile_id == CANDIDATE_PROFILE_ID
+    where = (
+        lambda model: model.candidate_profile_id == candidate_profile_id
+    )
 
     # Delete references first, then owned records, in FK-safe order.
     database.execute(delete(ApplicationRun).where(where(ApplicationRun)))
@@ -177,7 +205,11 @@ def delete_candidate_data(
     database.delete(profile)
     database.commit()
 
-    revoked = revoke_all_sessions(database)
+    revoked = (
+        revoke_user_sessions(owner_user_id, database)
+        if owner_user_id is not None
+        else 0
+    )
 
     return {
         "deleted": summary,

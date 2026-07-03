@@ -52,6 +52,15 @@ class Notification(Base):
         autoincrement=True,
     )
 
+    candidate_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "candidate_profiles.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     category: Mapped[str] = mapped_column(
         String(50),
         nullable=False,

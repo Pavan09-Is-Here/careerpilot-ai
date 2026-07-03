@@ -8,6 +8,7 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.candidate_profile import CandidateProfile
 from app.models.experience import Experience
@@ -27,6 +28,7 @@ router = APIRouter(
 def get_experience_or_404(
     experience_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Experience:
     experience = database.get(
         Experience,
@@ -35,7 +37,7 @@ def get_experience_or_404(
 
     if (
         experience is None
-        or experience.candidate_profile_id != 1
+        or experience.candidate_profile_id != candidate_profile_id
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -51,11 +53,12 @@ def get_experience_or_404(
 )
 def list_experience(
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[Experience]:
     statement = (
         select(Experience)
         .where(
-            Experience.candidate_profile_id == 1
+            Experience.candidate_profile_id == profile_id
         )
         .order_by(
             Experience.start_date.desc(),
@@ -76,10 +79,11 @@ def list_experience(
 def create_experience(
     payload: ExperienceCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Experience:
     profile = database.get(
         CandidateProfile,
-        1,
+        profile_id,
     )
 
     if profile is None:
@@ -92,7 +96,7 @@ def create_experience(
         )
 
     experience = Experience(
-        candidate_profile_id=1,
+        candidate_profile_id=profile_id,
         **payload.model_dump(),
     )
 
@@ -111,10 +115,12 @@ def update_experience(
     experience_id: int,
     payload: ExperienceUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Experience:
     experience = get_experience_or_404(
         experience_id,
         database,
+        profile_id,
     )
 
     for field_name, field_value in (
@@ -139,10 +145,12 @@ def update_experience(
 def delete_experience(
     experience_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Response:
     experience = get_experience_or_404(
         experience_id,
         database,
+        profile_id,
     )
 
     database.delete(experience)

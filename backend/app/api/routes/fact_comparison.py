@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.document import Document
 from app.models.fact_comparison import (
@@ -68,6 +69,7 @@ def get_latest_fact_comparison_run(
 def get_fact_comparison_or_404(
     comparison_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> FactComparisonRun:
     comparison_run = database.get(FactComparisonRun, comparison_id)
 
@@ -79,7 +81,7 @@ def get_fact_comparison_or_404(
 
     document = database.get(Document, comparison_run.document_id)
 
-    if document is None or document.candidate_profile_id != 1:
+    if document is None or document.candidate_profile_id != candidate_profile_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Fact comparison was not found.",
@@ -122,10 +124,12 @@ def build_fact_comparison_response(
 def get_fact_comparison(
     comparison_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     comparison_run = get_fact_comparison_or_404(
         comparison_id,
         database,
+        profile_id,
     )
 
     return build_fact_comparison_response(comparison_run, database)

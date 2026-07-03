@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.application_run import ApplicationRun
 from app.schemas.application_run import (
@@ -36,9 +37,10 @@ def raise_run_http_error(error: ApplicationRunServiceError) -> None:
 def start_application(
     job_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> ApplicationRun:
     try:
-        return start_application_run(job_id, database)
+        return start_application_run(job_id, database, profile_id)
     except ApplicationRunServiceError as exc:
         raise_run_http_error(exc)
 
@@ -50,9 +52,10 @@ def start_application(
 def get_application_status(
     run_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> ApplicationRun:
     try:
-        return get_run_or_404(run_id, database)
+        return get_run_or_404(run_id, database, profile_id)
     except ApplicationRunServiceError as exc:
         raise_run_http_error(exc)
 
@@ -65,12 +68,14 @@ def resume_application(
     run_id: int,
     payload: ApplicationRunResumeRequest,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> ApplicationRun:
     try:
         return resume_application_run(
             run_id,
             payload.confirmation_number,
             database,
+            profile_id,
         )
     except ApplicationRunServiceError as exc:
         raise_run_http_error(exc)
@@ -83,8 +88,9 @@ def resume_application(
 def cancel_application(
     run_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> ApplicationRun:
     try:
-        return cancel_application_run(run_id, database)
+        return cancel_application_run(run_id, database, profile_id)
     except ApplicationRunServiceError as exc:
         raise_run_http_error(exc)

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.schemas.application_package import (
     ApplicationPackageResponse,
@@ -37,10 +38,11 @@ def raise_package_http_error(
 def prepare_application(
     job_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
-        package = prepare_application_package(job_id, database)
-        return build_package_response(package, database)
+        package = prepare_application_package(job_id, database, profile_id)
+        return build_package_response(package, database, profile_id)
     except ApplicationPackageServiceError as exc:
         raise_package_http_error(exc)
 
@@ -52,10 +54,11 @@ def prepare_application(
 def get_application_package(
     job_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
         package = get_package_or_404(job_id, database)
-        return build_package_response(package, database)
+        return build_package_response(package, database, profile_id)
     except ApplicationPackageServiceError as exc:
         raise_package_http_error(exc)
 
@@ -68,6 +71,7 @@ def update_application_package_record(
     job_id: int,
     payload: ApplicationPackageUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
         package = update_application_package(
@@ -75,6 +79,6 @@ def update_application_package_record(
             payload,
             database,
         )
-        return build_package_response(package, database)
+        return build_package_response(package, database, profile_id)
     except ApplicationPackageServiceError as exc:
         raise_package_http_error(exc)

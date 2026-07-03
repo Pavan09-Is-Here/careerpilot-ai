@@ -45,8 +45,9 @@ class SavedJob(Base):
             name="ck_saved_jobs_review_status",
         ),
         UniqueConstraint(
+            "candidate_profile_id",
             "job_id",
-            name="uq_saved_jobs_job_id",
+            name="uq_saved_jobs_profile_job",
         ),
     )
 
@@ -54,6 +55,15 @@ class SavedJob(Base):
         Integer,
         primary_key=True,
         autoincrement=True,
+    )
+
+    candidate_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "candidate_profiles.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        index=True,
     )
 
     job_id: Mapped[int] = mapped_column(

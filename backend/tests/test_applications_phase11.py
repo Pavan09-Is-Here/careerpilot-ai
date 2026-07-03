@@ -14,6 +14,7 @@ from app.models.job import NormalizedJob
 from app.models.job_match import JobMatch
 from app.models.job_tailored_cv import JobTailoredCV
 from app.schemas.job import JobSourceCreate, NormalizedJobCreate
+from app.api.routes.auth import login_rate_limiter
 from app.services.application import (
     ApplicationServiceError,
     derive_initial_status,
@@ -21,13 +22,24 @@ from app.services.application import (
     validate_transition,
 )
 from app.services.job import create_job_source, create_normalized_job
+from tests.conftest import Account, register_account
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
 
 
 def content_hash(seed: str | None = None) -> str:
     return sha256((seed or uuid4().hex).encode()).hexdigest()
 
 
-def make_profile(database: Session, **overrides: object) -> CandidateProfile:
+def make_profile(
+    database: Session,
+    account: Account,
+    **overrides: object,
+) -> CandidateProfile:
+    """Return the account's own profile, applying any relied-on fields."""
     values: dict[str, object] = {
         "full_name": "Test Candidate",
         "email": "candidate@example.com",
@@ -42,8 +54,10 @@ def make_profile(database: Session, **overrides: object) -> CandidateProfile:
         "facts_verified": True,
     }
     values.update(overrides)
-    profile = CandidateProfile(**values)
-    database.add(profile)
+    profile = database.get(CandidateProfile, account.profile_id)
+    assert profile is not None
+    for key, value in values.items():
+        setattr(profile, key, value)
     database.commit()
     database.refresh(profile)
     return profile
@@ -140,16 +154,20 @@ def add_tailored_cv(
 # --- Status derivation ----------------------------------------------------
 
 
-def test_derive_status_discovered(db_session: Session) -> None:
-    make_profile(db_session)
+def test_derive_status_discovered(
+    db_session: Session,
+    account: Account,
+) -> None:
+    make_profile(db_session, account)
     job = make_job(db_session)
     assert derive_initial_status(job.id, db_session) == "discovered"
 
 
 def test_derive_status_matched_and_not_eligible(
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
     assert derive_initial_status(job.id, db_session) == "matched"
@@ -159,8 +177,11 @@ def test_derive_status_matched_and_not_eligible(
     assert derive_initial_status(job2.id, db_session) == "not_eligible"
 
 
-def test_derive_status_cv_generated(db_session: Session) -> None:
-    profile = make_profile(db_session)
+def test_derive_status_cv_generated(
+    db_session: Session,
+    account: Account,
+) -> None:
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
     add_tailored_cv(db_session, job, profile)
@@ -189,46 +210,62 @@ def test_valid_and_invalid_transitions() -> None:
 def test_track_is_idempotent(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
 
-    first = client.post(f"/api/jobs/{job.id}/track")
+    first = client.post(f"/api/jobs/{job.id}/track", headers=account.headers)
     assert first.status_code == 201
     body = first.json()
     assert body["status"] == "matched"
     assert body["job_id"] == job.id
 
-    second = client.post(f"/api/jobs/{job.id}/track")
+    second = client.post(f"/api/jobs/{job.id}/track", headers=account.headers)
     assert second.status_code == 201
     assert second.json()["id"] == body["id"]
 
 
-def test_track_missing_job_404(client: TestClient) -> None:
+def test_track_requires_authentication(client: TestClient) -> None:
     response = client.post("/api/jobs/999/track")
+    assert response.status_code == 401
+
+
+def test_track_missing_job_404(
+    client: TestClient,
+    account: Account,
+) -> None:
+    response = client.post("/api/jobs/999/track", headers=account.headers)
     assert response.status_code == 404
 
 
 def test_list_and_filter_by_status(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job1 = make_job(db_session)
     add_match(db_session, job1, profile)
     job2 = make_job(db_session)
     add_match(db_session, job2, profile, eligibility_status="ineligible")
 
-    track_application(job1.id, db_session)
-    track_application(job2.id, db_session)
+    track_application(
+        job1.id, db_session, candidate_profile_id=account.profile_id
+    )
+    track_application(
+        job2.id, db_session, candidate_profile_id=account.profile_id
+    )
 
-    all_apps = client.get("/api/applications")
+    all_apps = client.get("/api/applications", headers=account.headers)
     assert all_apps.status_code == 200
     assert len(all_apps.json()) == 2
 
     filtered = client.get(
-        "/api/applications", params={"status": "not_eligible"}
+        "/api/applications",
+        params={"status": "not_eligible"},
+        headers=account.headers,
     )
     assert len(filtered.json()) == 1
     assert filtered.json()[0]["status"] == "not_eligible"
@@ -240,20 +277,25 @@ def test_list_and_filter_by_status(
 def test_update_status_transition_and_autofill_applied_at(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
-    app_id = track_application(job.id, db_session).id
+    app_id = track_application(
+        job.id, db_session, candidate_profile_id=account.profile_id
+    ).id
 
     # matched -> ready_to_apply -> submitted
     client.put(
         f"/api/applications/{app_id}",
         json={"status": "ready_to_apply"},
+        headers=account.headers,
     )
     submitted = client.put(
         f"/api/applications/{app_id}",
         json={"status": "submitted", "confirmation_number": "C-1"},
+        headers=account.headers,
     )
     assert submitted.status_code == 200
     body = submitted.json()
@@ -265,15 +307,19 @@ def test_update_status_transition_and_autofill_applied_at(
 def test_update_invalid_transition_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
-    app_id = track_application(job.id, db_session).id
+    app_id = track_application(
+        job.id, db_session, candidate_profile_id=account.profile_id
+    ).id
 
     response = client.put(
         f"/api/applications/{app_id}",
         json={"status": "offer"},
+        headers=account.headers,
     )
     assert response.status_code == 400
 
@@ -281,15 +327,19 @@ def test_update_invalid_transition_rejected(
 def test_notes_follow_up_and_timeline(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
-    app_id = track_application(job.id, db_session).id
+    app_id = track_application(
+        job.id, db_session, candidate_profile_id=account.profile_id
+    ).id
 
     note = client.post(
         f"/api/applications/{app_id}/notes",
         json={"text": "Recruiter reached out."},
+        headers=account.headers,
     )
     assert note.status_code == 201
     assert len(note.json()["notes"]) == 1
@@ -297,13 +347,17 @@ def test_notes_follow_up_and_timeline(
     follow = client.post(
         f"/api/applications/{app_id}/follow-up",
         json={"description": "Send thank-you", "due_date": "2026-07-10"},
+        headers=account.headers,
     )
     assert follow.status_code == 201
     assert follow.json()["follow_ups"][0]["description"] == (
         "Send thank-you"
     )
 
-    detail = client.get(f"/api/applications/{app_id}")
+    detail = client.get(
+        f"/api/applications/{app_id}",
+        headers=account.headers,
+    )
     assert detail.status_code == 200
     detail_body = detail.json()
     assert detail_body["job"]["employer_name"] == "Example Robotics"
@@ -316,19 +370,26 @@ def test_notes_follow_up_and_timeline(
 def test_empty_note_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
-    app_id = track_application(job.id, db_session).id
+    app_id = track_application(
+        job.id, db_session, candidate_profile_id=account.profile_id
+    ).id
 
     response = client.post(
         f"/api/applications/{app_id}/notes",
         json={"text": "   "},
+        headers=account.headers,
     )
     assert response.status_code == 422
 
 
-def test_get_missing_application_404(client: TestClient) -> None:
-    response = client.get("/api/applications/999")
+def test_get_missing_application_404(
+    client: TestClient,
+    account: Account,
+) -> None:
+    response = client.get("/api/applications/999", headers=account.headers)
     assert response.status_code == 404

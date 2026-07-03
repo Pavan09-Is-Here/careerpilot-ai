@@ -14,9 +14,17 @@ from sqlalchemy.orm import Session
 
 from app.api.routes import document as document_route
 from app.models.document import Document
+from tests.conftest import Account
 
 
 REPAIR_REVISION = "d8e9f0a1b2c3"
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter() -> None:
+    from app.api.routes.auth import login_rate_limiter
+
+    login_rate_limiter.reset()
 
 
 def profile_payload(**overrides: object) -> dict[str, object]:
@@ -47,8 +55,12 @@ def profile_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def create_profile(client: TestClient) -> dict[str, Any]:
-    response = client.put("/api/profile", json=profile_payload())
+def create_profile(client: TestClient, account: Account) -> dict[str, Any]:
+    response = client.put(
+        "/api/profile",
+        json=profile_payload(),
+        headers=account.headers,
+    )
     assert response.status_code == 200
 
     return cast(dict[str, Any], response.json())
@@ -58,11 +70,12 @@ def create_extracted_document(
     database: Session,
     text_value: str | None,
     *,
+    candidate_profile_id: int,
     extraction_status: str = "completed",
 ) -> Document:
     digest_source = f"{text_value or ''}-{uuid4().hex}".encode()
     document = Document(
-        candidate_profile_id=1,
+        candidate_profile_id=candidate_profile_id,
         original_filename="resume.pdf",
         stored_filename=f"{uuid4().hex}.pdf",
         file_extension=".pdf",
@@ -91,12 +104,22 @@ def create_extracted_document(
     return document
 
 
-def detect_sections(client: TestClient, document_id: int) -> Any:
-    return client.post(f"/api/documents/{document_id}/detect-sections")
+def detect_sections(
+    client: TestClient, document_id: int, account: Account
+) -> Any:
+    return client.post(
+        f"/api/documents/{document_id}/detect-sections",
+        headers=account.headers,
+    )
 
 
-def get_sections(client: TestClient, document_id: int) -> Any:
-    return client.get(f"/api/documents/{document_id}/sections")
+def get_sections(
+    client: TestClient, document_id: int, account: Account
+) -> Any:
+    return client.get(
+        f"/api/documents/{document_id}/sections",
+        headers=account.headers,
+    )
 
 
 def section_types(sections: list[dict[str, Any]]) -> list[str]:
@@ -121,9 +144,10 @@ def assert_character_ranges(
 
 def test_standard_cv_sections_and_contact_inference(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     cv_text = (
         "Jane Candidate\n"
         "jane@example.com\n"
@@ -143,9 +167,9 @@ def test_standard_cv_sections_and_contact_inference(
         "CERTIFICATIONS\n"
         "Cloud Practitioner\n"
     )
-    document = create_extracted_document(db_session, cv_text)
+    document = create_extracted_document(db_session, cv_text, candidate_profile_id=account.profile_id)
 
-    response = detect_sections(client, document.id)
+    response = detect_sections(client, document.id, account)
 
     assert response.status_code == 200
     payload = response.json()
@@ -170,16 +194,17 @@ def test_standard_cv_sections_and_contact_inference(
     assert sections[0]["start_char"] == 0
     assert_character_ranges(cv_text, sections)
 
-    list_response = get_sections(client, document.id)
+    list_response = get_sections(client, document.id, account)
     assert list_response.status_code == 200
     assert list_response.json() == sections
 
 
 def test_aliases_numbered_headings_and_non_standard_order(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     cv_text = (
         "A. Technical Skills\n"
         "Python, TypeScript\n\n"
@@ -194,9 +219,9 @@ def test_aliases_numbered_headings_and_non_standard_order(
         "LANGUAGE SKILLS\n"
         "English\n"
     )
-    document = create_extracted_document(db_session, cv_text)
+    document = create_extracted_document(db_session, cv_text, candidate_profile_id=account.profile_id)
 
-    response = detect_sections(client, document.id)
+    response = detect_sections(client, document.id, account)
 
     assert response.status_code == 200
     sections = response.json()["sections"]
@@ -216,18 +241,19 @@ def test_aliases_numbered_headings_and_non_standard_order(
 
 def test_missing_headings_fall_back_to_contact_and_additional(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     cv_text = (
         "Jane Candidate\n"
         "jane@example.com\n"
         "\n"
         "Backend engineer with API and database experience."
     )
-    document = create_extracted_document(db_session, cv_text)
+    document = create_extracted_document(db_session, cv_text, candidate_profile_id=account.profile_id)
 
-    response = detect_sections(client, document.id)
+    response = detect_sections(client, document.id, account)
 
     assert response.status_code == 200
     sections = response.json()["sections"]
@@ -237,9 +263,10 @@ def test_missing_headings_fall_back_to_contact_and_additional(
 
 def test_repeated_and_empty_sections_are_handled(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     cv_text = (
         "SKILLS\n\n"
         "WORK EXPERIENCE\n"
@@ -247,9 +274,9 @@ def test_repeated_and_empty_sections_are_handled(
         "WORK EXPERIENCE\n"
         "Second role\n"
     )
-    document = create_extracted_document(db_session, cv_text)
+    document = create_extracted_document(db_session, cv_text, candidate_profile_id=account.profile_id)
 
-    response = detect_sections(client, document.id)
+    response = detect_sections(client, document.id, account)
 
     assert response.status_code == 200
     sections = response.json()["sections"]
@@ -265,16 +292,18 @@ def test_repeated_and_empty_sections_are_handled(
 
 def test_section_detection_requires_completed_extraction(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     document = create_extracted_document(
         db_session,
         None,
         extraction_status="no_text",
+        candidate_profile_id=account.profile_id,
     )
 
-    response = detect_sections(client, document.id)
+    response = detect_sections(client, document.id, account)
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
@@ -285,10 +314,11 @@ def test_section_detection_requires_completed_extraction(
 
 def test_detect_sections_missing_document_returns_404(
     client: TestClient,
+    account: Account,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
 
-    response = detect_sections(client, 9999)
+    response = detect_sections(client, 9999, account)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Document was not found."
@@ -296,15 +326,17 @@ def test_detect_sections_missing_document_returns_404(
 
 def test_get_sections_returns_empty_list_before_detection(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     document = create_extracted_document(
         db_session,
         "SUMMARY\nReady for detection.",
+        candidate_profile_id=account.profile_id,
     )
 
-    response = get_sections(client, document.id)
+    response = get_sections(client, document.id, account)
 
     assert response.status_code == 200
     assert response.json() == []
@@ -312,15 +344,17 @@ def test_get_sections_returns_empty_list_before_detection(
 
 def test_redetection_replaces_old_sections_without_duplicates(
     client: TestClient,
+    account: Account,
     db_session: Session,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     document = create_extracted_document(
         db_session,
         "SUMMARY\nFirst summary\n\nSKILLS\nPython",
+        candidate_profile_id=account.profile_id,
     )
 
-    first_response = detect_sections(client, document.id)
+    first_response = detect_sections(client, document.id, account)
     assert first_response.status_code == 200
     assert section_types(first_response.json()["sections"]) == [
         "summary",
@@ -331,28 +365,30 @@ def test_redetection_replaces_old_sections_without_duplicates(
     document.extracted_character_count = len(document.extracted_text)
     db_session.commit()
 
-    second_response = detect_sections(client, document.id)
+    second_response = detect_sections(client, document.id, account)
 
     assert second_response.status_code == 200
     sections = second_response.json()["sections"]
     assert section_types(sections) == ["education"]
     assert len(sections) == 1
 
-    get_response = get_sections(client, document.id)
+    get_response = get_sections(client, document.id, account)
     assert get_response.json() == sections
 
 
 def test_failed_redetection_preserves_previous_valid_sections(
     client: TestClient,
+    account: Account,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     document = create_extracted_document(
         db_session,
         "SUMMARY\nReliable backend engineer.",
+        candidate_profile_id=account.profile_id,
     )
-    first_response = detect_sections(client, document.id)
+    first_response = detect_sections(client, document.id, account)
     assert first_response.status_code == 200
     previous_sections = first_response.json()["sections"]
 
@@ -365,7 +401,7 @@ def test_failed_redetection_preserves_previous_valid_sections(
         fail_detection,
     )
 
-    failed_response = detect_sections(client, document.id)
+    failed_response = detect_sections(client, document.id, account)
 
     assert failed_response.status_code == 200
     payload = failed_response.json()
@@ -374,21 +410,23 @@ def test_failed_redetection_preserves_previous_valid_sections(
     assert "internal parser detail" not in payload["section_detection_error"]
     assert payload["sections"] == previous_sections
 
-    get_response = get_sections(client, document.id)
+    get_response = get_sections(client, document.id, account)
     assert get_response.json() == previous_sections
 
 
 def test_section_persistence_failure_records_safe_failure_and_allows_retry(
     client: TestClient,
+    account: Account,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    create_profile(client)
+    create_profile(client, account)
     document = create_extracted_document(
         db_session,
         "SUMMARY\nReliable backend engineer.",
+        candidate_profile_id=account.profile_id,
     )
-    first_response = detect_sections(client, document.id)
+    first_response = detect_sections(client, document.id, account)
     assert first_response.status_code == 200
     previous_sections = first_response.json()["sections"]
 
@@ -413,7 +451,7 @@ def test_section_persistence_failure_records_safe_failure_and_allows_retry(
         fail_section_persistence,
     )
 
-    failed_response = detect_sections(client, document.id)
+    failed_response = detect_sections(client, document.id, account)
 
     assert failed_response.status_code == 200
     failed_payload = failed_response.json()
@@ -437,7 +475,7 @@ def test_section_persistence_failure_records_safe_failure_and_allows_retry(
         original_replace_document_sections,
     )
 
-    retry_response = detect_sections(client, document.id)
+    retry_response = detect_sections(client, document.id, account)
 
     assert retry_response.status_code == 200
     retry_payload = retry_response.json()
@@ -445,7 +483,7 @@ def test_section_persistence_failure_records_safe_failure_and_allows_retry(
     assert retry_payload["section_detection_error"] is None
     assert section_types(retry_payload["sections"]) == ["education"]
 
-    get_response = get_sections(client, document.id)
+    get_response = get_sections(client, document.id, account)
     assert get_response.json() == retry_payload["sections"]
 
 
@@ -459,7 +497,7 @@ def test_section_detection_migration_upgrade_downgrade_reupgrade(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["c1d2e3f4a5b6"]
+    assert script.get_heads() == ["d2e3f4a5b6c7"]
     assert script.get_revision(REPAIR_REVISION).down_revision == (
         "b7a3c8d9e012"
     )

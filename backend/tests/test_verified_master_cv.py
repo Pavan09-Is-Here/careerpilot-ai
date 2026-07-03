@@ -44,16 +44,26 @@ from app.services.verified_master_cv import (
     packaged_font_path,
     pdf_font_for_character,
 )
+from tests.conftest import Account
 
 
 PHASE36_HEAD = "f6a7b8c9d0e1"
 PHASE37_HEAD = "a7b8c9d0e1f2"
-CURRENT_HEAD = "c1d2e3f4a5b6"
+CURRENT_HEAD = "d2e3f4a5b6c7"
 UNICODE_SAMPLE = "José Núñez – Łukasz Żółć 李雷"
 UNICODE_DETAIL = (
     f"{UNICODE_SAMPLE} • Candidate’s résumé – café naïve"
 )
 UNSUPPORTED_UNICODE = "Unsupported emoji 😀"
+
+
+@pytest.fixture(autouse=True)
+def reset_auth_rate_limiter() -> None:
+    from app.api.routes.auth import login_rate_limiter
+
+    login_rate_limiter.reset()
+    yield
+    login_rate_limiter.reset()
 
 
 @pytest.fixture(autouse=True)
@@ -95,6 +105,7 @@ def configure_generated_storage(
 
 def make_profile(
     database: Session,
+    account: Account,
     *,
     facts_verified: bool = True,
     full_name: str = "Pavan Test",
@@ -103,30 +114,33 @@ def make_profile(
         "Backend engineer focused on reliable APIs and data integrity."
     ),
 ) -> CandidateProfile:
-    profile = CandidateProfile(
-        id=1,
-        full_name=full_name,
-        email="pavan@example.com",
-        phone="+44 20 0000 0000",
-        location="London",
-        professional_title=professional_title,
-        professional_summary=summary,
-        linkedin_url="https://linkedin.example/pavan",
-        github_url="https://github.example/pavan",
-        portfolio_url="https://portfolio.example/pavan",
-        work_authorization="Do not include",
-        requires_sponsorship=False,
-        willing_to_relocate=True,
-        preferred_work_modes=["Remote"],
-        target_roles=["Backend Engineer"],
-        preferred_locations=["London"],
-        minimum_salary=120000,
-        salary_currency="GBP",
-        minimum_match_score=85,
-        auto_apply_enabled=False,
-        facts_verified=facts_verified,
-    )
-    database.add(profile)
+    """Mutate the authenticated account's own profile into the test state.
+
+    Registration already created the caller's profile, so we fetch and
+    update it instead of inserting a second candidate profile.
+    """
+    profile = database.get(CandidateProfile, account.profile_id)
+    assert profile is not None
+    profile.full_name = full_name
+    profile.email = "pavan@example.com"
+    profile.phone = "+44 20 0000 0000"
+    profile.location = "London"
+    profile.professional_title = professional_title
+    profile.professional_summary = summary
+    profile.linkedin_url = "https://linkedin.example/pavan"
+    profile.github_url = "https://github.example/pavan"
+    profile.portfolio_url = "https://portfolio.example/pavan"
+    profile.work_authorization = "Do not include"
+    profile.requires_sponsorship = False
+    profile.willing_to_relocate = True
+    profile.preferred_work_modes = ["Remote"]
+    profile.target_roles = ["Backend Engineer"]
+    profile.preferred_locations = ["London"]
+    profile.minimum_salary = 120000
+    profile.salary_currency = "GBP"
+    profile.minimum_match_score = 85
+    profile.auto_apply_enabled = False
+    profile.facts_verified = facts_verified
     database.commit()
     database.refresh(profile)
     return profile
@@ -753,11 +767,12 @@ def assert_later_page_uses_western_and_cjk_fonts(pdf_path: Path) -> None:
 def test_generate_verified_master_cv_creates_safe_docx_and_pdf(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     storage_dir = configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
@@ -768,6 +783,7 @@ def test_generate_verified_master_cv_creates_safe_docx_and_pdf(
             "idempotency_key": "phase37-main",
             "is_primary": True,
         },
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -876,12 +892,14 @@ def test_generate_verified_master_cv_creates_safe_docx_and_pdf(
 def test_unicode_docx_and_pdf_round_trip_preserves_canonical_text(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
     make_profile(
         db_session,
+        account,
         full_name="José Núñez",
         professional_title="Łukasz Żółć 李雷 Engineer",
         summary=UNICODE_DETAIL,
@@ -892,6 +910,7 @@ def test_unicode_docx_and_pdf_round_trip_preserves_canonical_text(
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-unicode-main"},
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -924,11 +943,12 @@ def test_unicode_docx_and_pdf_round_trip_preserves_canonical_text(
 def test_empty_sections_are_omitted_without_changing_remaining_order(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session, summary=None)
+    make_profile(db_session, account, summary=None)
     parent = make_parent_chain(db_session)
     db_session.add(
         Skill(
@@ -947,6 +967,7 @@ def test_empty_sections_are_omitted_without_changing_remaining_order(
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-empty-section-order"},
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -967,11 +988,12 @@ def test_empty_sections_are_omitted_without_changing_remaining_order(
 def test_long_unicode_pdf_paginates_without_content_loss(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session, summary=UNICODE_DETAIL)
+    make_profile(db_session, account, summary=UNICODE_DETAIL)
     parent = make_parent_chain(db_session)
     add_verified_facts(
         db_session,
@@ -982,6 +1004,7 @@ def test_long_unicode_pdf_paginates_without_content_loss(
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-long-unicode"},
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -1002,6 +1025,7 @@ def test_long_unicode_pdf_paginates_without_content_loss(
 def test_long_single_paragraph_fields_paginate_without_clipping(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -1017,7 +1041,7 @@ def test_long_single_paragraph_fields_paginate_without_clipping(
         5_500,
         wide=True,
     )
-    make_profile(db_session, summary=summary_text)
+    make_profile(db_session, account, summary=summary_text)
     parent = make_parent_chain(db_session)
     db_session.add(
         Project(
@@ -1042,6 +1066,7 @@ def test_long_single_paragraph_fields_paginate_without_clipping(
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-long-single-paragraphs"},
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -1074,6 +1099,7 @@ def test_long_single_paragraph_fields_paginate_without_clipping(
 def test_single_long_responsibility_bullet_paginates_with_indent(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -1083,7 +1109,7 @@ def test_single_long_responsibility_bullet_paginates_with_indent(
         6_500,
         wide=True,
     )
-    make_profile(db_session, summary=None)
+    make_profile(db_session, account, summary=None)
     parent = make_parent_chain(db_session)
     db_session.add(
         Experience(
@@ -1107,6 +1133,7 @@ def test_single_long_responsibility_bullet_paginates_with_indent(
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-long-bullet"},
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -1140,6 +1167,7 @@ def test_single_long_responsibility_bullet_paginates_with_indent(
 def test_mixed_unicode_text_survives_pdf_page_boundaries(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -1150,12 +1178,13 @@ def test_mixed_unicode_text_survives_pdf_page_boundaries(
         include_unicode=True,
         wide=True,
     )
-    make_profile(db_session, summary=unicode_text)
+    make_profile(db_session, account, summary=unicode_text)
     parent = make_parent_chain(db_session)
 
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-unicode-page-breaks"},
+        headers=account.headers,
     )
 
     assert response.status_code == 201
@@ -1184,16 +1213,18 @@ def test_mixed_unicode_text_survives_pdf_page_boundaries(
 def test_unsupported_unicode_fails_safely_without_ready_artifacts(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     storage_dir = configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session, summary=UNSUPPORTED_UNICODE)
+    make_profile(db_session, account, summary=UNSUPPORTED_UNICODE)
     parent = make_parent_chain(db_session)
 
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-unsupported-unicode"},
+        headers=account.headers,
     )
 
     assert response.status_code == 400
@@ -1213,32 +1244,35 @@ def test_unsupported_unicode_fails_safely_without_ready_artifacts(
 def test_generated_artifact_metadata_and_downloads_are_safe(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     generate_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-download"},
+        headers=account.headers,
     )
     version_id = generate_response.json()["version"]["id"]
-    list_response = client.get(f"/api/cv-versions/{version_id}/artifacts")
+    list_response = client.get(f"/api/cv-versions/{version_id}/artifacts", headers=account.headers)
 
     assert list_response.status_code == 200
     listed = list_response.json()
     assert [item["artifact_type"] for item in listed] == ["docx", "pdf"]
     for item in listed:
         assert_no_private_artifact_fields(item)
-        metadata_response = client.get(f"/api/cv-artifacts/{item['id']}")
+        metadata_response = client.get(f"/api/cv-artifacts/{item['id']}", headers=account.headers)
         assert metadata_response.status_code == 200
         assert_no_private_artifact_fields(metadata_response.json())
 
         download_response = client.get(
-            f"/api/cv-artifacts/{item['id']}/download"
+            f"/api/cv-artifacts/{item['id']}/download",
+            headers=account.headers,
         )
         assert download_response.status_code == 200
         assert download_response.headers["content-type"].startswith(
@@ -1253,25 +1287,29 @@ def test_generated_artifact_metadata_and_downloads_are_safe(
 def test_idempotency_key_prevents_uncontrolled_duplicates(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     first = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-repeat"},
+        headers=account.headers,
     )
     second = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-repeat"},
+        headers=account.headers,
     )
     third = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-regenerate"},
+        headers=account.headers,
     )
 
     assert first.status_code == 201
@@ -1294,11 +1332,12 @@ def test_idempotency_key_prevents_uncontrolled_duplicates(
 def test_generic_verified_master_creation_and_ready_update_are_blocked(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
 
     create_response = client.post(
@@ -1309,6 +1348,7 @@ def test_generic_verified_master_creation_and_ready_update_are_blocked(
             "status": "ready",
             "display_name": "Forged Verified Master",
         },
+        headers=account.headers,
     )
     assert create_response.status_code == 400
     assert "generation workflow" in create_response.json()["detail"]
@@ -1322,12 +1362,14 @@ def test_generic_verified_master_creation_and_ready_update_are_blocked(
     update_response = client.patch(
         f"/api/cv-versions/{artifactless.id}",
         json={"status": "ready"},
+        headers=account.headers,
     )
     assert update_response.status_code == 400
     assert "DOCX and PDF artifacts" in update_response.json()["detail"]
 
     primary_response = client.patch(
-        f"/api/cv-versions/{artifactless.id}/primary"
+        f"/api/cv-versions/{artifactless.id}/primary",
+        headers=account.headers,
     )
     assert primary_response.status_code == 400
 
@@ -1335,11 +1377,12 @@ def test_generic_verified_master_creation_and_ready_update_are_blocked(
 def test_single_artifact_verified_master_cannot_be_marked_ready(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     version = make_version(
         db_session,
@@ -1369,6 +1412,7 @@ def test_single_artifact_verified_master_cannot_be_marked_ready(
     response = client.patch(
         f"/api/cv-versions/{version.id}",
         json={"status": "ready"},
+        headers=account.headers,
     )
 
     assert response.status_code == 400
@@ -1378,17 +1422,19 @@ def test_single_artifact_verified_master_cannot_be_marked_ready(
 def test_valid_existing_artifacts_allow_ready_and_primary(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     generate_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-valid-ready"},
+        headers=account.headers,
     )
     version_id = generate_response.json()["version"]["id"]
     mark_version_draft(db_session, version_id)
@@ -1396,8 +1442,9 @@ def test_valid_existing_artifacts_allow_ready_and_primary(
     ready_response = client.patch(
         f"/api/cv-versions/{version_id}",
         json={"status": "ready"},
+        headers=account.headers,
     )
-    primary_response = client.patch(f"/api/cv-versions/{version_id}/primary")
+    primary_response = client.patch(f"/api/cv-versions/{version_id}/primary", headers=account.headers)
 
     assert ready_response.status_code == 200
     assert ready_response.json()["status"] == "ready"
@@ -1415,19 +1462,21 @@ def test_valid_existing_artifacts_allow_ready_and_primary(
 def test_missing_required_artifact_blocks_ready_status(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
     artifact_type: str,
     expected_message: str,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     generate_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": f"phase37-missing-{artifact_type}"},
+        headers=account.headers,
     )
     version_id = generate_response.json()["version"]["id"]
     mark_version_draft(db_session, version_id)
@@ -1442,6 +1491,7 @@ def test_missing_required_artifact_blocks_ready_status(
     response = client.patch(
         f"/api/cv-versions/{version_id}",
         json={"status": "ready"},
+        headers=account.headers,
     )
 
     assert response.status_code == 400
@@ -1463,18 +1513,20 @@ def test_missing_required_artifact_blocks_ready_status(
 def test_invalid_physical_artifacts_block_ready_status(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
     tamper_case: str,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     generate_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": f"phase37-tamper-{tamper_case}"},
+        headers=account.headers,
     )
     version_id = generate_response.json()["version"]["id"]
     mark_version_draft(db_session, version_id)
@@ -1511,6 +1563,7 @@ def test_invalid_physical_artifacts_block_ready_status(
     response = client.patch(
         f"/api/cv-versions/{version_id}",
         json={"status": "ready"},
+        headers=account.headers,
     )
 
     assert response.status_code == 400
@@ -1520,17 +1573,19 @@ def test_invalid_physical_artifacts_block_ready_status(
 def test_modified_artifact_blocks_primary_selection(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     generate_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-primary-tamper"},
+        headers=account.headers,
     )
     version_id = generate_response.json()["version"]["id"]
     artifact = next(
@@ -1540,7 +1595,7 @@ def test_modified_artifact_blocks_primary_selection(
     )
     artifact_path(artifact).unlink()
 
-    response = client.patch(f"/api/cv-versions/{version_id}/primary")
+    response = client.patch(f"/api/cv-versions/{version_id}/primary", headers=account.headers)
 
     assert response.status_code == 400
     assert "missing or invalid" in response.json()["detail"]
@@ -1549,22 +1604,24 @@ def test_modified_artifact_blocks_primary_selection(
 def test_generation_rejects_missing_or_invalid_verified_inputs(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session, facts_verified=False)
+    make_profile(db_session, account, facts_verified=False)
     parent = make_parent_chain(db_session)
 
     unverified_profile_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-unverified-profile"},
+        headers=account.headers,
     )
     assert unverified_profile_response.status_code == 400
     assert "verified" in unverified_profile_response.json()["detail"]
 
     db_session.rollback()
-    profile = db_session.get(CandidateProfile, 1)
+    profile = db_session.get(CandidateProfile, account.profile_id)
     assert profile is not None
     profile.facts_verified = True
     profile.professional_summary = None
@@ -1573,6 +1630,7 @@ def test_generation_rejects_missing_or_invalid_verified_inputs(
     no_facts_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-empty-vault"},
+        headers=account.headers,
     )
     assert no_facts_response.status_code == 400
     assert "No eligible verified facts" in no_facts_response.json()["detail"]
@@ -1580,6 +1638,7 @@ def test_generation_rejects_missing_or_invalid_verified_inputs(
     missing_parent_response = client.post(
         "/api/cv-versions/999999/generate-master",
         json={"idempotency_key": "phase37-missing-parent"},
+        headers=account.headers,
     )
     assert missing_parent_response.status_code == 404
 
@@ -1587,6 +1646,7 @@ def test_generation_rejects_missing_or_invalid_verified_inputs(
     invalid_type_response = client.post(
         f"/api/cv-versions/{original.id}/generate-master",
         json={"idempotency_key": "phase37-invalid-type"},
+        headers=account.headers,
     )
     assert invalid_type_response.status_code == 400
 
@@ -1598,6 +1658,7 @@ def test_generation_rejects_missing_or_invalid_verified_inputs(
     archived_response = client.post(
         f"/api/cv-versions/{archived_parent.id}/generate-master",
         json={"idempotency_key": "phase37-archived-parent"},
+        headers=account.headers,
     )
     assert archived_response.status_code == 400
     assert "ready" in archived_response.json()["detail"]
@@ -1606,11 +1667,12 @@ def test_generation_rejects_missing_or_invalid_verified_inputs(
 def test_failure_during_pdf_generation_leaves_failed_version_without_files(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     storage_dir = configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
@@ -1624,6 +1686,7 @@ def test_failure_during_pdf_generation_leaves_failed_version_without_files(
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-pdf-failure"},
+        headers=account.headers,
     )
 
     assert response.status_code == 500
@@ -1640,7 +1703,8 @@ def test_failure_during_pdf_generation_leaves_failed_version_without_files(
     assert not list(storage_dir.glob("*.pdf"))
 
     primary_response = client.patch(
-        f"/api/cv-versions/{failed_version.id}/primary"
+        f"/api/cv-versions/{failed_version.id}/primary",
+        headers=account.headers,
     )
     assert primary_response.status_code == 400
 
@@ -1648,11 +1712,12 @@ def test_failure_during_pdf_generation_leaves_failed_version_without_files(
 def test_archive_preserves_artifacts_and_leaf_delete_removes_only_artifacts(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
     source_document_count = db_session.query(Document).count()
@@ -1660,17 +1725,18 @@ def test_archive_preserves_artifacts_and_leaf_delete_removes_only_artifacts(
     generate_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-lifecycle"},
+        headers=account.headers,
     )
     version_id = generate_response.json()["version"]["id"]
     artifacts = generated_artifacts(db_session, version_id)
     artifact_paths = [artifact_path(artifact) for artifact in artifacts]
 
-    archive_response = client.patch(f"/api/cv-versions/{version_id}/archive")
+    archive_response = client.patch(f"/api/cv-versions/{version_id}/archive", headers=account.headers)
     assert archive_response.status_code == 200
     for path in artifact_paths:
         assert path.exists()
 
-    delete_response = client.delete(f"/api/cv-versions/{version_id}")
+    delete_response = client.delete(f"/api/cv-versions/{version_id}", headers=account.headers)
     assert delete_response.status_code == 204
     for path in artifact_paths:
         assert not path.exists()
@@ -1682,17 +1748,19 @@ def test_archive_preserves_artifacts_and_leaf_delete_removes_only_artifacts(
 def test_leaf_delete_database_failure_leaves_generated_artifacts_untouched(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     generate_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-delete-rollback"},
+        headers=account.headers,
     )
     version_id = generate_response.json()["version"]["id"]
     artifacts = generated_artifacts(db_session, version_id)
@@ -1717,17 +1785,19 @@ def test_leaf_delete_database_failure_leaves_generated_artifacts_untouched(
 def test_post_commit_cleanup_failure_keeps_database_deletion_committed(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     generate_response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-cleanup-failure"},
+        headers=account.headers,
     )
     version_id = generate_response.json()["version"]["id"]
     db_session.rollback()
@@ -1782,21 +1852,24 @@ def test_post_commit_cleanup_failure_keeps_database_deletion_committed(
 def test_leaf_delete_cleanup_affects_only_deleted_version_artifacts(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
 
     first = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-delete-one"},
+        headers=account.headers,
     )
     second = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-keep-other"},
+        headers=account.headers,
     )
     first_id = first.json()["version"]["id"]
     second_id = second.json()["version"]["id"]
@@ -1809,7 +1882,7 @@ def test_leaf_delete_cleanup_affects_only_deleted_version_artifacts(
         for artifact in generated_artifacts(db_session, second_id)
     ]
 
-    response = client.delete(f"/api/cv-versions/{first_id}")
+    response = client.delete(f"/api/cv-versions/{first_id}", headers=account.headers)
 
     assert response.status_code == 204
     assert all(not path.exists() for path in first_paths)
@@ -1820,11 +1893,12 @@ def test_leaf_delete_cleanup_affects_only_deleted_version_artifacts(
 def test_delete_rejects_unsafe_generated_artifact_path_without_file_cleanup(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     storage_dir = configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_version(db_session, version_type="verified_master")
     outside_file = tmp_path / "outside.pdf"
     outside_file.write_bytes(b"%PDF-1.4\n%%EOF")
@@ -1844,7 +1918,7 @@ def test_delete_rejects_unsafe_generated_artifact_path_without_file_cleanup(
     db_session.add(artifact)
     db_session.commit()
 
-    response = client.delete(f"/api/cv-versions/{version.id}")
+    response = client.delete(f"/api/cv-versions/{version.id}", headers=account.headers)
 
     assert response.status_code == 500
     assert outside_file.exists()
@@ -1855,11 +1929,12 @@ def test_delete_rejects_unsafe_generated_artifact_path_without_file_cleanup(
 def test_download_blocks_artifact_path_traversal(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     version = make_version(db_session, version_type="verified_master")
     artifact = CVVersionArtifact(
         cv_version_id=version.id,
@@ -1878,7 +1953,7 @@ def test_download_blocks_artifact_path_traversal(
     db_session.commit()
     db_session.refresh(artifact)
 
-    response = client.get(f"/api/cv-artifacts/{artifact.id}/download")
+    response = client.get(f"/api/cv-artifacts/{artifact.id}/download", headers=account.headers)
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
@@ -1887,17 +1962,19 @@ def test_download_blocks_artifact_path_traversal(
 def test_long_verified_master_cv_paginates_without_content_loss(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    make_profile(db_session)
+    make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session, long_cv=True)
 
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-long-cv"},
+        headers=account.headers,
     )
     assert response.status_code == 201
     artifacts = generated_artifacts(db_session, response.json()["version"]["id"])
@@ -1912,11 +1989,12 @@ def test_long_verified_master_cv_paginates_without_content_loss(
 def test_generation_does_not_modify_candidate_facts(
     client: TestClient,
     db_session: Session,
+    account: Account,
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     configure_generated_storage(monkeypatch, tmp_path)
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     parent = make_parent_chain(db_session)
     add_verified_facts(db_session)
     before = {
@@ -1934,6 +2012,7 @@ def test_generation_does_not_modify_candidate_facts(
     response = client.post(
         f"/api/cv-versions/{parent.id}/generate-master",
         json={"idempotency_key": "phase37-readonly-facts"},
+        headers=account.headers,
     )
 
     assert response.status_code == 201

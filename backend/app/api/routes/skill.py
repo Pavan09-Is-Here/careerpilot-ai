@@ -8,6 +8,7 @@ from fastapi import (
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_profile_id
 from app.core.database import get_db
 from app.models.candidate_profile import (
     CandidateProfile,
@@ -29,6 +30,7 @@ router = APIRouter(
 def get_skill_or_404(
     skill_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> Skill:
     skill = database.get(
         Skill,
@@ -37,7 +39,7 @@ def get_skill_or_404(
 
     if (
         skill is None
-        or skill.candidate_profile_id != 1
+        or skill.candidate_profile_id != candidate_profile_id
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -50,10 +52,11 @@ def get_skill_or_404(
 def skill_name_exists(
     name: str,
     database: Session,
+    candidate_profile_id: int,
     excluded_skill_id: int | None = None,
 ) -> bool:
     statement = select(Skill).where(
-        Skill.candidate_profile_id == 1,
+        Skill.candidate_profile_id == candidate_profile_id,
         func.lower(Skill.name)
         == name.strip().lower(),
     )
@@ -72,11 +75,12 @@ def skill_name_exists(
 )
 def list_skills(
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> list[Skill]:
     statement = (
         select(Skill)
         .where(
-            Skill.candidate_profile_id == 1
+            Skill.candidate_profile_id == profile_id
         )
         .order_by(
             Skill.is_primary.desc(),
@@ -98,10 +102,11 @@ def list_skills(
 def create_skill(
     payload: SkillCreate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Skill:
     profile = database.get(
         CandidateProfile,
-        1,
+        profile_id,
     )
 
     if profile is None:
@@ -116,6 +121,7 @@ def create_skill(
     if skill_name_exists(
         payload.name,
         database,
+        profile_id,
     ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -126,7 +132,7 @@ def create_skill(
         )
 
     skill = Skill(
-        candidate_profile_id=1,
+        candidate_profile_id=profile_id,
         **payload.model_dump(),
     )
 
@@ -145,15 +151,18 @@ def update_skill(
     skill_id: int,
     payload: SkillUpdate,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Skill:
     skill = get_skill_or_404(
         skill_id,
         database,
+        profile_id,
     )
 
     if skill_name_exists(
         payload.name,
         database,
+        profile_id,
         excluded_skill_id=skill_id,
     ):
         raise HTTPException(
@@ -186,10 +195,12 @@ def update_skill(
 def delete_skill(
     skill_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> Response:
     skill = get_skill_or_404(
         skill_id,
         database,
+        profile_id,
     )
 
     database.delete(skill)

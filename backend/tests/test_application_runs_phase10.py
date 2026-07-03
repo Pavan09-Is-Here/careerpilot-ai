@@ -27,6 +27,7 @@ from app.schemas.job import (
     JobSourceCreate,
     NormalizedJobCreate,
 )
+from app.api.routes.auth import login_rate_limiter
 from app.services.application_package import prepare_application_package
 from app.services.application_run import (
     ApplicationRunServiceError,
@@ -34,13 +35,24 @@ from app.services.application_run import (
     start_application_run,
 )
 from app.services.job import create_job_source, create_normalized_job
+from tests.conftest import Account, register_account
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
 
 
 def content_hash(seed: str | None = None) -> str:
     return sha256((seed or uuid4().hex).encode()).hexdigest()
 
 
-def make_profile(database: Session, **overrides: object) -> CandidateProfile:
+def make_profile(
+    database: Session,
+    account: Account,
+    **overrides: object,
+) -> CandidateProfile:
+    """Return the account's own profile, applying any relied-on fields."""
     values: dict[str, object] = {
         "full_name": "Test Candidate",
         "email": "candidate@example.com",
@@ -60,8 +72,10 @@ def make_profile(database: Session, **overrides: object) -> CandidateProfile:
         "facts_verified": True,
     }
     values.update(overrides)
-    profile = CandidateProfile(**values)
-    database.add(profile)
+    profile = database.get(CandidateProfile, account.profile_id)
+    assert profile is not None
+    for key, value in values.items():
+        setattr(profile, key, value)
     database.commit()
     database.refresh(profile)
     return profile
@@ -184,6 +198,7 @@ def add_answer(
     database: Session,
     category: str,
     *,
+    candidate_profile_id: int,
     verified: bool = True,
     requires_manual_confirmation: bool = False,
     manually_confirmed: bool = False,
@@ -191,7 +206,7 @@ def add_answer(
     now = datetime.now(timezone.utc)
     database.add(
         ApplicationAnswer(
-            candidate_profile_id=1,
+            candidate_profile_id=candidate_profile_id,
             category=category,
             question_label=f"{category} question",
             answer_text=f"Verified {category} answer.",
@@ -205,40 +220,56 @@ def add_answer(
     database.commit()
 
 
-def add_all_answers(database: Session) -> None:
+def add_all_answers(database: Session, candidate_profile_id: int) -> None:
     add_answer(
         database,
         "work_authorization",
+        candidate_profile_id=candidate_profile_id,
         requires_manual_confirmation=True,
         manually_confirmed=True,
     )
-    add_answer(database, "availability")
+    add_answer(
+        database, "availability", candidate_profile_id=candidate_profile_id
+    )
     add_answer(
         database,
         "sponsorship",
+        candidate_profile_id=candidate_profile_id,
         requires_manual_confirmation=True,
         manually_confirmed=True,
     )
-    add_answer(database, "expected_salary")
-    add_answer(database, "relocation")
-    add_answer(database, "notice_period")
+    add_answer(
+        database,
+        "expected_salary",
+        candidate_profile_id=candidate_profile_id,
+    )
+    add_answer(
+        database, "relocation", candidate_profile_id=candidate_profile_id
+    )
+    add_answer(
+        database, "notice_period", candidate_profile_id=candidate_profile_id
+    )
 
 
 def build_ready_confirmed_package(
     client: TestClient,
     db_session: Session,
+    account: Account,
     **job_overrides: object,
 ) -> NormalizedJob:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job = make_job(db_session, **job_overrides)
     add_match(db_session, job, profile)
     add_tailored_cv(db_session, job, profile)
-    add_all_answers(db_session)
-    prepare_application_package(job.id, db_session)
+    add_all_answers(db_session, account.profile_id)
+    prepare_application_package(
+        job.id, db_session, candidate_profile_id=account.profile_id
+    )
     # Confirm the package (deliberate human action before applying).
     client.put(
         f"/api/jobs/{job.id}/application-package",
         json={"user_confirmed": True},
+        headers=account.headers,
     )
     return job
 
@@ -246,38 +277,55 @@ def build_ready_confirmed_package(
 # --- Preconditions --------------------------------------------------------
 
 
-def test_apply_requires_package(db_session: Session) -> None:
-    make_profile(db_session)
+def test_apply_requires_package(
+    db_session: Session,
+    account: Account,
+) -> None:
+    make_profile(db_session, account)
     job = make_job(db_session)
     with pytest.raises(ApplicationRunServiceError) as exc:
-        start_application_run(job.id, db_session)
+        start_application_run(
+            job.id, db_session, candidate_profile_id=account.profile_id
+        )
     assert exc.value.status_code == 409
 
 
 def test_apply_requires_confirmation(
     db_session: Session,
+    account: Account,
 ) -> None:
-    profile = make_profile(db_session)
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
     add_tailored_cv(db_session, job, profile)
-    add_all_answers(db_session)
-    prepare_application_package(job.id, db_session)  # not confirmed
+    add_all_answers(db_session, account.profile_id)
+    prepare_application_package(
+        job.id, db_session, candidate_profile_id=account.profile_id
+    )  # not confirmed
 
     with pytest.raises(ApplicationRunServiceError) as exc:
-        start_application_run(job.id, db_session)
+        start_application_run(
+            job.id, db_session, candidate_profile_id=account.profile_id
+        )
     assert exc.value.status_code == 409
     assert "confirm" in exc.value.safe_message.lower()
 
 
-def test_apply_rejected_when_not_eligible(db_session: Session) -> None:
-    profile = make_profile(db_session)
+def test_apply_rejected_when_not_eligible(
+    db_session: Session,
+    account: Account,
+) -> None:
+    profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile, eligibility_status="ineligible")
-    prepare_application_package(job.id, db_session)
+    prepare_application_package(
+        job.id, db_session, candidate_profile_id=account.profile_id
+    )
 
     with pytest.raises(ApplicationRunServiceError) as exc:
-        start_application_run(job.id, db_session)
+        start_application_run(
+            job.id, db_session, candidate_profile_id=account.profile_id
+        )
     assert exc.value.status_code == 409
 
 
@@ -287,10 +335,13 @@ def test_apply_rejected_when_not_eligible(db_session: Session) -> None:
 def test_apply_builds_fill_plan_and_gates(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    job = build_ready_confirmed_package(client, db_session)
+    job = build_ready_confirmed_package(client, db_session, account)
 
-    response = client.post(f"/api/jobs/{job.id}/apply")
+    response = client.post(
+        f"/api/jobs/{job.id}/apply", headers=account.headers
+    )
     assert response.status_code == 201
     body = response.json()
 
@@ -333,14 +384,24 @@ def test_captcha_gate_takes_priority(db_session: Session) -> None:
     assert codes[-1] == "submission_confirmation"
 
 
+def test_apply_requires_authentication(client: TestClient) -> None:
+    response = client.post("/api/jobs/1/apply")
+    assert response.status_code == 401
+
+
 def test_apply_is_idempotent(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    job = build_ready_confirmed_package(client, db_session)
+    job = build_ready_confirmed_package(client, db_session, account)
 
-    first = client.post(f"/api/jobs/{job.id}/apply").json()
-    second = client.post(f"/api/jobs/{job.id}/apply").json()
+    first = client.post(
+        f"/api/jobs/{job.id}/apply", headers=account.headers
+    ).json()
+    second = client.post(
+        f"/api/jobs/{job.id}/apply", headers=account.headers
+    ).json()
     assert first["id"] == second["id"]
 
 
@@ -350,9 +411,12 @@ def test_apply_is_idempotent(
 def test_resume_steps_through_gates_and_records_submission(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    job = build_ready_confirmed_package(client, db_session)
-    run = client.post(f"/api/jobs/{job.id}/apply").json()
+    job = build_ready_confirmed_package(client, db_session, account)
+    run = client.post(
+        f"/api/jobs/{job.id}/apply", headers=account.headers
+    ).json()
     run_id = run["id"]
     assert run["pause_reason"] == "legal_declaration"
 
@@ -360,6 +424,7 @@ def test_resume_steps_through_gates_and_records_submission(
     after_legal = client.post(
         f"/api/application-runs/{run_id}/resume",
         json={},
+        headers=account.headers,
     ).json()
     assert after_legal["status"] == "paused_for_gate"
     assert after_legal["pause_reason"] == "submission_confirmation"
@@ -369,10 +434,13 @@ def test_resume_steps_through_gates_and_records_submission(
     without_number = client.post(
         f"/api/application-runs/{run_id}/resume",
         json={},
+        headers=account.headers,
     )
     assert without_number.status_code == 400
 
-    still = client.get(f"/api/application-runs/{run_id}/status").json()
+    still = client.get(
+        f"/api/application-runs/{run_id}/status", headers=account.headers
+    ).json()
     assert still["status"] == "paused_for_gate"
     assert still["confirmation_number"] is None
 
@@ -380,6 +448,7 @@ def test_resume_steps_through_gates_and_records_submission(
     submitted = client.post(
         f"/api/application-runs/{run_id}/resume",
         json={"confirmation_number": "APP-12345"},
+        headers=account.headers,
     ).json()
     assert submitted["status"] == "submitted"
     assert submitted["confirmation_number"] == "APP-12345"
@@ -389,18 +458,27 @@ def test_resume_steps_through_gates_and_records_submission(
 def test_resume_after_submitted_rejected(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    job = build_ready_confirmed_package(client, db_session)
-    run_id = client.post(f"/api/jobs/{job.id}/apply").json()["id"]
-    client.post(f"/api/application-runs/{run_id}/resume", json={})
+    job = build_ready_confirmed_package(client, db_session, account)
+    run_id = client.post(
+        f"/api/jobs/{job.id}/apply", headers=account.headers
+    ).json()["id"]
+    client.post(
+        f"/api/application-runs/{run_id}/resume",
+        json={},
+        headers=account.headers,
+    )
     client.post(
         f"/api/application-runs/{run_id}/resume",
         json={"confirmation_number": "APP-1"},
+        headers=account.headers,
     )
 
     again = client.post(
         f"/api/application-runs/{run_id}/resume",
         json={"confirmation_number": "APP-2"},
+        headers=account.headers,
     )
     assert again.status_code == 409
 
@@ -411,17 +489,31 @@ def test_resume_after_submitted_rejected(
 def test_cancel_run(
     client: TestClient,
     db_session: Session,
+    account: Account,
 ) -> None:
-    job = build_ready_confirmed_package(client, db_session)
-    run_id = client.post(f"/api/jobs/{job.id}/apply").json()["id"]
+    job = build_ready_confirmed_package(client, db_session, account)
+    run_id = client.post(
+        f"/api/jobs/{job.id}/apply", headers=account.headers
+    ).json()["id"]
 
-    cancelled = client.post(f"/api/application-runs/{run_id}/cancel").json()
+    cancelled = client.post(
+        f"/api/application-runs/{run_id}/cancel", headers=account.headers
+    ).json()
     assert cancelled["status"] == "cancelled"
 
-    resume = client.post(f"/api/application-runs/{run_id}/resume", json={})
+    resume = client.post(
+        f"/api/application-runs/{run_id}/resume",
+        json={},
+        headers=account.headers,
+    )
     assert resume.status_code == 409
 
 
-def test_status_missing_run_404(client: TestClient) -> None:
-    response = client.get("/api/application-runs/999/status")
+def test_status_missing_run_404(
+    client: TestClient,
+    account: Account,
+) -> None:
+    response = client.get(
+        "/api/application-runs/999/status", headers=account.headers
+    )
     assert response.status_code == 404

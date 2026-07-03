@@ -33,7 +33,7 @@ from app.services.job import (
 
 PHASE37_HEAD = "a7b8c9d0e1f2"
 PHASE41_HEAD = "b8c9d0e1f2a3"
-CHAIN_HEAD = "b0c1d2e3f4a5"
+CHAIN_HEAD = "c1d2e3f4a5b6"
 
 
 def content_hash(seed: str | None = None) -> str:

@@ -1,6 +1,14 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -13,11 +21,21 @@ def current_utc_time() -> datetime:
 class CandidateProfile(Base):
     __tablename__ = "candidate_profiles"
 
-    # CareerPilot is initially for one user, so the profile uses ID 1.
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        default=1,
+        autoincrement=True,
+    )
+
+    # The account that owns this profile. Nullable so the column can be
+    # added to existing rows; every profile created through registration
+    # sets it. Unique enforces one profile per account.
+    user_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        unique=True,
+        index=True,
     )
 
     full_name: Mapped[str] = mapped_column(

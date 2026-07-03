@@ -3,31 +3,31 @@ from fastapi import (
     Depends,
     HTTPException,
     Request,
-    Response,
     status,
 )
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_session, get_settings
+from app.api.deps import get_current_session, get_current_user, get_settings
 from app.core.database import get_db
 from app.core.security import RateLimiter
 from app.models.auth import AuthSession
+from app.models.user import User
 from app.schemas.auth import (
     AuthStatusResponse,
     ChangePasswordRequest,
     LoginRequest,
     LoginResponse,
     MessageResponse,
+    RegisterRequest,
     SessionResponse,
-    SetupRequest,
 )
 from app.services.auth import (
     AuthServiceError,
     change_password,
-    is_configured,
+    create_account,
     login,
     revoke_session,
-    setup_password,
+    user_count,
 )
 
 
@@ -55,23 +55,54 @@ def raise_auth_http_error(error: AuthServiceError) -> None:
 def auth_status(
     database: Session = Depends(get_db),
 ) -> dict[str, object]:
-    return {"configured": is_configured(database)}
+    return {
+        "configured": user_count(database) > 0,
+        "registration_open": True,
+    }
 
 
 @router.post(
-    "/setup",
-    response_model=MessageResponse,
+    "/register",
+    response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def setup(
-    payload: SetupRequest,
+def register(
+    payload: RegisterRequest,
+    request: Request,
     database: Session = Depends(get_db),
-) -> dict[str, str]:
+) -> LoginResponse:
+    client = request.client.host if request.client else "unknown"
+    allowed, retry_after = login_rate_limiter.check(f"register:{client}")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     try:
-        setup_password(payload.password, database, get_settings())
+        user, _profile = create_account(
+            payload.username,
+            payload.password,
+            payload.full_name,
+            payload.email,
+            database,
+            get_settings(),
+        )
+        token, session, _user = login(
+            payload.username,
+            payload.password,
+            database,
+            get_settings(),
+        )
     except AuthServiceError as exc:
         raise_auth_http_error(exc)
-    return {"message": "Authentication configured."}
+
+    return LoginResponse(
+        token=token,
+        expires_at=session.expires_at,
+        username=user.username,
+    )
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -90,18 +121,33 @@ def login_route(
         )
 
     try:
-        token, session = login(payload.password, database, get_settings())
+        token, session, user = login(
+            payload.username,
+            payload.password,
+            database,
+            get_settings(),
+        )
     except AuthServiceError as exc:
         raise_auth_http_error(exc)
 
-    return LoginResponse(token=token, expires_at=session.expires_at)
+    return LoginResponse(
+        token=token,
+        expires_at=session.expires_at,
+        username=user.username,
+    )
 
 
 @router.get("/session", response_model=SessionResponse)
 def current_session(
     session: AuthSession = Depends(get_current_session),
-) -> AuthSession:
-    return session
+    user: User = Depends(get_current_user),
+) -> SessionResponse:
+    return SessionResponse(
+        username=user.username,
+        created_at=session.created_at,
+        expires_at=session.expires_at,
+        last_used_at=session.last_used_at,
+    )
 
 
 @router.post("/logout", response_model=MessageResponse)
@@ -116,11 +162,12 @@ def logout(
 @router.post("/change-password", response_model=MessageResponse)
 def change_password_route(
     payload: ChangePasswordRequest,
-    _session: AuthSession = Depends(get_current_session),
+    user: User = Depends(get_current_user),
     database: Session = Depends(get_db),
 ) -> dict[str, str]:
     try:
         change_password(
+            user,
             payload.current_password,
             payload.new_password,
             database,

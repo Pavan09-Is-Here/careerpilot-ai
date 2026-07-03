@@ -4,18 +4,24 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AuthStatusResponse(BaseModel):
+    # Whether at least one account exists. Registration is always open.
     configured: bool
+    registration_open: bool = True
 
 
-class SetupRequest(BaseModel):
+class RegisterRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    username: str = Field(min_length=3, max_length=150)
     password: str = Field(min_length=8, max_length=200)
+    full_name: str = Field(min_length=1, max_length=150)
+    email: str = Field(min_length=3, max_length=255)
 
 
 class LoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    username: str = Field(min_length=1, max_length=150)
     password: str = Field(min_length=1, max_length=200)
 
 
@@ -23,6 +29,7 @@ class LoginResponse(BaseModel):
     token: str
     token_type: str = "bearer"
     expires_at: datetime
+    username: str
 
 
 class ChangePasswordRequest(BaseModel):
@@ -36,6 +43,7 @@ class SessionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     authenticated: bool = True
+    username: str
     created_at: datetime
     expires_at: datetime
     last_used_at: datetime

@@ -1,6 +1,6 @@
-"""Phase 13 — Authentication, Privacy, and Security tests."""
+"""Authentication, privacy and security tests (accounts, Phase 15)."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +12,7 @@ from app.models.education import Education
 from app.models.document import Document
 
 
+USERNAME = "test.user"
 PASSWORD = "correct-horse-8"
 NEW_PASSWORD = "new-battery-staple-9"
 
@@ -25,68 +26,107 @@ def reset_rate_limiter():
     login_rate_limiter.max_attempts = original_max
 
 
-def make_profile(database: Session) -> CandidateProfile:
-    profile = CandidateProfile(
-        full_name="Test Candidate",
-        email="candidate@example.com",
-        requires_sponsorship=False,
-        willing_to_relocate=False,
-        preferred_work_modes=[],
-        target_roles=[],
-        preferred_locations=[],
-        salary_currency="GBP",
-        minimum_match_score=50,
-        auto_apply_enabled=False,
-        facts_verified=True,
+def register(
+    client: TestClient,
+    username: str = USERNAME,
+    password: str = PASSWORD,
+    full_name: str = "Test Candidate",
+    email: str = "candidate@example.com",
+):
+    return client.post(
+        "/api/auth/register",
+        json={
+            "username": username,
+            "password": password,
+            "full_name": full_name,
+            "email": email,
+        },
     )
-    database.add(profile)
-    database.commit()
-    return profile
 
 
 def auth_headers(client: TestClient) -> dict[str, str]:
-    client.post("/api/auth/setup", json={"password": PASSWORD})
-    token = client.post(
-        "/api/auth/login", json={"password": PASSWORD}
-    ).json()["token"]
+    token = register(client).json()["token"]
     return {"Authorization": f"Bearer {token}"}
 
 
-# --- Setup / login / session ----------------------------------------------
+# --- Registration / login / session ---------------------------------------
 
 
-def test_status_setup_and_login_flow(client: TestClient) -> None:
-    status = client.get("/api/auth/status")
-    assert status.json()["configured"] is False
+def test_status_register_and_login_flow(client: TestClient) -> None:
+    assert client.get("/api/auth/status").json()["configured"] is False
 
-    setup = client.post("/api/auth/setup", json={"password": PASSWORD})
-    assert setup.status_code == 201
+    created = register(client)
+    assert created.status_code == 201
+    body = created.json()
+    assert body["token"]
+    assert body["username"] == USERNAME
     assert client.get("/api/auth/status").json()["configured"] is True
 
-    # Setup again is rejected.
-    assert (
-        client.post("/api/auth/setup", json={"password": PASSWORD})
-    ).status_code == 409
+    # Duplicate username is rejected (case-insensitive).
+    assert register(client, username="Test.User").status_code == 409
 
+    # Wrong username and wrong password both fail with 401.
     assert (
-        client.post("/api/auth/login", json={"password": "wrong-pass-1"})
-    ).status_code == 401
+        client.post(
+            "/api/auth/login",
+            json={"username": "nobody", "password": PASSWORD},
+        ).status_code
+        == 401
+    )
+    assert (
+        client.post(
+            "/api/auth/login",
+            json={"username": USERNAME, "password": "wrong-pass-1"},
+        ).status_code
+        == 401
+    )
 
-    ok = client.post("/api/auth/login", json={"password": PASSWORD})
+    ok = client.post(
+        "/api/auth/login",
+        json={"username": USERNAME, "password": PASSWORD},
+    )
     assert ok.status_code == 200
-    body = ok.json()
-    assert body["token_type"] == "bearer"
-    assert body["token"]
+    assert ok.json()["token_type"] == "bearer"
+    assert ok.json()["username"] == USERNAME
 
 
-def test_setup_rejects_short_password(client: TestClient) -> None:
-    response = client.post("/api/auth/setup", json={"password": "short"})
-    assert response.status_code == 422
+def test_register_rejects_short_password(client: TestClient) -> None:
+    assert register(client, password="short").status_code == 422
 
 
-def test_session_requires_valid_bearer_token(
-    client: TestClient,
-) -> None:
+def test_register_rejects_bad_username(client: TestClient) -> None:
+    # Illegal characters are rejected by the service (400).
+    assert register(client, username="ab!").status_code == 400
+
+
+def test_second_account_is_isolated_profile(client: TestClient) -> None:
+    first = register(
+        client, username="alice", email="alice@example.com"
+    )
+    second = register(
+        client, username="bob", email="bob@example.com"
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    alice_headers = {"Authorization": f"Bearer {first.json()['token']}"}
+    bob_headers = {"Authorization": f"Bearer {second.json()['token']}"}
+
+    assert (
+        client.get("/api/auth/session", headers=alice_headers).json()[
+            "username"
+        ]
+        == "alice"
+    )
+    assert (
+        client.get("/api/auth/session", headers=bob_headers).json()[
+            "username"
+        ]
+        == "bob"
+    )
+
+
+def test_session_requires_valid_bearer_token(client: TestClient) -> None:
     headers = auth_headers(client)
 
     assert client.get("/api/auth/session").status_code == 401
@@ -105,17 +145,9 @@ def test_session_requires_valid_bearer_token(
 
 def test_logout_revokes_session(client: TestClient) -> None:
     headers = auth_headers(client)
-    assert client.get("/api/auth/session", headers=headers).status_code == (
-        200
-    )
-
-    assert client.post("/api/auth/logout", headers=headers).status_code == (
-        200
-    )
-    # Token no longer works.
-    assert client.get("/api/auth/session", headers=headers).status_code == (
-        401
-    )
+    assert client.get("/api/auth/session", headers=headers).status_code == 200
+    assert client.post("/api/auth/logout", headers=headers).status_code == 200
+    assert client.get("/api/auth/session", headers=headers).status_code == 401
 
 
 def test_change_password_revokes_sessions(client: TestClient) -> None:
@@ -141,28 +173,35 @@ def test_change_password_revokes_sessions(client: TestClient) -> None:
     )
     assert changed.status_code == 200
 
-    # Old session invalidated; old password rejected; new one works.
-    assert client.get("/api/auth/session", headers=headers).status_code == (
-        401
+    assert client.get("/api/auth/session", headers=headers).status_code == 401
+    assert (
+        client.post(
+            "/api/auth/login",
+            json={"username": USERNAME, "password": PASSWORD},
+        ).status_code
+        == 401
     )
     assert (
-        client.post("/api/auth/login", json={"password": PASSWORD})
-    ).status_code == 401
-    assert (
-        client.post("/api/auth/login", json={"password": NEW_PASSWORD})
-    ).status_code == 200
+        client.post(
+            "/api/auth/login",
+            json={"username": USERNAME, "password": NEW_PASSWORD},
+        ).status_code
+        == 200
+    )
 
 
 # --- Rate limiting --------------------------------------------------------
 
 
 def test_login_rate_limited(client: TestClient) -> None:
-    client.post("/api/auth/setup", json={"password": PASSWORD})
+    register(client)
+    login_rate_limiter.reset()
     login_rate_limiter.max_attempts = 3
 
     statuses = [
         client.post(
-            "/api/auth/login", json={"password": "wrong-pass-1"}
+            "/api/auth/login",
+            json={"username": USERNAME, "password": "wrong-pass-1"},
         ).status_code
         for _ in range(4)
     ]
@@ -192,10 +231,11 @@ def test_export_returns_sanitized_data(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    make_profile(db_session)
+    headers = auth_headers(client)
+    profile = db_session.query(CandidateProfile).one()
     db_session.add(
         Document(
-            candidate_profile_id=1,
+            candidate_profile_id=profile.id,
             original_filename="cv.pdf",
             stored_filename="secret-stored-name.pdf",
             file_extension=".pdf",
@@ -209,12 +249,10 @@ def test_export_returns_sanitized_data(
     )
     db_session.commit()
 
-    headers = auth_headers(client)
     export = client.get("/api/privacy/export", headers=headers)
     assert export.status_code == 200
     body = export.json()
     assert body["candidate_profile"]["full_name"] == "Test Candidate"
-    assert "documents" in body
     assert len(body["documents"]) == 1
     document = body["documents"][0]
     assert "storage_path" not in document
@@ -225,13 +263,8 @@ def test_export_returns_sanitized_data(
 # --- Privacy: deletion ----------------------------------------------------
 
 
-def test_delete_requires_confirm(
-    client: TestClient,
-    db_session: Session,
-) -> None:
-    make_profile(db_session)
+def test_delete_requires_confirm(client: TestClient) -> None:
     headers = auth_headers(client)
-
     unconfirmed = client.post(
         "/api/privacy/delete",
         json={"confirm": False},
@@ -244,10 +277,12 @@ def test_delete_erases_candidate_data(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    profile = make_profile(db_session)
+    headers = auth_headers(client)
+    profile = db_session.query(CandidateProfile).one()
+    profile_id = profile.id
     db_session.add(
         Education(
-            candidate_profile_id=profile.id,
+            candidate_profile_id=profile_id,
             institution="Example University",
             degree="BSc",
             start_date=datetime(2015, 9, 1).date(),
@@ -258,7 +293,6 @@ def test_delete_erases_candidate_data(
     )
     db_session.commit()
 
-    headers = auth_headers(client)
     deleted = client.post(
         "/api/privacy/delete",
         json={"confirm": True},
@@ -270,12 +304,9 @@ def test_delete_erases_candidate_data(
     assert body["deleted"]["education"] == 1
 
     db_session.expire_all()
-    assert db_session.get(CandidateProfile, 1) is None
+    assert db_session.get(CandidateProfile, profile_id) is None
     assert db_session.query(Education).count() == 0
-    # Deletion revoked sessions, so the token no longer authenticates.
-    assert client.get("/api/auth/session", headers=headers).status_code == (
-        401
-    )
+    assert client.get("/api/auth/session", headers=headers).status_code == 401
 
 
 # --- Service-level password hashing ---------------------------------------
@@ -283,14 +314,18 @@ def test_delete_erases_candidate_data(
 
 def test_password_is_not_stored_in_plaintext(db_session: Session) -> None:
     from app.api.deps import get_settings
-    from app.models.auth import AuthCredential
-    from app.services.auth import set_password, verify_password
+    from app.services.auth import create_account, verify_password
 
-    set_password(PASSWORD, db_session, get_settings())
-    credential = db_session.get(AuthCredential, 1)
-    assert credential is not None
-    assert PASSWORD not in credential.password_hash
-    assert credential.algorithm == "pbkdf2_sha256"
-    assert credential.iterations >= 100_000
-    assert verify_password(PASSWORD, db_session) is True
-    assert verify_password("wrong-pass-1", db_session) is False
+    user, _profile = create_account(
+        USERNAME,
+        PASSWORD,
+        "Test Candidate",
+        "candidate@example.com",
+        db_session,
+        get_settings(),
+    )
+    assert PASSWORD not in user.password_hash
+    assert user.algorithm == "pbkdf2_sha256"
+    assert user.iterations >= 100_000
+    assert verify_password(user, PASSWORD) is True
+    assert verify_password(user, "wrong-pass-1") is False

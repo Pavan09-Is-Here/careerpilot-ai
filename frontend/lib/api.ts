@@ -304,6 +304,7 @@ export async function getBackendHealth(): Promise<HealthResponse> {
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
       },
       cache: "no-store",
     },
@@ -333,6 +334,7 @@ export async function getCandidateProfile(): Promise<
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
       },
       cache: "no-store",
     },
@@ -360,6 +362,7 @@ export async function saveCandidateProfile(
       method: "PUT",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(profile),
@@ -390,6 +393,7 @@ export async function getEducationRecords(): Promise<
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
       },
       cache: "no-store",
     },
@@ -413,6 +417,7 @@ export async function createEducation(
       method: "POST",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(education),
@@ -438,6 +443,7 @@ export async function updateEducation(
       method: "PUT",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(education),
@@ -460,6 +466,7 @@ export async function deleteEducation(
     `${API_URL}/api/education/${educationId}`,
     {
       method: "DELETE",
+      headers: { ...authHeader() },
     },
   );
 
@@ -485,6 +492,7 @@ export async function getExperienceRecords(): Promise<
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
       },
       cache: "no-store",
     },
@@ -508,6 +516,7 @@ export async function createExperience(
       method: "POST",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(experience),
@@ -533,6 +542,7 @@ export async function updateExperience(
       method: "PUT",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(experience),
@@ -555,6 +565,7 @@ export async function deleteExperience(
     `${API_URL}/api/experience/${experienceId}`,
     {
       method: "DELETE",
+      headers: { ...authHeader() },
     },
   );
 
@@ -580,6 +591,7 @@ export async function getProjectRecords(): Promise<
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
       },
       cache: "no-store",
     },
@@ -603,6 +615,7 @@ export async function createProject(
       method: "POST",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(project),
@@ -628,6 +641,7 @@ export async function updateProject(
       method: "PUT",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(project),
@@ -650,6 +664,7 @@ export async function deleteProject(
     `${API_URL}/api/projects/${projectId}`,
     {
       method: "DELETE",
+      headers: { ...authHeader() },
     },
   );
 
@@ -675,6 +690,7 @@ export async function getSkillRecords(): Promise<
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
       },
       cache: "no-store",
     },
@@ -698,6 +714,7 @@ export async function createSkill(
       method: "POST",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(skill),
@@ -723,6 +740,7 @@ export async function updateSkill(
       method: "PUT",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(skill),
@@ -745,6 +763,7 @@ export async function deleteSkill(
     `${API_URL}/api/skills/${skillId}`,
     {
       method: "DELETE",
+      headers: { ...authHeader() },
     },
   );
 
@@ -769,6 +788,7 @@ export async function getCertificationRecords(): Promise<
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
       },
       cache: "no-store",
     },
@@ -794,6 +814,7 @@ export async function createCertification(
       method: "POST",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(certification),
@@ -819,6 +840,7 @@ export async function updateCertification(
       method: "PUT",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(certification),
@@ -841,6 +863,7 @@ export async function deleteCertification(
     `${API_URL}/api/certifications/${certificationId}`,
     {
       method: "DELETE",
+      headers: { ...authHeader() },
     },
   );
 
@@ -972,6 +995,7 @@ export async function deleteDocument(
     `${API_URL}/api/documents/${documentId}`,
     {
       method: "DELETE",
+      headers: { ...authHeader() },
     },
   );
 
@@ -1007,6 +1031,7 @@ export async function getLatestDocumentFactComparison(
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...authHeader(),
       },
       cache: "no-store",
       signal,
@@ -1140,6 +1165,7 @@ export async function deleteCVVersion(
     `${API_URL}/api/cv-versions/${versionId}`,
     {
       method: "DELETE",
+      headers: { ...authHeader() },
     },
   );
 
@@ -1212,6 +1238,7 @@ export async function downloadCVArtifact(
     `${API_URL}/api/cv-artifacts/${artifactId}/download`,
     {
       method: "GET",
+      headers: { ...authHeader() },
       signal,
     },
   );
@@ -1602,7 +1629,7 @@ export async function deleteApplicationAnswer(
 
   const response = await fetch(
     `${API_URL}/api/application-answers/${answerId}`,
-    { method: "DELETE", signal },
+    { method: "DELETE", headers: { ...authHeader() }, signal },
   );
 
   if (!response.ok && response.status !== 204) {

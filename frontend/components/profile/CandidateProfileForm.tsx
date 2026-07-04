@@ -13,6 +13,8 @@ import ExperienceManager from "@/components/profile/ExperienceManager";
 import ProjectManager from "@/components/profile/ProjectManager";
 import SkillManager from "@/components/profile/SkillManager";
 import CertificationManager from "@/components/profile/CertificationManager";
+import CountryMultiSelect from "@/components/profile/CountryMultiSelect";
+import WorkModeSelector from "@/components/profile/WorkModeSelector";
 
 import {
   getCandidateProfile,
@@ -593,7 +595,7 @@ export default function CandidateProfileForm() {
 
           <FormSection
             title="Job preferences"
-            description="Separate multiple roles, locations and work modes using commas."
+            description="Add multiple target roles separated by commas, then pick your preferred locations and work modes."
           >
             <div className="space-y-5">
               <TextAreaField
@@ -608,12 +610,11 @@ export default function CandidateProfileForm() {
                 }
               />
 
-              <TextField
+              <CountryMultiSelect
                 label="Preferred locations"
                 value={
                   form.preferred_locations
                 }
-                placeholder="United Kingdom, London"
                 onChange={(value) =>
                   updateField(
                     "preferred_locations",
@@ -622,12 +623,11 @@ export default function CandidateProfileForm() {
                 }
               />
 
-              <TextField
+              <WorkModeSelector
                 label="Preferred work modes"
                 value={
                   form.preferred_work_modes
                 }
-                placeholder="Remote, Hybrid, Onsite"
                 onChange={(value) =>
                   updateField(
                     "preferred_work_modes",
@@ -797,7 +797,7 @@ export default function CandidateProfileForm() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-violet-600 px-7 py-3 font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+              className="cp-btn-primary px-7 disabled:cursor-not-allowed"
             >
               {saving
                 ? "Saving..."

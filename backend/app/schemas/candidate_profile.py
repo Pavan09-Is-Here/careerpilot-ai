@@ -3,6 +3,11 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class VerifyAllResponse(BaseModel):
+    verified: dict[str, int]
+    total: int
+
+
 class CandidateProfileBase(BaseModel):
     full_name: str = Field(
         min_length=2,

@@ -378,6 +378,17 @@ export async function saveCandidateProfile(
   return response.json() as Promise<CandidateProfile>;
 }
 
+export type VerifyAllResult = {
+  verified: Record<string, number>;
+  total: number;
+};
+
+export async function verifyAllProfileFacts(): Promise<VerifyAllResult> {
+  return requestJson<VerifyAllResult>("/api/profile/verify-all", {
+    method: "POST",
+  });
+}
+
 /*
 |--------------------------------------------------------------------------
 | Education

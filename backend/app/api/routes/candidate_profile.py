@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_profile
+from app.api.deps import get_current_profile, get_current_profile_id
 from app.core.database import get_db
 from app.models.candidate_profile import CandidateProfile
 from app.schemas.candidate_profile import (
     CandidateProfileResponse,
     CandidateProfileUpsert,
+    VerifyAllResponse,
 )
+from app.services.profile_verification import verify_all_facts
 
 
 router = APIRouter(
@@ -45,3 +47,18 @@ def create_or_update_candidate_profile(
     database.refresh(profile)
 
     return profile
+
+
+@router.post(
+    "/verify-all",
+    response_model=VerifyAllResponse,
+)
+def verify_all_profile_facts(
+    database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
+) -> VerifyAllResponse:
+    verified = verify_all_facts(database, profile_id)
+    return VerifyAllResponse(
+        verified=verified,
+        total=sum(verified.values()),
+    )

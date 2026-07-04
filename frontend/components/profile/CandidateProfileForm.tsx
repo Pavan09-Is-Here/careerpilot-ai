@@ -17,6 +17,7 @@ import CertificationManager from "@/components/profile/CertificationManager";
 import {
   getCandidateProfile,
   saveCandidateProfile,
+  verifyAllProfileFacts,
 } from "@/lib/api";
 
 import type {
@@ -221,6 +222,36 @@ export default function CandidateProfileForm() {
   const [lastSaved, setLastSaved] =
     useState<string | null>(null);
 
+  const [verifying, setVerifying] = useState(false);
+
+  async function handleVerifyAll(): Promise<void> {
+    setSuccessMessage("");
+    setErrorMessage("");
+    setVerifying(true);
+    try {
+      const result = await verifyAllProfileFacts();
+      setForm((previous) => ({
+        ...previous,
+        facts_verified: true,
+      }));
+      setSuccessMessage(
+        `Verified ${result.total} record${
+          result.total === 1 ? "" : "s"
+        }. Reloading…`,
+      );
+      // Reload so each section reflects its verified state.
+      setTimeout(() => window.location.reload(), 600);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to verify records.",
+      );
+    } finally {
+      setVerifying(false);
+    }
+  }
+
   useEffect(() => {
     async function loadProfile(): Promise<void> {
       try {
@@ -389,9 +420,19 @@ export default function CandidateProfileForm() {
               </p>
             </div>
 
-            <ProfileVerificationBadge
-              verified={form.facts_verified}
-            />
+            <div className="flex flex-col items-start gap-3 sm:items-end">
+              <ProfileVerificationBadge
+                verified={form.facts_verified}
+              />
+              <button
+                type="button"
+                onClick={() => void handleVerifyAll()}
+                disabled={verifying}
+                className="cp-btn-primary px-4 py-2 text-sm"
+              >
+                {verifying ? "Verifying…" : "Verify all details"}
+              </button>
+            </div>
           </div>
         </header>
 

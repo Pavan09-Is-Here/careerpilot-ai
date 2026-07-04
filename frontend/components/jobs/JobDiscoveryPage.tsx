@@ -206,12 +206,20 @@ export default function JobDiscoveryPage() {
             compliance-reviewed sources.
           </p>
         </div>
-        <Link
-          href="/saved-jobs"
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700"
-        >
-          Saved jobs
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/job-sources"
+            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500"
+          >
+            Connect a company board
+          </Link>
+          <Link
+            href="/saved-jobs"
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700"
+          >
+            Saved jobs
+          </Link>
+        </div>
       </header>
 
       <section
@@ -360,8 +368,16 @@ export default function JobDiscoveryPage() {
           </p>
         ) : !jobPage || jobPage.items.length === 0 ? (
           <EmptyState title="No jobs found">
-            Ingest an approved job source or adjust
-            the filters.
+            Connect a company&apos;s public job board to load its
+            latest roles, or adjust the filters.
+            <span className="mt-3 block">
+              <Link
+                href="/job-sources"
+                className="font-medium text-violet-700 hover:underline"
+              >
+                Connect a company board
+              </Link>
+            </span>
           </EmptyState>
         ) : (
           <ul className="grid gap-4">

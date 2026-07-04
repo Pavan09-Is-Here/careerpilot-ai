@@ -38,6 +38,32 @@ export type JobSource = {
   attribution_required: boolean;
   attribution_text: string | null;
   attribution_url: string | null;
+  server_fetch_allowed: boolean;
+  manual_review_required: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GreenhouseBoardConnectInput = {
+  board_token: string;
+  display_name: string;
+};
+
+export type IngestionRunResult = {
+  id: number;
+  job_source_id: number;
+  run_status:
+    | "pending"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "cancelled";
+  started_at: string | null;
+  finished_at: string | null;
+  failure_summary: string | null;
+  jobs_discovered: number;
+  jobs_updated: number;
+  snapshots_recorded: number;
   created_at: string;
   updated_at: string;
 };

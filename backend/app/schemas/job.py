@@ -122,6 +122,13 @@ class JobSourceCreate(BaseModel):
     configured_retention_days: int = Field(default=30, ge=1, le=365)
 
 
+class GreenhouseBoardConnectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    board_token: str = Field(min_length=1, max_length=100)
+    display_name: str = Field(min_length=1, max_length=200)
+
+
 class JobSourceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

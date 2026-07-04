@@ -13,6 +13,7 @@ import json
 import re
 
 import httpx
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -39,9 +40,12 @@ from app.services.job_normalization import (
 
 GREENHOUSE_PROVIDER_TYPE = "greenhouse"
 GREENHOUSE_ACCESS_MODE = "api"
+GREENHOUSE_SOURCE_CATEGORY = "provider_api"
+GREENHOUSE_BOARD_TOKEN_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,99}$")
 GREENHOUSE_BASE_URL_RE = re.compile(
     r"^https://boards-api\.greenhouse\.io/v1/boards/[a-z0-9][a-z0-9_-]{0,99}$"
 )
+GREENHOUSE_CONNECT_RETENTION_DAYS = 30
 APPROVED_REVIEW_STATUS = "approved_for_configured_use"
 FETCH_TIMEOUT_SECONDS = 15.0
 MAX_TITLE_CHARS = 250
@@ -116,6 +120,71 @@ def validate_greenhouse_source(source: JobSource) -> None:
         raise GreenhouseAdapterError(
             "Job source base URL is not an approved Greenhouse board URL.",
         )
+
+
+def normalize_board_token(board_token: str) -> str:
+    """Validate the company board slug used to build the API base URL."""
+    token = board_token.strip()
+    if not GREENHOUSE_BOARD_TOKEN_RE.fullmatch(token):
+        raise GreenhouseAdapterError(
+            "Enter a valid Greenhouse board name using lowercase "
+            "letters, numbers, hyphens, or underscores.",
+        )
+    return token
+
+
+def connect_greenhouse_board(
+    board_token: str,
+    display_name: str,
+    database: Session,
+) -> JobSource:
+    """Connect a public Greenhouse board as an approved job source.
+
+    Only the public, keyless Greenhouse board API is configured. Every
+    compliance gate enforced by ``validate_greenhouse_source`` is set to
+    the approved state for this well-understood public provider.
+    """
+    token = normalize_board_token(board_token)
+    trimmed_name = display_name.strip()
+    if not trimmed_name:
+        raise GreenhouseAdapterError(
+            "Enter a display name for this company board.",
+        )
+
+    base_url = f"https://boards-api.greenhouse.io/v1/boards/{token}"
+    now = current_utc_time()
+
+    source = JobSource(
+        source_key=f"greenhouse:{token}",
+        display_name=trimmed_name,
+        source_category=GREENHOUSE_SOURCE_CATEGORY,
+        provider_type=GREENHOUSE_PROVIDER_TYPE,
+        base_url=base_url,
+        enabled=True,
+        allowlisted=True,
+        access_mode=GREENHOUSE_ACCESS_MODE,
+        server_fetch_allowed=True,
+        manual_review_required=False,
+        terms_review_status=APPROVED_REVIEW_STATUS,
+        terms_reviewed_at=now,
+        robots_review_status=APPROVED_REVIEW_STATUS,
+        robots_reviewed_at=now,
+        commercial_use_review_status=APPROVED_REVIEW_STATUS,
+        configured_retention_days=GREENHOUSE_CONNECT_RETENTION_DAYS,
+    )
+
+    database.add(source)
+    try:
+        database.commit()
+    except IntegrityError as exc:
+        database.rollback()
+        raise GreenhouseAdapterError(
+            "That board is already connected.",
+            status_code=409,
+        ) from exc
+
+    database.refresh(source)
+    return source
 
 
 def strip_html_to_text(value: str) -> str:

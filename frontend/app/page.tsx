@@ -26,6 +26,10 @@ const jobSections = [
     href: "/jobs",
   },
   {
+    label: "Connect a company board",
+    href: "/job-sources",
+  },
+  {
     label: "Saved jobs",
     href: "/saved-jobs",
   },

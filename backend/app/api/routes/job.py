@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.models.user import User
 from app.schemas.job import (
+    GreenhouseBoardConnectRequest,
     JobDuplicateListResponse,
     JobEmploymentType,
     JobLifecycleStatus,
@@ -12,6 +15,10 @@ from app.schemas.job import (
     JobSourceResponse,
     NormalizedJobDetailResponse,
     NormalizedJobPageResponse,
+)
+from app.services.provider_greenhouse import (
+    GreenhouseAdapterError,
+    connect_greenhouse_board,
 )
 from app.services.job import (
     JobServiceError,
@@ -80,6 +87,29 @@ def list_job_source_metadata(
         )
     except JobServiceError as exc:
         raise_job_http_error(exc)
+
+
+@router.post(
+    "/job-sources/greenhouse",
+    response_model=JobSourceResponse,
+    status_code=201,
+)
+def connect_greenhouse_job_board(
+    payload: GreenhouseBoardConnectRequest,
+    database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+) -> JobSourceResponse:
+    try:
+        return connect_greenhouse_board(
+            payload.board_token,
+            payload.display_name,
+            database,
+        )
+    except GreenhouseAdapterError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
 
 
 @router.get(

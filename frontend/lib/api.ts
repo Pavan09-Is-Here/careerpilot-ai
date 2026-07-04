@@ -49,8 +49,11 @@ import type {
 } from "@/types/cvVersion";
 
 import type {
+  GreenhouseBoardConnectInput,
+  IngestionRunResult,
   JobDuplicateList,
   JobListFilters,
+  JobSource,
   JobSourcePage,
   NormalizedJobDetail,
   NormalizedJobPage,
@@ -1297,6 +1300,30 @@ export async function getJobSources(
   return requestJson<JobSourcePage>(
     `/api/job-sources?${params.toString()}`,
     { signal },
+  );
+}
+
+export async function connectGreenhouseBoard(
+  input: GreenhouseBoardConnectInput,
+  signal?: AbortSignal,
+): Promise<JobSource> {
+  return requestJsonBody<JobSource>(
+    "/api/job-sources/greenhouse",
+    "POST",
+    input,
+    signal,
+  );
+}
+
+export async function ingestJobSource(
+  sourceId: number,
+  signal?: AbortSignal,
+): Promise<IngestionRunResult> {
+  assertPositiveIntegerId(sourceId, "source id");
+
+  return requestJson<IngestionRunResult>(
+    `/api/job-sources/${sourceId}/ingest`,
+    { method: "POST", signal },
   );
 }
 

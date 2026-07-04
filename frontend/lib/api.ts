@@ -109,17 +109,17 @@ import type {
   RegisterInput,
 } from "@/types/auth";
 
-import { authHeader, clearAuthToken, getAuthToken } from "@/lib/auth";
+import { authHeader, clearAuthToken } from "@/lib/auth";
 
-// When an authenticated request comes back 401, the session is missing
-// or expired: clear the stored token and send the user to sign in. We
-// only redirect if they actually had a token and are not already on the
-// auth page, so login failures still show their error inline.
+// A 401 means the caller needs to sign in (session missing or expired).
+// Clear any stored token and send them to the sign-in page. We never
+// redirect while already on /auth, so login failures still show their
+// error inline there.
 function handleUnauthorized(status: number): void {
   if (status !== 401 || typeof window === "undefined") {
     return;
   }
-  if (getAuthToken() && window.location.pathname !== "/auth") {
+  if (window.location.pathname !== "/auth") {
     clearAuthToken();
     window.location.href = "/auth";
   }

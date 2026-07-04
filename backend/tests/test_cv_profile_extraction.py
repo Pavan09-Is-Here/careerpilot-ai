@@ -10,11 +10,16 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.candidate_profile import CandidateProfile
+from app.models.certification import Certification
 from app.models.document import Document
+from app.models.education import Education
+from app.models.experience import Experience
+from app.models.project import Project
 from app.models.skill import Skill
 from tests.conftest import Account
 
@@ -40,6 +45,52 @@ Built scalable services.
 EDUCATION
 BSc Computer Science, Example University (2015 - 2018)
 """
+
+
+# A richer CV that exercises every structured category, including
+# entries that are intentionally missing required fields so they must
+# fall back to manual review instead of being fabricated into records.
+RICH_CV_TEXT = """Alex Rivers
+Backend Engineer
+alex.rivers@example.com
+
+SUMMARY
+Backend engineer.
+
+SKILLS
+Python, Go
+
+WORK EXPERIENCE
+Globex Ltd - Backend Engineer (Jun 2019 - Dec 2022)
+Owned the billing service.
+Improved throughput.
+
+Freelance work here and there
+
+EDUCATION
+MSc Distributed Systems, North University (2017 - 2019)
+
+Some study, no dates and no institution
+
+PROJECTS
+Ledger Engine
+A double-entry accounting engine for internal billing.
+Technologies: Python, PostgreSQL
+
+Nameless idea
+
+CERTIFICATIONS
+AWS Certified Solutions Architect - Amazon Web Services (2021)
+
+Random course with no issuer 2020
+"""
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter() -> None:
+    from app.api.routes.auth import login_rate_limiter
+
+    login_rate_limiter.reset()
 
 
 def seed_profile(
@@ -143,9 +194,16 @@ def test_profile_suggestion_preview(
     skill_names = {s["name"] for s in body["skills"]}
     assert {"Python", "FastAPI", "PostgreSQL"}.issubset(skill_names)
 
-    manual_categories = {m["category"] for m in body["manual_review"]}
-    assert "education" in manual_categories
-    assert "work_experience" in manual_categories
+    # The clean single-entry education/experience now parse into
+    # structured drafts rather than a raw manual-review dump.
+    assert len(body["education"]) == 1
+    assert body["education"][0]["institution"] == "Example University"
+    assert body["education"][0]["degree"] == "BSc Computer Science"
+    assert body["education"][0]["start_date"] == "2015-01-01"
+    assert len(body["experience"]) == 1
+    assert body["experience"][0]["company"] == "Acme Corp"
+    assert body["experience"][0]["job_title"] == "Senior Engineer"
+    assert body["experience"][0]["is_current"] is True
 
 
 def test_preview_requires_extracted_text(
@@ -331,3 +389,251 @@ def test_apply_skills_only_when_no_profile_fields(
         headers=account.headers,
     ).json()
     assert set(body["added_skills"]) == {"Python", "Docker"}
+
+
+# --- Structured history extraction ---------------------------------------
+
+
+def test_structured_preview_extracts_all_categories(
+    client: TestClient,
+    db_session: Session,
+    account: Account,
+) -> None:
+    seed_profile(db_session, account)
+    document = make_document(
+        db_session, account, extracted_text=RICH_CV_TEXT
+    )
+
+    body = client.get(
+        f"/api/documents/{document.id}/profile-suggestion",
+        headers=account.headers,
+    ).json()
+
+    edu = body["education"]
+    assert len(edu) == 1
+    assert edu[0]["degree"] == "MSc Distributed Systems"
+    assert edu[0]["institution"] == "North University"
+    assert edu[0]["start_date"] == "2017-01-01"
+    assert edu[0]["end_date"] == "2019-12-31"
+
+    exp = body["experience"]
+    assert len(exp) == 1
+    assert exp[0]["company"] == "Globex Ltd"
+    assert exp[0]["job_title"] == "Backend Engineer"
+    assert exp[0]["start_date"] == "2019-06-01"
+    assert exp[0]["end_date"] == "2022-12-01"
+    assert exp[0]["is_current"] is False
+
+    projects = body["projects"]
+    assert len(projects) == 1
+    assert projects[0]["name"] == "Ledger Engine"
+    assert "accounting engine" in projects[0]["description"]
+    assert "Python" in projects[0]["technologies"]
+
+    certs = body["certifications"]
+    assert len(certs) == 1
+    assert certs[0]["name"] == "AWS Certified Solutions Architect"
+    assert certs[0]["issuing_organization"] == "Amazon Web Services"
+    assert certs[0]["issue_date"] == "2021-01-01"
+
+    # Every structured entry carries an evidence snippet.
+    for section in ("education", "experience", "projects", "certifications"):
+        for entry in body[section]:
+            assert entry["evidence"]
+
+
+def test_incomplete_entries_fall_back_to_manual_review(
+    client: TestClient,
+    db_session: Session,
+    account: Account,
+) -> None:
+    """Entries missing required fields are never fabricated into records."""
+    seed_profile(db_session, account)
+    document = make_document(
+        db_session, account, extracted_text=RICH_CV_TEXT
+    )
+
+    body = client.get(
+        f"/api/documents/{document.id}/profile-suggestion",
+        headers=account.headers,
+    ).json()
+
+    manual = {m["category"]: m for m in body["manual_review"]}
+    # The junk entries in each section are surfaced for manual review.
+    assert "education" in manual
+    assert "Some study" in manual["education"]["content"]
+    assert "work_experience" in manual
+    assert "Freelance" in manual["work_experience"]["content"]
+    assert "projects" in manual
+    assert "Nameless idea" in manual["projects"]["content"]
+    assert "certifications" in manual
+    assert "Random course" in manual["certifications"]["content"]
+
+
+def test_apply_creates_unverified_structured_records(
+    client: TestClient,
+    db_session: Session,
+    account: Account,
+) -> None:
+    seed_profile(db_session, account)
+    document = make_document(
+        db_session, account, extracted_text=RICH_CV_TEXT
+    )
+
+    body = client.post(
+        f"/api/documents/{document.id}/apply-profile-suggestion",
+        json={},
+        headers=account.headers,
+    ).json()
+
+    assert len(body["added_education"]) == 1
+    assert len(body["added_experience"]) == 1
+    assert len(body["added_projects"]) == 1
+    assert len(body["added_certifications"]) == 1
+
+    db_session.expire_all()
+
+    educations = (
+        db_session.query(Education)
+        .filter(Education.candidate_profile_id == account.profile_id)
+        .all()
+    )
+    assert len(educations) == 1
+    assert educations[0].institution == "North University"
+    assert educations[0].degree == "MSc Distributed Systems"
+    assert educations[0].verified is False
+
+    experiences = (
+        db_session.query(Experience)
+        .filter(Experience.candidate_profile_id == account.profile_id)
+        .all()
+    )
+    assert len(experiences) == 1
+    assert experiences[0].company == "Globex Ltd"
+    assert experiences[0].verified is False
+
+    projects = (
+        db_session.query(Project)
+        .filter(Project.candidate_profile_id == account.profile_id)
+        .all()
+    )
+    assert len(projects) == 1
+    assert projects[0].name == "Ledger Engine"
+    assert projects[0].description
+    assert projects[0].verified is False
+
+    certs = (
+        db_session.query(Certification)
+        .filter(Certification.candidate_profile_id == account.profile_id)
+        .all()
+    )
+    assert len(certs) == 1
+    assert certs[0].issuing_organization == "Amazon Web Services"
+    assert certs[0].verified is False
+
+    # Introducing unverified structured drafts resets verification.
+    profile = db_session.get(CandidateProfile, account.profile_id)
+    assert profile.facts_verified is False
+
+
+def test_apply_opt_out_flags_skip_categories(
+    client: TestClient,
+    db_session: Session,
+    account: Account,
+) -> None:
+    seed_profile(db_session, account)
+    document = make_document(
+        db_session, account, extracted_text=RICH_CV_TEXT
+    )
+
+    body = client.post(
+        f"/api/documents/{document.id}/apply-profile-suggestion",
+        json={
+            "apply_education": False,
+            "apply_experience": False,
+            "apply_projects": False,
+            "apply_certifications": False,
+        },
+        headers=account.headers,
+    ).json()
+
+    assert body["added_education"] == []
+    assert body["added_experience"] == []
+    assert body["added_projects"] == []
+    assert body["added_certifications"] == []
+
+    db_session.expire_all()
+    assert db_session.query(Education).count() == 0
+    assert db_session.query(Experience).count() == 0
+    assert db_session.query(Project).count() == 0
+    assert db_session.query(Certification).count() == 0
+
+
+def test_apply_dedupes_structured_records(
+    client: TestClient,
+    db_session: Session,
+    account: Account,
+) -> None:
+    seed_profile(db_session, account)
+    document = make_document(
+        db_session, account, extracted_text=RICH_CV_TEXT
+    )
+
+    first = client.post(
+        f"/api/documents/{document.id}/apply-profile-suggestion",
+        json={},
+        headers=account.headers,
+    ).json()
+    assert len(first["added_education"]) == 1
+
+    second = client.post(
+        f"/api/documents/{document.id}/apply-profile-suggestion",
+        json={},
+        headers=account.headers,
+    ).json()
+    assert second["added_education"] == []
+    assert second["added_experience"] == []
+    assert second["added_projects"] == []
+    assert second["added_certifications"] == []
+
+    db_session.expire_all()
+    assert db_session.query(Education).count() == 1
+    assert db_session.query(Experience).count() == 1
+    assert db_session.query(Project).count() == 1
+    assert db_session.query(Certification).count() == 1
+
+
+def test_no_fabrication_when_history_absent(
+    client: TestClient,
+    db_session: Session,
+    account: Account,
+) -> None:
+    """A CV with no dated history creates no structured records."""
+    seed_profile(db_session, account)
+    document = make_document(
+        db_session,
+        account,
+        extracted_text=(
+            "Sam Vector\n"
+            "Engineer\n"
+            "sam.vector@example.com\n\n"
+            "SKILLS\nPython, Rust\n"
+        ),
+    )
+
+    body = client.post(
+        f"/api/documents/{document.id}/apply-profile-suggestion",
+        json={},
+        headers=account.headers,
+    ).json()
+
+    assert body["added_education"] == []
+    assert body["added_experience"] == []
+    assert body["added_projects"] == []
+    assert body["added_certifications"] == []
+
+    db_session.expire_all()
+    assert db_session.query(Education).count() == 0
+    assert db_session.query(Experience).count() == 0
+    assert db_session.query(Project).count() == 0
+    assert db_session.query(Certification).count() == 0

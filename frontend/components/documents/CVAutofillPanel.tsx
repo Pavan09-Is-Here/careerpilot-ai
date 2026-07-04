@@ -19,6 +19,26 @@ function humanizeField(value: string): string {
     .join(" ");
 }
 
+function formatYear(value: string | null): string {
+  if (!value) {
+    return "";
+  }
+  return value.slice(0, 4);
+}
+
+function formatSpan(
+  start: string,
+  end: string | null,
+  isCurrent: boolean,
+): string {
+  const startYear = formatYear(start);
+  if (isCurrent) {
+    return `${startYear} – Present`;
+  }
+  const endYear = formatYear(end);
+  return endYear ? `${startYear} – ${endYear}` : startYear;
+}
+
 export default function CVAutofillPanel({
   documentId,
 }: {
@@ -160,6 +180,123 @@ export default function CVAutofillPanel({
             </div>
           )}
 
+          {suggestion.education.length > 0 && (
+            <div>
+              <h3 className="cp-eyebrow text-xs tracking-wide">
+                Education ({suggestion.education.length}) — draft, unverified
+              </h3>
+              <ul className="mt-2 space-y-2">
+                {suggestion.education.map((entry, index) => (
+                  <li
+                    key={`${entry.institution}-${entry.degree}-${index}`}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <p className="font-medium text-slate-900">
+                      {entry.degree}
+                    </p>
+                    <p className="text-slate-600">{entry.institution}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {formatSpan(
+                        entry.start_date,
+                        entry.end_date,
+                        entry.is_current,
+                      )}
+                      {entry.grade ? ` · ${entry.grade}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {suggestion.experience.length > 0 && (
+            <div>
+              <h3 className="cp-eyebrow text-xs tracking-wide">
+                Work experience ({suggestion.experience.length}) — draft,
+                unverified
+              </h3>
+              <ul className="mt-2 space-y-2">
+                {suggestion.experience.map((entry, index) => (
+                  <li
+                    key={`${entry.company}-${entry.job_title}-${index}`}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <p className="font-medium text-slate-900">
+                      {entry.job_title}
+                    </p>
+                    <p className="text-slate-600">{entry.company}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {formatSpan(
+                        entry.start_date,
+                        entry.end_date,
+                        entry.is_current,
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {suggestion.projects.length > 0 && (
+            <div>
+              <h3 className="cp-eyebrow text-xs tracking-wide">
+                Projects ({suggestion.projects.length}) — draft, unverified
+              </h3>
+              <ul className="mt-2 space-y-2">
+                {suggestion.projects.map((entry, index) => (
+                  <li
+                    key={`${entry.name}-${index}`}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <p className="font-medium text-slate-900">
+                      {entry.name}
+                    </p>
+                    <p className="line-clamp-2 text-slate-600">
+                      {entry.description}
+                    </p>
+                    {entry.technologies.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {entry.technologies.map((tech) => (
+                          <span key={tech} className="cp-chip">
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {suggestion.certifications.length > 0 && (
+            <div>
+              <h3 className="cp-eyebrow text-xs tracking-wide">
+                Certifications ({suggestion.certifications.length}) — draft,
+                unverified
+              </h3>
+              <ul className="mt-2 space-y-2">
+                {suggestion.certifications.map((entry, index) => (
+                  <li
+                    key={`${entry.name}-${index}`}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <p className="font-medium text-slate-900">
+                      {entry.name}
+                    </p>
+                    <p className="text-slate-600">
+                      {entry.issuing_organization}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {formatYear(entry.issue_date)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {(sensitiveFields.length > 0 ||
             suggestion.manual_review.length > 0) && (
             <div>
@@ -219,7 +356,12 @@ export default function CVAutofillPanel({
       {result && (
         <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           Applied {result.applied_fields.length} field(s) and added{" "}
-          {result.added_skills.length} skill(s), all as unverified.
+          {result.added_skills.length} skill(s),{" "}
+          {result.added_education.length} education,{" "}
+          {result.added_experience.length} experience,{" "}
+          {result.added_projects.length} project(s), and{" "}
+          {result.added_certifications.length} certification(s) — all as
+          unverified drafts.
           {result.skipped_existing_fields.length > 0 && (
             <span className="text-emerald-700/80">
               {" "}

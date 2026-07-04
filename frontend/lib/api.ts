@@ -1447,6 +1447,10 @@ export async function applyDocumentProfileSuggestion(
     {
       apply_profile: input.applyProfile ?? true,
       apply_skills: input.applySkills ?? true,
+      apply_education: input.applyEducation ?? true,
+      apply_experience: input.applyExperience ?? true,
+      apply_projects: input.applyProjects ?? true,
+      apply_certifications: input.applyCertifications ?? true,
       include_sensitive: input.includeSensitive ?? false,
       overwrite: input.overwrite ?? false,
     },

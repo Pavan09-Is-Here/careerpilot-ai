@@ -784,6 +784,10 @@ def apply_document_profile_suggestion(
             profile_id,
             apply_profile=request.apply_profile,
             apply_skills=request.apply_skills,
+            apply_education=request.apply_education,
+            apply_experience=request.apply_experience,
+            apply_projects=request.apply_projects,
+            apply_certifications=request.apply_certifications,
             include_sensitive=request.include_sensitive,
             overwrite=request.overwrite,
         )

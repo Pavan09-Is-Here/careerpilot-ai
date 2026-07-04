@@ -181,7 +181,13 @@ export default function JobSourcesPage() {
   return (
     <main className="cp-page">
       <div className="mx-auto max-w-4xl">
-        <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <Link
+          href="/"
+          className="text-sm font-medium text-violet-600 transition hover:text-violet-700"
+        >
+          ← Back to dashboard
+        </Link>
+        <header className="mt-4 mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="cp-eyebrow">Job discovery</p>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">

@@ -124,7 +124,13 @@ export default function SavedJobsPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <Link
+        href="/"
+        className="text-sm font-medium text-violet-600 transition hover:text-violet-700"
+      >
+        ← Back to dashboard
+      </Link>
+      <header className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
             Saved Jobs

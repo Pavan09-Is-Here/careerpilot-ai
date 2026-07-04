@@ -50,6 +50,23 @@ type ProfileFormState = {
   facts_verified: boolean;
 };
 
+type ProfileTab =
+  | "profile"
+  | "education"
+  | "experience"
+  | "projects"
+  | "skills"
+  | "certifications";
+
+const PROFILE_TABS: { id: ProfileTab; label: string }[] = [
+  { id: "profile", label: "Profile details" },
+  { id: "education", label: "Education" },
+  { id: "experience", label: "Work experience" },
+  { id: "projects", label: "Projects" },
+  { id: "skills", label: "Skills" },
+  { id: "certifications", label: "Certifications" },
+];
+
 const initialForm: ProfileFormState = {
   full_name: "",
   email: "",
@@ -225,6 +242,8 @@ export default function CandidateProfileForm() {
     useState<string | null>(null);
 
   const [verifying, setVerifying] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<ProfileTab>("profile");
 
   async function handleVerifyAll(): Promise<void> {
     setSuccessMessage("");
@@ -438,6 +457,23 @@ export default function CandidateProfileForm() {
           </div>
         </header>
 
+        <nav className="mb-6 flex flex-wrap gap-2">
+          {PROFILE_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                activeTab === tab.id
+                  ? "bg-violet-600 text-white"
+                  : "border border-slate-300 bg-white text-slate-700 hover:border-violet-400 hover:text-violet-700"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
         {successMessage && (
           <MessageBox type="success">
             {successMessage}
@@ -454,7 +490,7 @@ export default function CandidateProfileForm() {
           onSubmit={(event) =>
             void handleSubmit(event)
           }
-          className="space-y-8"
+          className={`space-y-8 ${activeTab === "profile" ? "" : "hidden"}`}
         >
           <FormSection
             title="Personal details"
@@ -806,12 +842,11 @@ export default function CandidateProfileForm() {
           </div>
         </form>
 
-        <EducationManager />
-<ExperienceManager /> 
-<ProjectManager />
-<SkillManager />
-<CertificationManager />
-
+        {activeTab === "education" && <EducationManager />}
+        {activeTab === "experience" && <ExperienceManager />}
+        {activeTab === "projects" && <ProjectManager />}
+        {activeTab === "skills" && <SkillManager />}
+        {activeTab === "certifications" && <CertificationManager />}
       </div>
     </main>
   );

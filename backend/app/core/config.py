@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     # Extra allowed CORS origins (comma-separated), e.g. the deployed
     # frontend URL. Local development origins are always allowed.
     cors_origins: str = ""
+    # Optional regex matching allowed origins. Useful for hosts that
+    # issue rotating per-deployment URLs (e.g. Vercel preview domains).
+    # Example: https://.*\.vercel\.app
+    cors_origin_regex: str | None = None
     # Full SQLAlchemy database URL. When unset, the local SQLite
     # development database is used. In production set this to a
     # PostgreSQL URL, e.g. postgresql+psycopg://user:pass@host/db.

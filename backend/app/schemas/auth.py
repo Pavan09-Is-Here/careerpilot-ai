@@ -44,9 +44,30 @@ class SessionResponse(BaseModel):
 
     authenticated: bool = True
     username: str
+    email: str | None = None
+    email_verified: bool = False
     created_at: datetime
     expires_at: datetime
     last_used_at: datetime
+
+
+class VerifyEmailRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=1, max_length=200)
+
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(min_length=3, max_length=255)
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=8, max_length=200)
 
 
 class MessageResponse(BaseModel):

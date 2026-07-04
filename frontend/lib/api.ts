@@ -1851,3 +1851,51 @@ export async function changePassword(
     signal,
   );
 }
+
+export async function verifyEmail(
+  token: string,
+  signal?: AbortSignal,
+): Promise<MessageResult> {
+  return requestJsonBody<MessageResult>(
+    "/api/auth/verify-email",
+    "POST",
+    { token },
+    signal,
+  );
+}
+
+export async function resendVerification(
+  signal?: AbortSignal,
+): Promise<MessageResult> {
+  return requestJsonBody<MessageResult>(
+    "/api/auth/resend-verification",
+    "POST",
+    {},
+    signal,
+  );
+}
+
+export async function forgotPassword(
+  email: string,
+  signal?: AbortSignal,
+): Promise<MessageResult> {
+  return requestJsonBody<MessageResult>(
+    "/api/auth/forgot-password",
+    "POST",
+    { email },
+    signal,
+  );
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+  signal?: AbortSignal,
+): Promise<MessageResult> {
+  return requestJsonBody<MessageResult>(
+    "/api/auth/reset-password",
+    "POST",
+    { token, new_password: newPassword },
+    signal,
+  );
+}

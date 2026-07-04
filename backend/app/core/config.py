@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     notification_from_address: str = "careerpilot@localhost"
 
+    # Base URL of the frontend, used to build links in verification and
+    # password-reset emails (e.g. "https://app.example.com"). When unset
+    # it falls back to the first configured CORS origin, then to the local
+    # development origin. See ``resolved_frontend_base_url``.
+    frontend_base_url: str | None = None
+
     # Auto-apply pipeline daily bound on how many jobs to prepare.
     auto_apply_target_recency_hours: int = 168
 
@@ -66,3 +72,25 @@ class Settings(BaseSettings):
     s3_region: str | None = None
     s3_prefix: str = ""
     s3_endpoint_url: str | None = None
+
+    @property
+    def resolved_frontend_base_url(self) -> str:
+        """The base URL used to build links in outgoing emails.
+
+        Uses ``frontend_base_url`` when set, otherwise the first entry of
+        ``cors_origins``, otherwise the local development origin. The
+        trailing slash is stripped so callers can append ``/auth/...``.
+        """
+        if self.frontend_base_url:
+            base = self.frontend_base_url
+        else:
+            first_origin = next(
+                (
+                    origin.strip()
+                    for origin in self.cors_origins.split(",")
+                    if origin.strip()
+                ),
+                "",
+            )
+            base = first_origin or "http://localhost:3000"
+        return base.rstrip("/")

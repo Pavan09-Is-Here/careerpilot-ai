@@ -107,8 +107,10 @@ def smtp_configured(settings: Settings) -> bool:
     return bool(settings.smtp_host)
 
 
-def _send_via_smtp(
-    notification: Notification,
+def _send_email(
+    recipient: str,
+    subject: str,
+    body: str,
     settings: Settings,
 ) -> None:
     """Send one email over SMTP. Only called when SMTP is configured.
@@ -121,9 +123,9 @@ def _send_via_smtp(
 
     message = EmailMessage()
     message["From"] = settings.notification_from_address
-    message["To"] = notification.recipient
-    message["Subject"] = notification.subject
-    message.set_content(notification.body)
+    message["To"] = recipient
+    message["Subject"] = subject
+    message.set_content(body)
 
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
         if settings.smtp_use_tls:
@@ -131,6 +133,40 @@ def _send_via_smtp(
         if settings.smtp_username and settings.smtp_password:
             server.login(settings.smtp_username, settings.smtp_password)
         server.send_message(message)
+
+
+def send_email_best_effort(
+    recipient: str,
+    subject: str,
+    body: str,
+    settings: Settings,
+) -> bool:
+    """Best-effort email send used for transactional auth emails.
+
+    Returns True if the message was handed to the SMTP transport, False
+    if SMTP is not configured or sending failed. Never raises, so callers
+    (e.g. registration) stay non-blocking: an email failure must not fail
+    the request. No secrets are logged.
+    """
+    if not recipient or not smtp_configured(settings):
+        return False
+    try:
+        _send_email(recipient, subject, body, settings)
+        return True
+    except Exception:  # noqa: BLE001 - best effort, never propagate
+        return False
+
+
+def _send_via_smtp(
+    notification: Notification,
+    settings: Settings,
+) -> None:
+    _send_email(
+        notification.recipient,
+        notification.subject,
+        notification.body,
+        settings,
+    )
 
 
 def deliver_pending(

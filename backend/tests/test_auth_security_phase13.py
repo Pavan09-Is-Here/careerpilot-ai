@@ -316,7 +316,7 @@ def test_password_is_not_stored_in_plaintext(db_session: Session) -> None:
     from app.api.deps import get_settings
     from app.services.auth import create_account, verify_password
 
-    user, _profile = create_account(
+    user, _profile, _token = create_account(
         USERNAME,
         PASSWORD,
         "Test Candidate",

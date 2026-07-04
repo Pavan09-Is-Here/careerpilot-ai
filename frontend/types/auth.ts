@@ -20,6 +20,8 @@ export type LoginResult = {
 export type AuthSession = {
   authenticated: boolean;
   username: string;
+  email: string | null;
+  email_verified: boolean;
   created_at: string;
   expires_at: string;
   last_used_at: string;

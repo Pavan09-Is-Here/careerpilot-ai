@@ -15,19 +15,32 @@ from app.models.user import User
 from app.schemas.auth import (
     AuthStatusResponse,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
     MessageResponse,
     RegisterRequest,
+    ResetPasswordRequest,
     SessionResponse,
+    VerifyEmailRequest,
 )
 from app.services.auth import (
     AuthServiceError,
     change_password,
     create_account,
+    get_profile_for_user,
+    get_user_by_profile_email,
     login,
+    regenerate_verification_token,
+    reset_password,
     revoke_session,
+    start_password_reset,
     user_count,
+    verify_email,
+)
+from app.services.auth_email import (
+    send_password_reset_email,
+    send_verification_email,
 )
 
 
@@ -80,23 +93,27 @@ def register(
             headers={"Retry-After": str(retry_after)},
         )
 
+    settings = get_settings()
     try:
-        user, _profile = create_account(
+        user, profile, verification_token = create_account(
             payload.username,
             payload.password,
             payload.full_name,
             payload.email,
             database,
-            get_settings(),
+            settings,
         )
         token, session, _user = login(
             payload.username,
             payload.password,
             database,
-            get_settings(),
+            settings,
         )
     except AuthServiceError as exc:
         raise_auth_http_error(exc)
+
+    # Non-blocking: registration succeeds regardless of email delivery.
+    send_verification_email(profile.email, verification_token, settings)
 
     return LoginResponse(
         token=token,
@@ -141,13 +158,103 @@ def login_route(
 def current_session(
     session: AuthSession = Depends(get_current_session),
     user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
 ) -> SessionResponse:
+    email: str | None = None
+    try:
+        email = get_profile_for_user(user, database).email
+    except AuthServiceError:
+        email = None
     return SessionResponse(
         username=user.username,
+        email=email,
+        email_verified=user.email_verified,
         created_at=session.created_at,
         expires_at=session.expires_at,
         last_used_at=session.last_used_at,
     )
+
+
+@router.post("/verify-email", response_model=MessageResponse)
+def verify_email_route(
+    payload: VerifyEmailRequest,
+    database: Session = Depends(get_db),
+) -> dict[str, str]:
+    try:
+        verify_email(payload.token, database)
+    except AuthServiceError as exc:
+        raise_auth_http_error(exc)
+    return {"message": "Your email address has been verified."}
+
+
+@router.post("/resend-verification", response_model=MessageResponse)
+def resend_verification_route(
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> dict[str, str]:
+    settings = get_settings()
+    if user.email_verified:
+        return {"message": "Your email address is already verified."}
+    token = regenerate_verification_token(user, database)
+    try:
+        email = get_profile_for_user(user, database).email
+    except AuthServiceError:
+        email = ""
+    if email:
+        send_verification_email(email, token, settings)
+    return {"message": "A new verification email has been sent."}
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password_route(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    database: Session = Depends(get_db),
+) -> dict[str, str]:
+    client = request.client.host if request.client else "unknown"
+    allowed, retry_after = login_rate_limiter.check(
+        f"forgot-password:{client}"
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    settings = get_settings()
+    user = get_user_by_profile_email(payload.email, database)
+    if user is not None:
+        token = start_password_reset(user, database)
+        send_password_reset_email(payload.email, token, settings)
+    # Always return the same message so account existence is not revealed.
+    return {
+        "message": (
+            "If that email is registered, a reset link has been sent."
+        )
+    }
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password_route(
+    payload: ResetPasswordRequest,
+    database: Session = Depends(get_db),
+) -> dict[str, str]:
+    try:
+        reset_password(
+            payload.token,
+            payload.new_password,
+            database,
+            get_settings(),
+        )
+    except AuthServiceError as exc:
+        raise_auth_http_error(exc)
+    return {
+        "message": (
+            "Your password has been reset. All sessions have been "
+            "signed out. Please sign in with your new password."
+        )
+    }
 
 
 @router.post("/logout", response_model=MessageResponse)

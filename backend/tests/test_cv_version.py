@@ -23,7 +23,7 @@ from tests.conftest import Account
 
 PHASE35_HEAD = "e5f6a7b8c9d0"
 PHASE36_HEAD = "f6a7b8c9d0e1"
-CURRENT_HEAD = "d2e3f4a5b6c7"
+CURRENT_HEAD = "e3f4a5b6c7d8"
 
 
 @pytest.fixture(autouse=True)

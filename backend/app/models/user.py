@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -54,6 +54,31 @@ class User(Base):
     iterations: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
+    )
+
+    # Email verification (non-blocking). Only the SHA-256 hash of the
+    # verification token is stored — never the raw token.
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    email_verification_token_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
+    # Password reset. Only the SHA-256 hash of the reset token is stored,
+    # alongside its expiry. A cleared hash means no pending reset.
+    password_reset_token_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
+    password_reset_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

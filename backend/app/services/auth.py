@@ -55,6 +55,14 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def generate_token() -> str:
+    """Generate an opaque URL-safe token for email/reset flows."""
+    return secrets.token_urlsafe(32)
+
+
+PASSWORD_RESET_TTL = timedelta(hours=1)
+
+
 def normalize_username(username: str) -> str:
     return username.strip().lower()
 
@@ -111,11 +119,13 @@ def create_account(
     email: str,
     database: Session,
     settings: Settings,
-) -> tuple[User, CandidateProfile]:
+) -> tuple[User, CandidateProfile, str]:
     """Create a login account and its owned candidate profile.
 
     The profile is created with only the details supplied at
-    registration; no candidate facts are invented.
+    registration; no candidate facts are invented. Returns the created
+    user, its profile, and the raw email-verification token (the caller
+    emails it; only its hash is persisted).
     """
 
     normalized = normalize_username(username)
@@ -134,6 +144,7 @@ def create_account(
         )
 
     now = current_utc_time()
+    verification_token = generate_token()
     user = User(
         username=normalized,
         created_at=now,
@@ -143,6 +154,8 @@ def create_account(
         password_hash="",
         salt="",
         iterations=settings.auth_pbkdf2_iterations,
+        email_verified=False,
+        email_verification_token_hash=hash_token(verification_token),
     )
     _set_user_password(user, password, settings)
     database.add(user)
@@ -159,7 +172,7 @@ def create_account(
     database.commit()
     database.refresh(user)
     database.refresh(profile)
-    return user, profile
+    return user, profile, verification_token
 
 
 def verify_password(user: User, password: str) -> bool:
@@ -312,6 +325,121 @@ def revoke_user_sessions(user_id: int, database: Session) -> int:
         session.revoked_at = now
     database.commit()
     return len(sessions)
+
+
+# --- Email verification --------------------------------------------------
+
+
+def verify_email(token: str, database: Session) -> User:
+    """Confirm an account email from its verification token.
+
+    On success sets ``email_verified`` and clears the stored token hash.
+    An invalid, missing, or already-used token raises a 400.
+    """
+    if not token:
+        raise AuthServiceError("Invalid or expired verification link.")
+    user = database.scalar(
+        select(User).where(
+            User.email_verification_token_hash == hash_token(token)
+        )
+    )
+    if user is None:
+        raise AuthServiceError("Invalid or expired verification link.")
+    user.email_verified = True
+    user.email_verification_token_hash = None
+    user.updated_at = current_utc_time()
+    database.add(user)
+    database.commit()
+    database.refresh(user)
+    return user
+
+
+def regenerate_verification_token(user: User, database: Session) -> str:
+    """Issue a fresh verification token for ``user`` and store its hash.
+
+    Returns the raw token so the caller can email it; only the hash is
+    persisted.
+    """
+    token = generate_token()
+    user.email_verification_token_hash = hash_token(token)
+    user.updated_at = current_utc_time()
+    database.add(user)
+    database.commit()
+    return token
+
+
+# --- Password reset ------------------------------------------------------
+
+
+def get_user_by_profile_email(
+    email: str,
+    database: Session,
+) -> User | None:
+    """Find the account whose candidate profile has ``email`` (case-insensitive)."""
+    normalized = email.strip().lower()
+    if not normalized:
+        return None
+    return database.scalar(
+        select(User)
+        .join(CandidateProfile, CandidateProfile.user_id == User.id)
+        .where(func.lower(CandidateProfile.email) == normalized)
+    )
+
+
+def start_password_reset(user: User, database: Session) -> str:
+    """Create a password-reset token for ``user`` and store its hash + expiry.
+
+    Returns the raw token so the caller can email it; only the hash and
+    expiry are persisted.
+    """
+    token = generate_token()
+    now = current_utc_time()
+    user.password_reset_token_hash = hash_token(token)
+    user.password_reset_expires_at = now + PASSWORD_RESET_TTL
+    user.updated_at = now
+    database.add(user)
+    database.commit()
+    return token
+
+
+def reset_password(
+    token: str,
+    new_password: str,
+    database: Session,
+    settings: Settings,
+) -> User:
+    """Set a new password from a valid, unexpired reset token.
+
+    Validates password strength, sets the new password, clears the reset
+    token, and revokes all of the account's sessions. Invalid or expired
+    tokens raise a 400.
+    """
+    if not token:
+        raise AuthServiceError("Invalid or expired reset link.")
+    now = current_utc_time()
+    user = database.scalar(
+        select(User).where(
+            User.password_reset_token_hash == hash_token(token)
+        )
+    )
+    if user is None or user.password_reset_expires_at is None:
+        raise AuthServiceError("Invalid or expired reset link.")
+    expires_at = user.password_reset_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= now:
+        raise AuthServiceError("Invalid or expired reset link.")
+
+    validate_password_strength(new_password)
+    _set_user_password(user, new_password, settings)
+    user.password_reset_token_hash = None
+    user.password_reset_expires_at = None
+    database.add(user)
+    database.commit()
+    # A password reset invalidates all of this account's sessions.
+    revoke_user_sessions(user.id, database)
+    database.refresh(user)
+    return user
 
 
 def revoke_all_sessions(database: Session) -> int:

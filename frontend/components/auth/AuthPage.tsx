@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import PasswordInput from "@/components/auth/PasswordInput";
 import {
   changePassword,
+  forgotPassword,
   getAuthStatus,
   getSession,
   isAbortError,
   login,
   logout,
   register,
+  resendVerification,
 } from "@/lib/api";
 import {
   clearAuthToken,
@@ -30,6 +33,8 @@ function formatDateTime(value: string): string {
 const inputClass =
   "mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200";
 
+type Mode = "login" | "register" | "forgot";
+
 export default function AuthPage() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,13 +42,13 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // "login" or "register" for the logged-out view.
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<Mode>("login");
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -116,6 +121,12 @@ export default function AuthPage() {
     setEmail("");
   };
 
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError(null);
+    setNotice(null);
+  };
+
   return (
     <main className="cp-page">
       <div className="mx-auto max-w-md">
@@ -151,6 +162,26 @@ export default function AuthPage() {
                   <dt className="text-slate-500">Username</dt>
                   <dd>{session.username}</dd>
                 </div>
+                {session.email && (
+                  <div className="flex justify-between">
+                    <dt className="text-slate-500">Email</dt>
+                    <dd>{session.email}</dd>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Email status</dt>
+                  <dd>
+                    {session.email_verified ? (
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                        Not verified
+                      </span>
+                    )}
+                  </dd>
+                </div>
                 <div className="flex justify-between">
                   <dt className="text-slate-500">Session expires</dt>
                   <dd>{formatDateTime(session.expires_at)}</dd>
@@ -160,6 +191,23 @@ export default function AuthPage() {
                   <dd>{formatDateTime(session.last_used_at)}</dd>
                 </div>
               </dl>
+
+              {!session.email_verified && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const result = await resendVerification();
+                      setNotice(result.message);
+                    })
+                  }
+                  className="mt-4 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700 disabled:opacity-50"
+                >
+                  Resend verification email
+                </button>
+              )}
+
               <button
                 type="button"
                 disabled={busy}
@@ -171,7 +219,7 @@ export default function AuthPage() {
                     setNotice("Signed out.");
                   })
                 }
-                className="mt-4 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700"
+                className="mt-3 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700"
               >
                 Sign out
               </button>
@@ -181,21 +229,17 @@ export default function AuthPage() {
               <h2 className="cp-eyebrow text-xs tracking-wide">
                 Change password
               </h2>
-              <input
-                type="password"
+              <PasswordInput
                 value={currentPassword}
-                onChange={(event) =>
-                  setCurrentPassword(event.target.value)
-                }
+                onChange={setCurrentPassword}
                 placeholder="Current password"
-                className={inputClass}
+                autoComplete="current-password"
               />
-              <input
-                type="password"
+              <PasswordInput
                 value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
+                onChange={setNewPassword}
                 placeholder="New password (min 8 chars)"
-                className={inputClass}
+                autoComplete="new-password"
               />
               <button
                 type="button"
@@ -253,13 +297,11 @@ export default function AuthPage() {
               autoComplete="email"
               className={inputClass}
             />
-            <input
-              type="password"
+            <PasswordInput
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={setPassword}
               placeholder="Password (min 8 chars)"
               autoComplete="new-password"
-              className={inputClass}
             />
             <button
               type="button"
@@ -280,7 +322,9 @@ export default function AuthPage() {
                   });
                   setAuthToken(result.token);
                   resetCredentialFields();
-                  setNotice(`Welcome, ${result.username}. Account created.`);
+                  setNotice(
+                    "Account created. Check your email to verify your address.",
+                  );
                   await refresh();
                 })
               }
@@ -290,14 +334,49 @@ export default function AuthPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMode("login");
-                setError(null);
-                setNotice(null);
-              }}
+              onClick={() => switchMode("login")}
               className="mt-3 w-full text-center text-sm font-medium text-violet-600 transition hover:text-violet-700"
             >
               Already have an account? Sign in
+            </button>
+          </section>
+        ) : mode === "forgot" ? (
+          <section className="mt-6 cp-card p-5">
+            <h2 className="cp-eyebrow text-xs tracking-wide">
+              Reset password
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Enter the email on your account and we will send a reset
+              link if it is registered.
+            </p>
+            <input
+              type="email"
+              value={forgotEmail}
+              onChange={(event) => setForgotEmail(event.target.value)}
+              placeholder="Email"
+              autoComplete="email"
+              className={inputClass}
+            />
+            <button
+              type="button"
+              disabled={busy || forgotEmail.trim().length < 3}
+              onClick={() =>
+                run(async () => {
+                  const result = await forgotPassword(forgotEmail.trim());
+                  setForgotEmail("");
+                  setNotice(result.message);
+                })
+              }
+              className="mt-3 w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+            >
+              Send reset link
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("login")}
+              className="mt-3 w-full text-center text-sm font-medium text-violet-600 transition hover:text-violet-700"
+            >
+              Back to sign in
             </button>
           </section>
         ) : (
@@ -313,14 +392,21 @@ export default function AuthPage() {
               autoComplete="username"
               className={inputClass}
             />
-            <input
-              type="password"
+            <PasswordInput
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={setPassword}
               placeholder="Password"
               autoComplete="current-password"
-              className={inputClass}
             />
+            <div className="mt-2 text-right">
+              <button
+                type="button"
+                onClick={() => switchMode("forgot")}
+                className="text-sm font-medium text-violet-600 transition hover:text-violet-700"
+              >
+                Forgot password?
+              </button>
+            </div>
             <button
               type="button"
               disabled={
@@ -341,11 +427,7 @@ export default function AuthPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMode("register");
-                setError(null);
-                setNotice(null);
-              }}
+              onClick={() => switchMode("register")}
               className="mt-3 w-full text-center text-sm font-medium text-violet-600 transition hover:text-violet-700"
             >
               New here? Create an account

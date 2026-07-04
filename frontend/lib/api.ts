@@ -106,7 +106,21 @@ import type {
   RegisterInput,
 } from "@/types/auth";
 
-import { authHeader } from "@/lib/auth";
+import { authHeader, clearAuthToken, getAuthToken } from "@/lib/auth";
+
+// When an authenticated request comes back 401, the session is missing
+// or expired: clear the stored token and send the user to sign in. We
+// only redirect if they actually had a token and are not already on the
+// auth page, so login failures still show their error inline.
+function handleUnauthorized(status: number): void {
+  if (status !== 401 || typeof window === "undefined") {
+    return;
+  }
+  if (getAuthToken() && window.location.pathname !== "/auth") {
+    clearAuthToken();
+    window.location.href = "/auth";
+  }
+}
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
@@ -130,6 +144,7 @@ type ErrorResponse = {
 async function readErrorMessage(
   response: Response,
 ): Promise<string> {
+  handleUnauthorized(response.status);
   try {
     const body =
       (await response.json()) as ErrorResponse;

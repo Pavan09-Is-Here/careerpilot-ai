@@ -213,7 +213,7 @@ function statusClasses(status: string): string {
     status === "validated" ||
     status === "confirmed"
   ) {
-    return "border-emerald-400/40 bg-emerald-500/10 text-emerald-200";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
 
   if (
@@ -222,7 +222,7 @@ function statusClasses(status: string): string {
     status === "draft" ||
     status === "partial"
   ) {
-    return "border-sky-400/40 bg-sky-500/10 text-sky-200";
+    return "border-sky-200 bg-sky-50 text-sky-700";
   }
 
   if (
@@ -232,7 +232,7 @@ function statusClasses(status: string): string {
     status.includes("conflict") ||
     status.includes("mismatch")
   ) {
-    return "border-rose-400/40 bg-rose-500/10 text-rose-200";
+    return "border-rose-200 bg-rose-50 text-rose-700";
   }
 
   if (
@@ -243,10 +243,10 @@ function statusClasses(status: string): string {
     status === "unverified_claim" ||
     status === "missing_verified_fact"
   ) {
-    return "border-amber-400/40 bg-amber-500/10 text-amber-100";
+    return "border-amber-200 bg-amber-50 text-amber-700";
   }
 
-  return "border-slate-500/40 bg-slate-800 text-slate-200";
+  return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
 export function StatusBadge({
@@ -275,7 +275,7 @@ export function ErrorNotice({
   return (
     <div
       role="alert"
-      className="rounded-lg border border-rose-500/40 bg-rose-950/40 px-4 py-3 text-sm text-rose-100"
+      className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
     >
       {children}
     </div>
@@ -291,7 +291,7 @@ export function SuccessNotice({
     <div
       role="status"
       aria-live="polite"
-      className="rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100"
+      className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
     >
       {children}
     </div>
@@ -306,12 +306,12 @@ export function EmptyState({
   children?: ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/60 px-5 py-8 text-center">
-      <p className="font-semibold text-slate-100">
+    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
+      <p className="font-semibold text-slate-900">
         {title}
       </p>
       {children ? (
-        <div className="mt-2 text-sm leading-6 text-slate-400">
+        <div className="mt-2 text-sm leading-6 text-slate-500">
           {children}
         </div>
       ) : null}
@@ -328,7 +328,7 @@ export function LoadingState({
     <div
       role="status"
       aria-live="polite"
-      className="rounded-lg border border-slate-800 bg-slate-900 px-5 py-6 text-sm text-slate-300"
+      className="rounded-lg border border-slate-200 bg-white px-5 py-6 text-sm text-slate-600"
     >
       {label}
     </div>
@@ -347,7 +347,7 @@ export function DetailRow({
       <dt className="text-xs font-semibold uppercase text-slate-500">
         {label}
       </dt>
-      <dd className="mt-1 text-sm text-slate-200">
+      <dd className="mt-1 text-sm text-slate-700">
         {value}
       </dd>
     </div>
@@ -364,9 +364,9 @@ export function SectionPanel({
   action?: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <h2 className="text-lg font-semibold text-white">
+        <h2 className="text-lg font-semibold text-slate-900">
           {title}
         </h2>
         {action}

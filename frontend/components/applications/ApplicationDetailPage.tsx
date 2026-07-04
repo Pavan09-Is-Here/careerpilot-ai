@@ -107,9 +107,9 @@ export default function ApplicationDetailPage({
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+      <main className="cp-page">
         <div className="mx-auto max-w-4xl">
-          <p className="text-sm text-slate-400">Loading…</p>
+          <p className="text-sm text-slate-500">Loading…</p>
         </div>
       </main>
     );
@@ -117,15 +117,15 @@ export default function ApplicationDetailPage({
 
   if (!application) {
     return (
-      <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+      <main className="cp-page">
         <div className="mx-auto max-w-4xl space-y-4">
           <Link
             href="/applications"
-            className="text-sm text-blue-300 hover:text-blue-200"
+            className="text-sm text-violet-700 hover:text-violet-800"
           >
             ← Applications
           </Link>
-          <p className="text-sm text-red-300">
+          <p className="text-sm text-red-700">
             {error ?? "Application not found."}
           </p>
         </div>
@@ -136,18 +136,18 @@ export default function ApplicationDetailPage({
   const canSubmit = SUBMIT_READY_STATUSES.includes(application.status);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-4xl space-y-6">
         <div>
           <Link
             href="/applications"
-            className="text-sm text-blue-300 hover:text-blue-200"
+            className="text-sm text-violet-700 hover:text-violet-800"
           >
             ← Applications
           </Link>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-2xl font-bold text-slate-900">
               {application.job.title}
             </h1>
             <span
@@ -159,13 +159,13 @@ export default function ApplicationDetailPage({
             </span>
           </div>
 
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             {application.job.employer_name} ·{" "}
             <a
               href={application.job.source_url}
               target="_blank"
               rel="noreferrer noopener"
-              className="text-blue-300 hover:text-blue-200"
+              className="text-violet-700 hover:text-violet-800"
             >
               Job posting
             </a>
@@ -173,14 +173,14 @@ export default function ApplicationDetailPage({
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {canSubmit && (
           <Panel title="Record submission">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-500">
               After you submit the application on the employer&rsquo;s
               site, record it here with the confirmation number. The
               tool never submits on your behalf.
@@ -193,7 +193,7 @@ export default function ApplicationDetailPage({
                   setConfirmation(event.target.value)
                 }
                 placeholder="Confirmation number (optional)"
-                className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
               />
               <button
                 type="button"
@@ -207,7 +207,7 @@ export default function ApplicationDetailPage({
                     }),
                   )
                 }
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold transition hover:bg-emerald-500 disabled:opacity-50"
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
               >
                 Mark submitted
               </button>
@@ -224,7 +224,7 @@ export default function ApplicationDetailPage({
                   event.target.value as ApplicationStatus | "",
                 )
               }
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             >
               <option value="">Choose a status…</option>
               {APPLICATION_STATUSES.map((value) => (
@@ -243,7 +243,7 @@ export default function ApplicationDetailPage({
                   }),
                 )
               }
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
             >
               Update
             </button>
@@ -256,7 +256,7 @@ export default function ApplicationDetailPage({
 
         <Panel title="Timeline">
           {application.timeline.length === 0 ? (
-            <p className="text-sm text-slate-400">No events yet.</p>
+            <p className="text-sm text-slate-500">No events yet.</p>
           ) : (
             <ul className="space-y-2">
               {application.timeline.map((entry, index) => (
@@ -267,7 +267,7 @@ export default function ApplicationDetailPage({
                   <span className="w-44 shrink-0 text-slate-500">
                     {formatDateTime(entry.at)}
                   </span>
-                  <span className="text-slate-200">
+                  <span className="text-slate-700">
                     {entry.label}
                   </span>
                 </li>
@@ -283,7 +283,7 @@ export default function ApplicationDetailPage({
               value={noteText}
               onChange={(event) => setNoteText(event.target.value)}
               placeholder="Add a note…"
-              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             />
             <button
               type="button"
@@ -296,7 +296,7 @@ export default function ApplicationDetailPage({
                   setNoteText("");
                 })
               }
-              className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-blue-300 transition hover:border-blue-500 disabled:opacity-50"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-violet-700 transition hover:border-violet-400 hover:bg-violet-50 disabled:opacity-50"
             >
               Add note
             </button>
@@ -306,9 +306,9 @@ export default function ApplicationDetailPage({
               {application.notes.map((note, index) => (
                 <li
                   key={`${note.created_at}-${index}`}
-                  className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-300"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
                 >
-                  <span className="text-slate-200">{note.text}</span>
+                  <span className="text-slate-700">{note.text}</span>
                   <span className="ml-2 text-xs text-slate-500">
                     {formatDateTime(note.created_at)}
                   </span>
@@ -327,7 +327,7 @@ export default function ApplicationDetailPage({
                 setFollowUpText(event.target.value)
               }
               placeholder="Follow-up (e.g. Send thank-you)…"
-              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             />
             <input
               type="date"
@@ -335,7 +335,7 @@ export default function ApplicationDetailPage({
               onChange={(event) =>
                 setFollowUpDue(event.target.value)
               }
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             />
             <button
               type="button"
@@ -350,7 +350,7 @@ export default function ApplicationDetailPage({
                   setFollowUpDue("");
                 })
               }
-              className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-blue-300 transition hover:border-blue-500 disabled:opacity-50"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-violet-700 transition hover:border-violet-400 hover:bg-violet-50 disabled:opacity-50"
             >
               Schedule
             </button>
@@ -360,11 +360,11 @@ export default function ApplicationDetailPage({
               {application.follow_ups.map((followUp, index) => (
                 <li
                   key={`${followUp.created_at}-${index}`}
-                  className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-300"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
                 >
                   {followUp.description}
                   {followUp.due_date && (
-                    <span className="ml-2 text-xs text-amber-300">
+                    <span className="ml-2 text-xs text-amber-700">
                       due {followUp.due_date}
                     </span>
                   )}
@@ -386,8 +386,8 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
         {title}
       </h2>
       {children}

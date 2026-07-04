@@ -130,11 +130,11 @@ export default function DocumentUploadForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-slate-800 bg-slate-900 p-5"
+      className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
     >
       <div className="flex flex-col gap-5">
         <div>
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-slate-900">
             Upload CV document
           </h2>
         </div>
@@ -142,7 +142,7 @@ export default function DocumentUploadForm({
         <div>
           <label
             htmlFor="cv-document-file"
-            className="block text-sm font-medium text-slate-200"
+            className="block text-sm font-medium text-slate-700"
           >
             PDF or DOCX file
           </label>
@@ -159,7 +159,7 @@ export default function DocumentUploadForm({
             aria-describedby={`${fileInputDescription} ${
               errorMessage ? errorId : ""
             }`}
-            className="mt-2 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 file:mr-4 file:rounded-md file:border-0 file:bg-violet-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
           />
           <p
             id={fileInputDescription}
@@ -170,11 +170,11 @@ export default function DocumentUploadForm({
         </div>
 
         {selectedFile ? (
-          <div className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <p className="font-medium">
               {selectedFile.name}
             </p>
-            <p className="mt-1 text-slate-400">
+            <p className="mt-1 text-slate-500">
               {formatBytes(selectedFile.size)}
             </p>
           </div>
@@ -184,7 +184,7 @@ export default function DocumentUploadForm({
           <div>
             <label
               htmlFor="document-type"
-              className="block text-sm font-medium text-slate-200"
+              className="block text-sm font-medium text-slate-700"
             >
               Document type
             </label>
@@ -200,7 +200,7 @@ export default function DocumentUploadForm({
                   setIsPrimary(false);
                 }
               }}
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             >
               <option value="original_cv">
                 Original CV
@@ -215,7 +215,7 @@ export default function DocumentUploadForm({
           </div>
 
           <div className="flex items-end">
-            <label className="flex w-full items-center gap-3 rounded-lg border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200">
+            <label className="flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={isPrimary}
@@ -223,7 +223,7 @@ export default function DocumentUploadForm({
                 onChange={(event) =>
                   setIsPrimary(event.target.checked)
                 }
-                className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-slate-300 bg-white text-violet-600 focus:ring-violet-500"
               />
               Mark as primary original CV
             </label>
@@ -246,7 +246,7 @@ export default function DocumentUploadForm({
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:bg-slate-700"
+            className="inline-flex justify-center rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {submitting ? "Uploading..." : "Upload document"}
           </button>
@@ -255,7 +255,7 @@ export default function DocumentUploadForm({
             type="button"
             disabled={submitting}
             onClick={resetForm}
-            className="inline-flex justify-center rounded-lg border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:text-slate-500"
+            className="inline-flex justify-center rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-violet-400 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:text-slate-400"
           >
             Reset
           </button>

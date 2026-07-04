@@ -31,19 +31,19 @@ export default function DocumentList({
       {documents.map((document) => (
         <article
           key={document.id}
-          className="rounded-lg border border-slate-800 bg-slate-900 p-5"
+          className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
         >
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
             <div className="min-w-0">
-              <h2 className="break-words text-lg font-semibold text-white">
+              <h2 className="break-words text-lg font-semibold text-slate-900">
                 <Link
                   href={`/documents/${document.id}`}
-                  className="transition hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="transition hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
                 >
                   {document.original_filename}
                 </Link>
               </h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-slate-500">
                 Uploaded {formatDateTime(document.created_at)}
               </p>
             </div>
@@ -98,7 +98,7 @@ export default function DocumentList({
           <div className="mt-5">
             <Link
               href={`/documents/${document.id}`}
-              className="inline-flex rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-blue-200 transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
             >
               Open document
             </Link>

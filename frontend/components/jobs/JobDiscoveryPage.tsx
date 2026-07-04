@@ -198,17 +198,17 @@ export default function JobDiscoveryPage() {
     <main className="mx-auto max-w-5xl px-6 py-10">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-slate-900">
             Job Discovery
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             Browse jobs ingested from approved,
             compliance-reviewed sources.
           </p>
         </div>
         <Link
           href="/saved-jobs"
-          className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-blue-400 hover:text-blue-300"
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700"
         >
           Saved jobs
         </Link>
@@ -216,12 +216,12 @@ export default function JobDiscoveryPage() {
 
       <section
         aria-label="Job filters"
-        className="mt-6 grid gap-3 rounded-lg border border-slate-800 bg-slate-900 p-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-6 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
       >
-        <label className="flex flex-col gap-1 text-xs text-slate-400">
+        <label className="flex flex-col gap-1 text-xs text-slate-500">
           Source
           <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             value={sourceId ?? ""}
             onChange={(event) => {
               setPage(1);
@@ -244,10 +244,10 @@ export default function JobDiscoveryPage() {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-xs text-slate-400">
+        <label className="flex flex-col gap-1 text-xs text-slate-500">
           Lifecycle
           <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             value={lifecycleStatus ?? ""}
             onChange={(event) => {
               setPage(1);
@@ -268,10 +268,10 @@ export default function JobDiscoveryPage() {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-xs text-slate-400">
+        <label className="flex flex-col gap-1 text-xs text-slate-500">
           Employment type
           <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             value={employmentType ?? ""}
             onChange={(event) => {
               setPage(1);
@@ -292,10 +292,10 @@ export default function JobDiscoveryPage() {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-xs text-slate-400">
+        <label className="flex flex-col gap-1 text-xs text-slate-500">
           Remote mode
           <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             value={remoteMode ?? ""}
             onChange={(event) => {
               setPage(1);
@@ -316,10 +316,10 @@ export default function JobDiscoveryPage() {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-xs text-slate-400">
+        <label className="flex flex-col gap-1 text-xs text-slate-500">
           Posted
           <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             value={postedWithinHours ?? ""}
             onChange={(event) => {
               setPage(1);
@@ -345,7 +345,7 @@ export default function JobDiscoveryPage() {
       {notice ? (
         <p
           role="status"
-          className="mt-4 text-sm text-blue-300"
+          className="mt-4 text-sm text-violet-700"
         >
           {notice}
         </p>
@@ -355,7 +355,7 @@ export default function JobDiscoveryPage() {
         {error ? (
           <ErrorBanner message={error} />
         ) : loading ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-500">
             Loading jobs…
           </p>
         ) : !jobPage || jobPage.items.length === 0 ? (
@@ -368,26 +368,26 @@ export default function JobDiscoveryPage() {
             {jobPage.items.map((job) => (
               <li
                 key={job.id}
-                className="rounded-lg border border-slate-800 bg-slate-900 p-5"
+                className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                   <div className="min-w-0">
-                    <h2 className="break-words text-lg font-semibold text-white">
+                    <h2 className="break-words text-lg font-semibold text-slate-900">
                       <Link
                         href={`/jobs/${job.id}`}
-                        className="transition hover:text-blue-300"
+                        className="transition hover:text-violet-700"
                       >
                         {job.title}
                       </Link>
                     </h2>
-                    <p className="mt-1 text-sm text-slate-400">
+                    <p className="mt-1 text-sm text-slate-500">
                       {job.employer_name} · Last seen{" "}
                       {formatDateTime(
                         job.last_seen_at,
                       )}
                     </p>
                     {job.description_excerpt ? (
-                      <p className="mt-2 break-words text-sm text-slate-300">
+                      <p className="mt-2 break-words text-sm text-slate-600">
                         {job.description_excerpt}
                       </p>
                     ) : null}
@@ -405,7 +405,7 @@ export default function JobDiscoveryPage() {
                       onClick={() =>
                         handleSave(job.id)
                       }
-                      className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700"
+                      className="rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       {savedJobIds.has(job.id)
                         ? "Saved"
@@ -424,13 +424,13 @@ export default function JobDiscoveryPage() {
       {jobPage && jobPage.total > jobPage.page_size ? (
         <nav
           aria-label="Pagination"
-          className="mt-6 flex items-center justify-between text-sm text-slate-300"
+          className="mt-6 flex items-center justify-between text-sm text-slate-600"
         >
           <button
             type="button"
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
-            className="rounded-md border border-slate-700 px-3 py-1.5 transition hover:border-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-slate-300 px-3 py-1.5 transition hover:border-violet-400 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Previous
           </button>
@@ -441,7 +441,7 @@ export default function JobDiscoveryPage() {
             type="button"
             disabled={page >= totalPages}
             onClick={() => setPage(page + 1)}
-            className="rounded-md border border-slate-700 px-3 py-1.5 transition hover:border-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-slate-300 px-3 py-1.5 transition hover:border-violet-400 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next
           </button>

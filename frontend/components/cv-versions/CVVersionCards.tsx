@@ -49,19 +49,19 @@ export default function CVVersionCards({
         return (
           <article
             key={version.id}
-            className="rounded-lg border border-slate-800 bg-slate-900 p-5"
+            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
           >
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
               <div className="min-w-0">
-                <h3 className="break-words text-lg font-semibold text-white">
+                <h3 className="break-words text-lg font-semibold text-slate-900">
                   <Link
                     href={`/cv-versions/${version.id}`}
-                    className="transition hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="transition hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-200"
                   >
                     {version.display_name}
                   </Link>
                 </h3>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm text-slate-500">
                   Version #{version.id}
                 </p>
               </div>
@@ -78,7 +78,7 @@ export default function CVVersionCards({
             </div>
 
             {version.description ? (
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">
                 {version.description}
               </p>
             ) : null}
@@ -121,7 +121,7 @@ export default function CVVersionCards({
             <div className="mt-5 flex flex-wrap gap-3">
               <Link
                 href={`/cv-versions/${version.id}`}
-                className="inline-flex rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-blue-200 transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-violet-200"
               >
                 Open version
               </Link>
@@ -135,7 +135,7 @@ export default function CVVersionCards({
                   setPrimaryBusy
                 }
                 onClick={() => onSetPrimary(version)}
-                className="inline-flex rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:text-slate-500"
+                className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-violet-400 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:cursor-not-allowed disabled:text-slate-400"
               >
                 {setPrimaryBusy
                   ? "Setting primary..."
@@ -147,7 +147,7 @@ export default function CVVersionCards({
                   type="button"
                   disabled={archiveBusy}
                   onClick={() => onArchive(version)}
-                  className="inline-flex rounded-lg border border-amber-500/60 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:cursor-not-allowed disabled:text-slate-500"
+                  className="inline-flex rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-200 disabled:cursor-not-allowed disabled:text-slate-400"
                 >
                   {archiveBusy
                     ? "Archiving..."
@@ -159,7 +159,7 @@ export default function CVVersionCards({
                 type="button"
                 disabled={deleteBusy}
                 onClick={() => onDelete(version)}
-                className="inline-flex rounded-lg border border-rose-500/60 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:cursor-not-allowed disabled:text-slate-500"
+                className="inline-flex rounded-lg border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-400 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 disabled:cursor-not-allowed disabled:text-slate-400"
               >
                 {deleteBusy ? "Deleting..." : "Delete"}
               </button>

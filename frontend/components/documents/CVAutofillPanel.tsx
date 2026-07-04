@@ -81,13 +81,14 @@ export default function CVAutofillPanel({
     suggestion?.fields.filter((field) => field.sensitive) ?? [];
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+    <section className="mt-6 cp-card border-violet-200 bg-violet-50/60">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-lg font-semibold text-white">
+          <p className="cp-eyebrow">Start from your CV</p>
+          <h2 className="mt-2 text-lg font-semibold text-slate-900">
             Fill profile from this CV
           </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
             Extract candidate details from the CV text. Everything
             pulled from a CV is unverified until you confirm it,
             and private details (phone, location) and dated history
@@ -100,14 +101,14 @@ export default function CVAutofillPanel({
           type="button"
           onClick={loadPreview}
           disabled={loading}
-          className="shrink-0 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-blue-300 transition hover:border-blue-500 disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
         >
           {loading ? "Reading…" : "Preview details"}
         </button>
       </div>
 
       {error && (
-        <p className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
@@ -115,11 +116,11 @@ export default function CVAutofillPanel({
       {suggestion && (
         <div className="mt-5 space-y-5">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="cp-eyebrow text-xs tracking-wide">
               Auto-fillable (unverified)
             </h3>
             {autoFields.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-slate-500">
                 No profile fields detected.
               </p>
             ) : (
@@ -127,12 +128,12 @@ export default function CVAutofillPanel({
                 {autoFields.map((field) => (
                   <li
                     key={field.field}
-                    className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm"
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                   >
-                    <span className="font-medium text-slate-200">
+                    <span className="font-medium text-slate-900">
                       {humanizeField(field.field)}:
                     </span>{" "}
-                    <span className="text-slate-300">
+                    <span className="text-slate-600">
                       {field.value}
                     </span>
                   </li>
@@ -143,14 +144,14 @@ export default function CVAutofillPanel({
 
           {suggestion.skills.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <h3 className="cp-eyebrow text-xs tracking-wide">
                 Skills ({suggestion.skills.length})
               </h3>
               <div className="mt-2 flex flex-wrap gap-2">
                 {suggestion.skills.map((skill) => (
                   <span
                     key={skill.name}
-                    className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300"
+                    className="cp-chip"
                   >
                     {skill.name}
                   </span>
@@ -162,10 +163,10 @@ export default function CVAutofillPanel({
           {(sensitiveFields.length > 0 ||
             suggestion.manual_review.length > 0) && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-400">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-600">
                 Needs manual entry
               </h3>
-              <ul className="mt-2 space-y-1 text-sm text-slate-400">
+              <ul className="mt-2 space-y-1 text-sm text-slate-600">
                 {sensitiveFields.map((field) => (
                   <li key={field.field}>
                     {humanizeField(field.field)} — private detail,
@@ -181,8 +182,8 @@ export default function CVAutofillPanel({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 border-t border-slate-800 pt-4">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+          <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 pt-4">
+            <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
                 type="checkbox"
                 checked={overwrite}
@@ -192,7 +193,7 @@ export default function CVAutofillPanel({
               />
               Overwrite existing values
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
                 type="checkbox"
                 checked={includeSensitive}
@@ -207,7 +208,7 @@ export default function CVAutofillPanel({
               type="button"
               onClick={applySuggestion}
               disabled={applying}
-              className="ml-auto rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+              className="ml-auto rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
             >
               {applying ? "Applying…" : "Apply to profile"}
             </button>
@@ -216,11 +217,11 @@ export default function CVAutofillPanel({
       )}
 
       {result && (
-        <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           Applied {result.applied_fields.length} field(s) and added{" "}
           {result.added_skills.length} skill(s), all as unverified.
           {result.skipped_existing_fields.length > 0 && (
-            <span className="text-emerald-300/80">
+            <span className="text-emerald-700/80">
               {" "}
               Kept {result.skipped_existing_fields.length} existing
               value(s).

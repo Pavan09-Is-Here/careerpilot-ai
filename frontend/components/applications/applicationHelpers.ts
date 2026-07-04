@@ -42,19 +42,19 @@ export function statusClasses(status: string): string {
   switch (status) {
     case "submitted":
     case "offer":
-      return "border-emerald-500/40 text-emerald-300";
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "interview":
-      return "border-blue-500/40 text-blue-300";
+      return "border-violet-200 bg-violet-50 text-violet-700";
     case "ready_to_apply":
-      return "border-cyan-500/40 text-cyan-300";
+      return "border-cyan-200 bg-cyan-50 text-cyan-700";
     case "blocked":
     case "needs_review":
-      return "border-amber-500/40 text-amber-300";
+      return "border-amber-200 bg-amber-50 text-amber-700";
     case "rejected":
     case "not_eligible":
     case "withdrawn":
-      return "border-rose-500/40 text-rose-300";
+      return "border-rose-200 bg-rose-50 text-rose-700";
     default:
-      return "border-slate-600 text-slate-300";
+      return "border-slate-200 bg-slate-50 text-slate-600";
   }
 }

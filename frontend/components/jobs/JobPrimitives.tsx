@@ -30,12 +30,12 @@ const LIFECYCLE_BADGE_CLASSES: Record<
   JobLifecycleStatus,
   string
 > = {
-  discovered: "bg-sky-950 text-sky-300",
-  active: "bg-emerald-950 text-emerald-300",
-  possibly_stale: "bg-amber-950 text-amber-300",
-  expired: "bg-slate-800 text-slate-400",
-  removed: "bg-rose-950 text-rose-300",
-  unavailable: "bg-slate-800 text-slate-500",
+  discovered: "bg-sky-50 text-sky-700 border border-sky-200",
+  active: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  possibly_stale: "bg-amber-50 text-amber-700 border border-amber-200",
+  expired: "bg-slate-100 text-slate-500 border border-slate-200",
+  removed: "bg-rose-50 text-rose-700 border border-rose-200",
+  unavailable: "bg-slate-100 text-slate-500 border border-slate-200",
 };
 
 export function LifecycleBadge({
@@ -56,10 +56,10 @@ const REVIEW_BADGE_CLASSES: Record<
   SavedJobReviewStatus,
   string
 > = {
-  saved: "bg-sky-950 text-sky-300",
-  shortlisted: "bg-emerald-950 text-emerald-300",
-  dismissed: "bg-rose-950 text-rose-300",
-  archived: "bg-slate-800 text-slate-400",
+  saved: "bg-sky-50 text-sky-700 border border-sky-200",
+  shortlisted: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  dismissed: "bg-rose-50 text-rose-700 border border-rose-200",
+  archived: "bg-slate-100 text-slate-500 border border-slate-200",
 };
 
 export function ReviewBadge({
@@ -84,11 +84,11 @@ export function EmptyState({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/50 p-8 text-center">
-      <h2 className="text-lg font-semibold text-white">
+    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+      <h2 className="text-lg font-semibold text-slate-900">
         {title}
       </h2>
-      <p className="mt-2 text-sm text-slate-400">
+      <p className="mt-2 text-sm text-slate-500">
         {children}
       </p>
     </div>
@@ -103,7 +103,7 @@ export function ErrorBanner({
   return (
     <div
       role="alert"
-      className="rounded-lg border border-rose-900 bg-rose-950/60 p-4 text-sm text-rose-200"
+      className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"
     >
       {message}
     </div>

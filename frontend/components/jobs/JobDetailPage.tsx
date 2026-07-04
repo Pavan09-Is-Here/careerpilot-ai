@@ -42,10 +42,10 @@ function TextSection({
 
   return (
     <section className="mt-6">
-      <h2 className="text-base font-semibold text-white">
+      <h2 className="text-base font-semibold text-slate-900">
         {title}
       </h2>
-      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-300">
+      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-600">
         {value}
       </p>
     </section>
@@ -138,7 +138,7 @@ export default function JobDetailPage({
   if (loading) {
     return (
       <main className="mx-auto max-w-4xl px-6 py-10">
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-500">
           Loading job…
         </p>
       </main>
@@ -153,7 +153,7 @@ export default function JobDetailPage({
         />
         <Link
           href="/jobs"
-          className="mt-4 inline-block text-sm text-blue-300 hover:underline"
+          className="mt-4 inline-block text-sm text-violet-700 hover:underline"
         >
           Back to job discovery
         </Link>
@@ -165,20 +165,20 @@ export default function JobDetailPage({
     <main className="mx-auto max-w-4xl px-6 py-10">
       <Link
         href="/jobs"
-        className="text-sm text-blue-300 hover:underline"
+        className="text-sm text-violet-700 hover:underline"
       >
         ← Back to job discovery
       </Link>
 
       <header className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="min-w-0">
-          <h1 className="break-words text-2xl font-bold text-white">
+          <h1 className="break-words text-2xl font-bold text-slate-900">
             {job.title}
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             {job.employer_name}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <LifecycleBadge
               status={job.lifecycle_status}
             />
@@ -199,7 +199,7 @@ export default function JobDetailPage({
             type="button"
             disabled={saving}
             onClick={handleSave}
-            className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-400 hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-violet-400 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save for review"}
           </button>
@@ -207,13 +207,13 @@ export default function JobDetailPage({
             type="button"
             disabled={tracking}
             onClick={handleTrack}
-            className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-400 hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-violet-400 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {tracking ? "Tracking…" : "Track application"}
           </button>
           <Link
             href={`/jobs/${jobId}/application`}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500"
           >
             Prepare &amp; apply
           </Link>
@@ -223,26 +223,26 @@ export default function JobDetailPage({
       {notice ? (
         <p
           role="status"
-          className="mt-3 text-sm text-blue-300"
+          className="mt-3 text-sm text-violet-700"
         >
           {notice}
         </p>
       ) : null}
 
-      <section className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
+      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
         <p>
           Original posting:{" "}
           <a
             href={job.source_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="break-all text-blue-300 hover:underline"
+            className="break-all text-violet-700 hover:underline"
           >
             {job.source_url}
           </a>
         </p>
         {job.source_attribution_text ? (
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-slate-500">
             {job.source_attribution_text}
           </p>
         ) : null}
@@ -250,14 +250,14 @@ export default function JobDetailPage({
 
       {job.locations.length > 0 ? (
         <section className="mt-6">
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-base font-semibold text-slate-900">
             Locations
           </h2>
-          <ul className="mt-2 flex flex-wrap gap-2 text-sm text-slate-300">
+          <ul className="mt-2 flex flex-wrap gap-2 text-sm text-slate-600">
             {job.locations.map((location) => (
               <li
                 key={location.id}
-                className="rounded-md border border-slate-800 bg-slate-900 px-3 py-1.5"
+                className="rounded-md border border-slate-200 bg-white px-3 py-1.5"
               >
                 {location.raw_location_text ??
                   [
@@ -276,14 +276,14 @@ export default function JobDetailPage({
 
       {job.compensations.length > 0 ? (
         <section className="mt-6">
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-base font-semibold text-slate-900">
             Compensation (as stated by the source)
           </h2>
-          <ul className="mt-2 grid gap-2 text-sm text-slate-300">
+          <ul className="mt-2 grid gap-2 text-sm text-slate-600">
             {job.compensations.map((compensation) => (
               <li
                 key={compensation.id}
-                className="rounded-md border border-slate-800 bg-slate-900 px-3 py-1.5"
+                className="rounded-md border border-slate-200 bg-white px-3 py-1.5"
               >
                 {compensation.source_text ??
                   `${compensation.min_amount ?? "?"} – ${compensation.max_amount ?? "?"} ${compensation.currency ?? ""} (${humanizeToken(compensation.compensation_period)})`}
@@ -295,14 +295,14 @@ export default function JobDetailPage({
 
       {job.skill_requirements.length > 0 ? (
         <section className="mt-6">
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-base font-semibold text-slate-900">
             Skills (as stated by the source)
           </h2>
-          <ul className="mt-2 flex flex-wrap gap-2 text-sm text-slate-300">
+          <ul className="mt-2 flex flex-wrap gap-2 text-sm text-slate-600">
             {job.skill_requirements.map((skill) => (
               <li
                 key={skill.id}
-                className="rounded-md border border-slate-800 bg-slate-900 px-3 py-1.5"
+                className="rounded-md border border-slate-200 bg-white px-3 py-1.5"
               >
                 {skill.skill_text} ·{" "}
                 {humanizeToken(skill.requirement_type)}
@@ -334,15 +334,15 @@ export default function JobDetailPage({
       />
 
       <section className="mt-8">
-        <h2 className="text-base font-semibold text-white">
+        <h2 className="text-base font-semibold text-slate-900">
           Possible duplicates
         </h2>
         {duplicates.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-slate-500">
             No duplicate links detected for this job.
           </p>
         ) : (
-          <ul className="mt-2 grid gap-2 text-sm text-slate-300">
+          <ul className="mt-2 grid gap-2 text-sm text-slate-600">
             {duplicates.map((duplicate) => {
               const otherJobId =
                 duplicate.job_id === job.id
@@ -352,11 +352,11 @@ export default function JobDetailPage({
               return (
                 <li
                   key={duplicate.id}
-                  className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2"
                 >
                   <Link
                     href={`/jobs/${otherJobId}`}
-                    className="text-blue-300 hover:underline"
+                    className="text-violet-700 hover:underline"
                   >
                     Job #{otherJobId}
                   </Link>{" "}

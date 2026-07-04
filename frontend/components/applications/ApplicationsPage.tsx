@@ -64,19 +64,19 @@ export default function ApplicationsPage() {
   }, [load]);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-5xl">
         <header className="mb-8">
           <Link
             href="/"
-            className="text-sm text-blue-300 hover:text-blue-200"
+            className="text-sm text-violet-700 hover:text-violet-800"
           >
             ← Dashboard
           </Link>
 
-          <h1 className="mt-3 text-3xl font-bold">Applications</h1>
+          <h1 className="mt-3 text-3xl font-bold text-slate-900">Applications</h1>
 
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
             Track every application through its lifecycle — from
             prepared and ready-to-submit through interview and
             outcome. Recording a submission is a deliberate action
@@ -101,15 +101,15 @@ export default function ApplicationsPage() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-400">Loading…</p>
+          <p className="text-sm text-slate-500">Loading…</p>
         ) : applications.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-sm text-slate-400">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
             No tracked applications yet. Open a job and choose
             &ldquo;Track application&rdquo; to start.
           </div>
@@ -118,7 +118,7 @@ export default function ApplicationsPage() {
             {applications.map((application) => (
               <li
                 key={application.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900 p-5"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex flex-wrap items-center gap-3">
                   <span
@@ -135,7 +135,7 @@ export default function ApplicationsPage() {
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm text-slate-300">
+                    <p className="text-sm text-slate-600">
                       Job #{application.job_id}
                       {application.confirmation_number
                         ? ` · Confirmation ${application.confirmation_number}`
@@ -151,7 +151,7 @@ export default function ApplicationsPage() {
 
                   <Link
                     href={`/applications/${application.id}`}
-                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-blue-300 transition hover:border-blue-500"
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
                   >
                     Open
                   </Link>
@@ -180,8 +180,8 @@ function FilterChip({
       onClick={onClick}
       className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
         active
-          ? "border-blue-500 bg-blue-500/10 text-blue-200"
-          : "border-slate-700 text-slate-400 hover:border-slate-500"
+          ? "border-violet-200 bg-violet-50 text-violet-700"
+          : "border-slate-300 text-slate-500 hover:border-violet-400 hover:text-violet-700"
       }`}
     >
       {label}

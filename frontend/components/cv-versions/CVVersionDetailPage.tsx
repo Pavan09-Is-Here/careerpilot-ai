@@ -54,12 +54,12 @@ function VersionLink({
   return (
     <Link
       href={`/cv-versions/${version.id}`}
-      className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-3 transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      className="rounded-lg border border-slate-200 bg-white px-4 py-3 transition hover:border-violet-400 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-violet-200"
     >
-      <span className="block font-semibold text-slate-100">
+      <span className="block font-semibold text-slate-900">
         {version.display_name}
       </span>
-      <span className="mt-1 block text-sm text-slate-400">
+      <span className="mt-1 block text-sm text-slate-500">
         #{version.id} / {humanizeToken(version.version_type)} /{" "}
         {humanizeToken(version.status)}
       </span>
@@ -194,7 +194,7 @@ export default function CVVersionDetailPage({
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
+      <main className="cp-page">
         <div className="mx-auto max-w-7xl">
           <LoadingState label="Loading CV version..." />
         </div>
@@ -204,11 +204,11 @@ export default function CVVersionDetailPage({
 
   if (!version) {
     return (
-      <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
+      <main className="cp-page">
         <div className="mx-auto max-w-7xl space-y-5">
           <Link
             href="/cv-versions"
-            className="text-sm font-semibold text-blue-300 transition hover:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="text-sm font-semibold text-violet-700 transition hover:text-violet-800 focus:outline-none focus:ring-2 focus:ring-violet-200"
           >
             CV versions
           </Link>
@@ -227,17 +227,17 @@ export default function CVVersionDetailPage({
   const canDelete = children.length === 0;
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div>
             <Link
               href="/cv-versions"
-              className="text-sm font-semibold text-blue-300 transition hover:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm font-semibold text-violet-700 transition hover:text-violet-800 focus:outline-none focus:ring-2 focus:ring-violet-200"
             >
               CV versions
             </Link>
-            <h1 className="mt-3 break-words text-3xl font-bold sm:text-4xl">
+            <h1 className="mt-3 break-words text-3xl font-bold text-slate-900 sm:text-4xl">
               {version.display_name}
             </h1>
           </div>
@@ -245,7 +245,7 @@ export default function CVVersionDetailPage({
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/documents"
-              className="inline-flex justify-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-blue-200 transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="inline-flex justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-violet-200"
             >
               Documents
             </Link>
@@ -253,7 +253,7 @@ export default function CVVersionDetailPage({
               type="button"
               onClick={refresh}
               disabled={refreshing}
-              className="inline-flex justify-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:text-slate-500"
+              className="inline-flex justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-violet-400 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:cursor-not-allowed disabled:text-slate-400"
             >
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
@@ -312,7 +312,7 @@ export default function CVVersionDetailPage({
             </dl>
 
             {version.description ? (
-              <p className="mt-5 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+              <p className="mt-5 whitespace-pre-wrap text-sm leading-6 text-slate-600">
                 {version.description}
               </p>
             ) : null}
@@ -378,7 +378,7 @@ export default function CVVersionDetailPage({
                     },
                   )
                 }
-                className="inline-flex rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:text-slate-500"
+                className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-violet-400 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:cursor-not-allowed disabled:text-slate-400"
               >
                 {busyAction === "primary-version"
                   ? "Setting primary..."
@@ -408,7 +408,7 @@ export default function CVVersionDetailPage({
                       },
                     );
                   }}
-                  className="inline-flex rounded-lg border border-amber-500/60 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:cursor-not-allowed disabled:text-slate-500"
+                  className="inline-flex rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-200 disabled:cursor-not-allowed disabled:text-slate-400"
                 >
                   {busyAction === "archive-version"
                     ? "Archiving..."
@@ -440,7 +440,7 @@ export default function CVVersionDetailPage({
                     { reload: false },
                   );
                 }}
-                className="inline-flex rounded-lg border border-rose-500/60 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:cursor-not-allowed disabled:text-slate-500"
+                className="inline-flex rounded-lg border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-400 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 disabled:cursor-not-allowed disabled:text-slate-400"
               >
                 {busyAction === "delete-version"
                   ? "Deleting..."
@@ -449,7 +449,7 @@ export default function CVVersionDetailPage({
             </div>
 
             {!canDelete ? (
-              <p className="mt-4 text-sm text-amber-100">
+              <p className="mt-4 text-sm text-amber-700">
                 Versions with child history must remain
                 available.
               </p>

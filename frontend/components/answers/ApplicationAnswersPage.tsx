@@ -157,19 +157,19 @@ export default function ApplicationAnswersPage() {
   );
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-4xl">
         <header className="mb-8">
           <Link
             href="/"
-            className="text-sm text-blue-300 hover:text-blue-200"
+            className="text-sm text-violet-700 hover:text-violet-800"
           >
             ← Dashboard
           </Link>
-          <h1 className="mt-3 text-3xl font-bold">
+          <h1 className="mt-3 text-3xl font-bold text-slate-900">
             Application answers
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
             Reusable answers to common application questions. Only
             verified answers are used in prepared applications.
             Sensitive or legal answers (work authorization,
@@ -179,18 +179,18 @@ export default function ApplicationAnswersPage() {
         </header>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
-        <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
             {editingId === null ? "Add answer" : "Edit answer"}
           </h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-xs text-slate-400">
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
               Category
               <select
                 value={form.category}
@@ -201,7 +201,7 @@ export default function ApplicationAnswersPage() {
                       .value as ApplicationAnswerCategory,
                   }))
                 }
-                className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+                className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
               >
                 {CATEGORIES.map((value) => (
                   <option key={value} value={value}>
@@ -211,7 +211,7 @@ export default function ApplicationAnswersPage() {
               </select>
             </label>
 
-            <label className="flex flex-col gap-1 text-xs text-slate-400">
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
               Question label
               <input
                 type="text"
@@ -223,12 +223,12 @@ export default function ApplicationAnswersPage() {
                   }))
                 }
                 placeholder="e.g. Do you require visa sponsorship?"
-                className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+                className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
               />
             </label>
           </div>
 
-          <label className="mt-3 flex flex-col gap-1 text-xs text-slate-400">
+          <label className="mt-3 flex flex-col gap-1 text-xs text-slate-500">
             Answer
             <textarea
               value={form.answer_text}
@@ -239,11 +239,11 @@ export default function ApplicationAnswersPage() {
                 }))
               }
               rows={3}
-              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             />
           </label>
 
-          <label className="mt-3 flex flex-col gap-1 text-xs text-slate-400">
+          <label className="mt-3 flex flex-col gap-1 text-xs text-slate-500">
             Notes (optional)
             <input
               type="text"
@@ -254,12 +254,12 @@ export default function ApplicationAnswersPage() {
                   notes: event.target.value || null,
                 }))
               }
-              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
             />
           </label>
 
           <div className="mt-4 flex flex-wrap items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
                 type="checkbox"
                 checked={form.verified}
@@ -272,7 +272,7 @@ export default function ApplicationAnswersPage() {
               />
               Verified
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
                 type="checkbox"
                 checked={form.manually_confirmed}
@@ -291,7 +291,7 @@ export default function ApplicationAnswersPage() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-500"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:border-violet-400 hover:text-violet-700"
                 >
                   Cancel
                 </button>
@@ -304,7 +304,7 @@ export default function ApplicationAnswersPage() {
                   form.answer_text.trim() === ""
                 }
                 onClick={submit}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
               >
                 {editingId === null ? "Add answer" : "Save changes"}
               </button>
@@ -313,9 +313,9 @@ export default function ApplicationAnswersPage() {
         </section>
 
         {loading ? (
-          <p className="text-sm text-slate-400">Loading…</p>
+          <p className="text-sm text-slate-500">Loading…</p>
         ) : answers.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-sm text-slate-400">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
             No answers yet.
           </div>
         ) : (
@@ -328,23 +328,23 @@ export default function ApplicationAnswersPage() {
               return (
                 <li
                   key={answer.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-900 p-5"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
                       {humanize(answer.category)}
                     </span>
                     {answer.verified ? (
-                      <span className="rounded-full border border-emerald-500/40 px-3 py-1 text-xs text-emerald-300">
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
                         Verified
                       </span>
                     ) : (
-                      <span className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-400">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-500">
                         Unverified
                       </span>
                     )}
                     {needsConfirmation && (
-                      <span className="rounded-full border border-amber-500/40 px-3 py-1 text-xs text-amber-300">
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
                         Needs manual confirmation
                       </span>
                     )}
@@ -352,7 +352,7 @@ export default function ApplicationAnswersPage() {
                       <button
                         type="button"
                         onClick={() => startEdit(answer)}
-                        className="text-xs text-blue-300 hover:text-blue-200"
+                        className="text-xs text-violet-700 hover:text-violet-800"
                       >
                         Edit
                       </button>
@@ -360,17 +360,17 @@ export default function ApplicationAnswersPage() {
                         type="button"
                         disabled={busy}
                         onClick={() => remove(answer.id)}
-                        className="text-xs text-rose-300 hover:text-rose-200 disabled:opacity-50"
+                        className="text-xs text-red-700 hover:text-red-800 disabled:opacity-50"
                       >
                         Delete
                       </button>
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm font-medium text-slate-200">
+                  <p className="mt-3 text-sm font-medium text-slate-900">
                     {answer.question_label}
                   </p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-400">
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
                     {answer.answer_text}
                   </p>
                 </li>

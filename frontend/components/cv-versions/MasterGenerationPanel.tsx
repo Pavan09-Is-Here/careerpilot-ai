@@ -110,11 +110,11 @@ export default function MasterGenerationPanel({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-5"
+      className="rounded-lg border border-emerald-200 bg-emerald-50 p-5"
     >
       <div className="flex flex-col gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-lg font-semibold text-slate-900">
             Generate Verified Master CV
           </h3>
         </div>
@@ -123,7 +123,7 @@ export default function MasterGenerationPanel({
           <div>
             <label
               htmlFor="master-display-name"
-              className="block text-sm font-medium text-slate-200"
+              className="block text-sm font-medium text-slate-700"
             >
               Display name
             </label>
@@ -134,18 +134,18 @@ export default function MasterGenerationPanel({
                 setDisplayName(event.target.value)
               }
               maxLength={250}
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
             />
           </div>
 
-          <label className="flex items-end gap-3 rounded-lg border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200">
+          <label className="flex items-end gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
             <input
               type="checkbox"
               checked={isPrimary}
               onChange={(event) =>
                 setIsPrimary(event.target.checked)
               }
-              className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-emerald-600 focus:ring-emerald-500"
+              className="h-4 w-4 rounded border-slate-300 bg-white text-emerald-600 focus:ring-emerald-500"
             />
             Mark generated version primary
           </label>
@@ -154,7 +154,7 @@ export default function MasterGenerationPanel({
         <div>
           <label
             htmlFor="master-description"
-            className="block text-sm font-medium text-slate-200"
+            className="block text-sm font-medium text-slate-700"
           >
             Description
           </label>
@@ -166,7 +166,7 @@ export default function MasterGenerationPanel({
             }
             rows={3}
             maxLength={1000}
-            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
           />
         </div>
 
@@ -182,7 +182,7 @@ export default function MasterGenerationPanel({
         <button
           type="submit"
           disabled={generating}
-          className="inline-flex w-fit rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700"
+          className="inline-flex w-fit rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           {generating
             ? "Generating..."

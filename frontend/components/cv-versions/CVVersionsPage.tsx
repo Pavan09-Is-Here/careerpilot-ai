@@ -109,17 +109,17 @@ export default function CVVersionsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div>
             <Link
               href="/"
-              className="text-sm font-semibold text-blue-300 transition hover:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm font-semibold text-violet-700 transition hover:text-violet-800 focus:outline-none focus:ring-2 focus:ring-violet-200"
             >
               Dashboard
             </Link>
-            <h1 className="mt-3 text-3xl font-bold sm:text-4xl">
+            <h1 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">
               CV versions
             </h1>
           </div>
@@ -127,7 +127,7 @@ export default function CVVersionsPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/documents"
-              className="inline-flex justify-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-blue-200 transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="inline-flex justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-violet-200"
             >
               Documents
             </Link>
@@ -135,7 +135,7 @@ export default function CVVersionsPage() {
               type="button"
               onClick={refresh}
               disabled={refreshing}
-              className="inline-flex justify-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:text-slate-500"
+              className="inline-flex justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-violet-400 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:cursor-not-allowed disabled:text-slate-400"
             >
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>

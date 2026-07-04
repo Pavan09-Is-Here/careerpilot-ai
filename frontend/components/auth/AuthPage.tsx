@@ -28,7 +28,7 @@ function formatDateTime(value: string): string {
 }
 
 const inputClass =
-  "mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200";
+  "mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200";
 
 export default function AuthPage() {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -117,36 +117,36 @@ export default function AuthPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-md">
         <Link
           href="/"
-          className="text-sm text-blue-300 hover:text-blue-200"
+          className="text-sm font-medium text-violet-600 transition hover:text-violet-700"
         >
           ← Dashboard
         </Link>
-        <h1 className="mt-3 text-2xl font-bold">Account</h1>
+        <h1 className="mt-3 text-2xl font-bold text-slate-900">Account</h1>
 
         {error && (
-          <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
         {notice && (
-          <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             {notice}
           </div>
         )}
 
         {loading ? (
-          <p className="mt-6 text-sm text-slate-400">Loading…</p>
+          <p className="mt-6 text-sm text-slate-500">Loading…</p>
         ) : session ? (
           <>
-            <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+            <section className="mt-6 cp-card p-5">
+              <h2 className="cp-eyebrow text-xs tracking-wide">
                 Signed in
               </h2>
-              <dl className="mt-3 space-y-1 text-sm text-slate-300">
+              <dl className="mt-3 space-y-1 text-sm text-slate-600">
                 <div className="flex justify-between">
                   <dt className="text-slate-500">Username</dt>
                   <dd>{session.username}</dd>
@@ -171,14 +171,14 @@ export default function AuthPage() {
                     setNotice("Signed out.");
                   })
                 }
-                className="mt-4 w-full rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-blue-400"
+                className="mt-4 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700"
               >
                 Sign out
               </button>
             </section>
 
-            <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+            <section className="mt-6 cp-card p-5">
+              <h2 className="cp-eyebrow text-xs tracking-wide">
                 Change password
               </h2>
               <input
@@ -215,18 +215,18 @@ export default function AuthPage() {
                     await refresh();
                   })
                 }
-                className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+                className="mt-3 w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
               >
                 Change password
               </button>
             </section>
           </>
         ) : mode === "register" ? (
-          <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <section className="mt-6 cp-card p-5">
+            <h2 className="cp-eyebrow text-xs tracking-wide">
               Create account
             </h2>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-slate-500">
               Pick a username and password. Your profile and data are
               private to your account.
             </p>
@@ -284,7 +284,7 @@ export default function AuthPage() {
                   await refresh();
                 })
               }
-              className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+              className="mt-3 w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
             >
               Create account
             </button>
@@ -295,14 +295,14 @@ export default function AuthPage() {
                 setError(null);
                 setNotice(null);
               }}
-              className="mt-3 w-full text-center text-sm text-blue-300 hover:text-blue-200"
+              className="mt-3 w-full text-center text-sm font-medium text-violet-600 transition hover:text-violet-700"
             >
               Already have an account? Sign in
             </button>
           </section>
         ) : (
-          <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <section className="mt-6 cp-card p-5">
+            <h2 className="cp-eyebrow text-xs tracking-wide">
               Sign in
             </h2>
             <input
@@ -335,7 +335,7 @@ export default function AuthPage() {
                   await refresh();
                 })
               }
-              className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+              className="mt-3 w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
             >
               Sign in
             </button>
@@ -346,7 +346,7 @@ export default function AuthPage() {
                 setError(null);
                 setNotice(null);
               }}
-              className="mt-3 w-full text-center text-sm text-blue-300 hover:text-blue-200"
+              className="mt-3 w-full text-center text-sm font-medium text-violet-600 transition hover:text-violet-700"
             >
               New here? Create an account
             </button>

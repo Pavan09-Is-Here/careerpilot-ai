@@ -36,12 +36,12 @@ const READY_STATUSES = new Set([
 
 function readinessClasses(status: string): string {
   if (status === "ready_for_automatic_application") {
-    return "border-emerald-500/40 text-emerald-300";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
   if (status === "needs_user_review") {
-    return "border-amber-500/40 text-amber-300";
+    return "border-amber-200 bg-amber-50 text-amber-700";
   }
-  return "border-rose-500/40 text-rose-300";
+  return "border-rose-200 bg-rose-50 text-rose-700";
 }
 
 export default function ApplicationPrepPage({
@@ -110,19 +110,19 @@ export default function ApplicationPrepPage({
     currentGate?.code === "submission_confirmation";
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-4xl space-y-6">
         <div>
           <Link
             href={`/jobs/${jobId}`}
-            className="text-sm text-blue-300 hover:text-blue-200"
+            className="text-sm text-violet-700 hover:text-violet-800"
           >
             ← Back to job
           </Link>
-          <h1 className="mt-3 text-2xl font-bold">
+          <h1 className="mt-3 text-2xl font-bold text-slate-900">
             Prepare &amp; apply
           </h1>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
             Assemble the tailored application, review what&rsquo;s
             ready or blocked, then step through the safety gates. The
             tool never submits for you — you perform the final
@@ -131,18 +131,18 @@ export default function ApplicationPrepPage({
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-400">Loading…</p>
+          <p className="text-sm text-slate-500">Loading…</p>
         ) : (
           <>
-            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
                   Application package
                 </h2>
                 <button
@@ -156,14 +156,14 @@ export default function ApplicationPrepPage({
                       setRun(null);
                     })
                   }
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
                 >
                   {pkg ? "Re-prepare" : "Prepare application"}
                 </button>
               </div>
 
               {!pkg ? (
-                <p className="mt-3 text-sm text-slate-400">
+                <p className="mt-3 text-sm text-slate-500">
                   No package yet. Prepare one to tailor the CV and
                   assemble the application.
                 </p>
@@ -243,18 +243,18 @@ export default function ApplicationPrepPage({
                   </div>
 
                   {pkg.cover_letter_text && (
-                    <details className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-                      <summary className="cursor-pointer text-sm text-slate-300">
+                    <details className="rounded-lg border border-slate-200 bg-white p-3">
+                      <summary className="cursor-pointer text-sm text-slate-600">
                         Cover letter preview
                       </summary>
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-400">
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
                         {pkg.cover_letter_text}
                       </p>
                     </details>
                   )}
 
-                  <div className="border-t border-slate-800 pt-4">
-                    <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <div className="border-t border-slate-200 pt-4">
+                    <label className="flex flex-col gap-1 text-xs text-slate-500">
                       Notes for yourself
                       <input
                         type="text"
@@ -262,7 +262,7 @@ export default function ApplicationPrepPage({
                         onChange={(event) =>
                           setNotes(event.target.value)
                         }
-                        className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+                        className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
                       />
                     </label>
                     <div className="mt-3 flex items-center gap-3">
@@ -281,7 +281,7 @@ export default function ApplicationPrepPage({
                             setPkg(updated);
                           })
                         }
-                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold transition hover:bg-emerald-500 disabled:opacity-50"
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
                       >
                         {pkg.user_confirmed
                           ? "Confirmed ✓"
@@ -299,9 +299,9 @@ export default function ApplicationPrepPage({
             </section>
 
             {pkg && (
-              <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
                     Guided submission
                   </h2>
                   <button
@@ -312,21 +312,21 @@ export default function ApplicationPrepPage({
                         setRun(await startApplicationRun(jobId));
                       })
                     }
-                    className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-blue-300 transition hover:border-blue-500 disabled:opacity-50"
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-violet-700 transition hover:border-violet-400 hover:bg-violet-50 disabled:opacity-50"
                   >
                     {run ? "Restart run" : "Start guided run"}
                   </button>
                 </div>
 
                 {!run ? (
-                  <p className="mt-3 text-sm text-slate-400">
+                  <p className="mt-3 text-sm text-slate-500">
                     Start a guided run to step through the safety
                     gates (CAPTCHA, MFA, legal declarations) and
                     record the final submission.
                   </p>
                 ) : (
                   <div className="mt-4 space-y-4">
-                    <p className="text-sm text-slate-300">
+                    <p className="text-sm text-slate-700">
                       Status:{" "}
                       <span className="font-medium">
                         {humanize(run.status)}
@@ -342,10 +342,10 @@ export default function ApplicationPrepPage({
                           key={gate.code}
                           className={`rounded-lg border px-3 py-2 text-sm ${
                             gate.acknowledged
-                              ? "border-emerald-500/30 text-emerald-300"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                               : gate === currentGate
-                                ? "border-amber-500/40 text-amber-200"
-                                : "border-slate-800 text-slate-400"
+                                ? "border-amber-200 bg-amber-50 text-amber-700"
+                                : "border-slate-200 bg-white text-slate-600"
                           }`}
                         >
                           <span className="font-medium">
@@ -372,7 +372,7 @@ export default function ApplicationPrepPage({
                               );
                             })
                           }
-                          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+                          className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
                         >
                           I&rsquo;ve handled &ldquo;
                           {humanize(currentGate.code)}&rdquo; — continue
@@ -381,8 +381,8 @@ export default function ApplicationPrepPage({
 
                     {run.status === "paused_for_gate" &&
                       atSubmissionGate && (
-                        <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-                          <p className="text-sm text-slate-300">
+                        <div className="rounded-lg border border-slate-200 bg-white p-3">
+                          <p className="text-sm text-slate-600">
                             Submit the application on the
                             employer&rsquo;s site, then record the
                             confirmation number here.
@@ -395,7 +395,7 @@ export default function ApplicationPrepPage({
                                 setConfirmation(event.target.value)
                               }
                               placeholder="Confirmation number"
-                              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
                             />
                             <button
                               type="button"
@@ -412,7 +412,7 @@ export default function ApplicationPrepPage({
                                   );
                                 })
                               }
-                              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold transition hover:bg-emerald-500 disabled:opacity-50"
+                              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
                             >
                               Record submission
                             </button>
@@ -442,7 +442,7 @@ export default function ApplicationPrepPage({
                             );
                           })
                         }
-                        className="text-xs text-rose-300 hover:text-rose-200"
+                        className="text-xs text-rose-700 hover:text-rose-800"
                       >
                         Cancel run
                       </button>
@@ -468,7 +468,7 @@ function ItemList({
   tone: "rose" | "amber";
 }) {
   const color =
-    tone === "rose" ? "text-rose-300" : "text-amber-300";
+    tone === "rose" ? "text-rose-700" : "text-amber-700";
   return (
     <div>
       <h3
@@ -476,7 +476,7 @@ function ItemList({
       >
         {title}
       </h3>
-      <ul className="mt-1 space-y-1 text-sm text-slate-400">
+      <ul className="mt-1 space-y-1 text-sm text-slate-600">
         {items.map((item, index) => (
           <li key={`${item}-${index}`}>• {item}</li>
         ))}
@@ -493,9 +493,9 @@ function Fact({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2">
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-0.5 text-sm text-slate-200">{value}</p>
+      <p className="mt-0.5 text-sm text-slate-700">{value}</p>
     </div>
   );
 }

@@ -80,19 +80,19 @@ function ActionButton({
 }) {
   const toneClass =
     tone === "primary"
-      ? "bg-blue-600 text-white hover:bg-blue-500 focus:ring-blue-300 disabled:bg-slate-700"
+      ? "bg-violet-600 text-white hover:bg-violet-500 focus:ring-violet-300 disabled:bg-slate-300"
       : tone === "danger"
-      ? "border-rose-500/60 text-rose-100 hover:border-rose-300 focus:ring-rose-300"
+      ? "border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 focus:ring-red-300"
       : tone === "warning"
-      ? "border-amber-500/60 text-amber-100 hover:border-amber-300 focus:ring-amber-300"
-      : "border-slate-700 text-slate-100 hover:border-slate-500 focus:ring-slate-400";
+      ? "border-amber-200 text-amber-700 hover:border-amber-300 hover:bg-amber-50 focus:ring-amber-300"
+      : "border-slate-300 text-slate-700 hover:border-violet-400 hover:text-violet-700 focus:ring-slate-300";
 
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex justify-center rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:text-slate-500 ${toneClass}`}
+      className={`inline-flex justify-center rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:text-slate-400 ${toneClass}`}
     >
       {children}
     </button>
@@ -149,7 +149,7 @@ function ExtractedContent({
             onClick={() =>
               setExpanded((current) => !current)
             }
-            className="mb-3 inline-flex rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="mb-3 inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-violet-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
           >
             {expanded
               ? "Hide extracted text"
@@ -157,7 +157,7 @@ function ExtractedContent({
           </button>
 
           {expanded ? (
-            <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-950 p-4 text-sm leading-6 text-slate-200">
+            <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
               {text}
             </pre>
           ) : null}
@@ -213,15 +213,15 @@ function DetectedSections({
         return (
           <article
             key={section.id}
-            className="rounded-lg border border-slate-800 bg-slate-950 p-4"
+            className="rounded-lg border border-slate-200 bg-white p-4"
           >
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
               <div>
-                <h3 className="text-base font-semibold text-white">
+                <h3 className="text-base font-semibold text-slate-900">
                   {section.title ||
                     humanizeToken(section.section_type)}
                 </h3>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm text-slate-500">
                   {humanizeToken(section.section_type)}
                 </p>
               </div>
@@ -240,7 +240,7 @@ function DetectedSections({
               </div>
             </div>
 
-            <pre className="mt-4 whitespace-pre-wrap break-words rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm leading-6 text-slate-200">
+            <pre className="mt-4 whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
               {content}
             </pre>
 
@@ -251,7 +251,7 @@ function DetectedSections({
                 onClick={() =>
                   toggleSection(section.id)
                 }
-                className="mt-3 inline-flex rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                className="mt-3 inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-violet-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
               >
                 {expanded
                   ? "Collapse section"
@@ -271,13 +271,13 @@ function FindingCard({
   finding: FactComparisonFinding;
 }) {
   return (
-    <article className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+    <article className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div>
-          <h3 className="font-semibold text-white">
+          <h3 className="font-semibold text-slate-900">
             {findingLabel(finding)}
           </h3>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             {humanizeToken(finding.entity_type)}
             {finding.field_name
               ? ` / ${humanizeToken(
@@ -293,7 +293,7 @@ function FindingCard({
         </div>
       </div>
 
-      <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+      <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">
         {finding.explanation}
       </p>
 
@@ -538,7 +538,7 @@ export default function DocumentDetailPage({
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
+      <main className="cp-page">
         <div className="mx-auto max-w-7xl">
           <LoadingState label="Loading document..." />
         </div>
@@ -548,11 +548,11 @@ export default function DocumentDetailPage({
 
   if (!document) {
     return (
-      <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
+      <main className="cp-page">
         <div className="mx-auto max-w-7xl space-y-5">
           <Link
             href="/documents"
-            className="text-sm font-semibold text-blue-300 transition hover:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="text-sm font-semibold text-violet-600 transition hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
           >
             Documents
           </Link>
@@ -577,17 +577,17 @@ export default function DocumentDetailPage({
     comparisonStatusText(comparison);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div>
             <Link
               href="/documents"
-              className="text-sm font-semibold text-blue-300 transition hover:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm font-semibold text-violet-600 transition hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
             >
               Documents
             </Link>
-            <h1 className="mt-3 break-words text-3xl font-bold sm:text-4xl">
+            <h1 className="mt-3 break-words text-3xl font-bold text-slate-900 sm:text-4xl">
               {document.original_filename}
             </h1>
           </div>
@@ -595,7 +595,7 @@ export default function DocumentDetailPage({
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/cv-versions"
-              className="inline-flex justify-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-blue-200 transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="inline-flex justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
             >
               CV versions
             </Link>
@@ -603,7 +603,7 @@ export default function DocumentDetailPage({
               type="button"
               onClick={refresh}
               disabled={refreshing}
-              className="inline-flex justify-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:text-slate-500"
+              className="inline-flex justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-violet-400 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:text-slate-400"
             >
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
@@ -816,7 +816,7 @@ export default function DocumentDetailPage({
             }
           >
             {existingOriginalVersion ? (
-              <p className="mb-4 text-sm text-slate-400">
+              <p className="mb-4 text-sm text-slate-500">
                 Original version #
                 {existingOriginalVersion.id} is linked to
                 this document.

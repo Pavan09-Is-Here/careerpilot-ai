@@ -59,13 +59,13 @@ function formatDateTime(value: string | null): string {
 function categoryClasses(category: string): string {
   switch (category) {
     case "application_submitted":
-      return "border-emerald-500/40 text-emerald-300";
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "application_prepared":
-      return "border-blue-500/40 text-blue-300";
+      return "border-violet-200 bg-violet-50 text-violet-700";
     case "manual_action_required":
-      return "border-amber-500/40 text-amber-300";
+      return "border-amber-200 bg-amber-50 text-amber-700";
     default:
-      return "border-slate-600 text-slate-300";
+      return "border-slate-200 bg-slate-50 text-slate-600";
   }
 }
 
@@ -143,22 +143,22 @@ export default function NotificationsPage() {
   const items: Notification[] = notificationPage?.items ?? [];
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-5xl">
         <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <Link
               href="/"
-              className="text-sm text-blue-300 hover:text-blue-200"
+              className="text-sm text-violet-700 hover:text-violet-800"
             >
               ← Dashboard
             </Link>
 
-            <h1 className="mt-3 text-3xl font-bold">
+            <h1 className="mt-3 text-3xl font-bold text-slate-900">
               Notifications
             </h1>
 
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
               Alerts when applications are prepared and ready to
               submit, when a submission is recorded, and when
               something needs your input. Email delivery runs only
@@ -171,18 +171,18 @@ export default function NotificationsPage() {
             type="button"
             onClick={handleDeliver}
             disabled={delivering}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+            className="inline-flex items-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
           >
             {delivering ? "Delivering…" : "Deliver pending"}
           </button>
         </header>
 
         {deliverResult && (
-          <div className="mb-6 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
+          <div className="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
             Delivery attempt — sent {deliverResult.sent}, failed{" "}
             {deliverResult.failed}, skipped {deliverResult.skipped}.
             {deliverResult.skipped > 0 && (
-              <span className="text-slate-400">
+              <span className="text-slate-500">
                 {" "}
                 Skipped messages stay pending until SMTP is
                 configured.
@@ -224,15 +224,15 @@ export default function NotificationsPage() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-400">Loading…</p>
+          <p className="text-sm text-slate-500">Loading…</p>
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-sm text-slate-400">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
             No notifications yet.
           </div>
         ) : (
@@ -240,7 +240,7 @@ export default function NotificationsPage() {
             {items.map((notification) => (
               <li
                 key={notification.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900 p-5"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex flex-wrap items-center gap-3">
                   <span
@@ -251,7 +251,7 @@ export default function NotificationsPage() {
                     {humanize(notification.category)}
                   </span>
 
-                  <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
                     {humanize(notification.status)}
                   </span>
 
@@ -260,11 +260,11 @@ export default function NotificationsPage() {
                   </span>
                 </div>
 
-                <h2 className="mt-3 text-base font-semibold text-slate-100">
+                <h2 className="mt-3 text-base font-semibold text-slate-900">
                   {notification.subject}
                 </h2>
 
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
                   {notification.body}
                 </p>
 
@@ -273,13 +273,13 @@ export default function NotificationsPage() {
                   {notification.related_job_id && (
                     <Link
                       href={`/jobs/${notification.related_job_id}`}
-                      className="text-blue-300 hover:text-blue-200"
+                      className="text-violet-700 hover:text-violet-800"
                     >
                       View job #{notification.related_job_id}
                     </Link>
                   )}
                   {notification.error && (
-                    <span className="text-red-300">
+                    <span className="text-red-700">
                       {notification.error}
                     </span>
                   )}
@@ -308,8 +308,8 @@ function FilterChip({
       onClick={onClick}
       className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
         active
-          ? "border-blue-500 bg-blue-500/10 text-blue-200"
-          : "border-slate-700 text-slate-400 hover:border-slate-500"
+          ? "border-violet-200 bg-violet-50 text-violet-700"
+          : "border-slate-300 text-slate-500 hover:border-violet-400 hover:text-violet-700"
       }`}
     >
       {label}

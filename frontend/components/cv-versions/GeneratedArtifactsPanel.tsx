@@ -112,10 +112,10 @@ export default function GeneratedArtifactsPanel({
             return (
               <div
                 key={artifactType}
-                className="rounded-lg border border-dashed border-slate-700 bg-slate-950 p-4"
+                className="rounded-lg border border-dashed border-slate-300 bg-white p-4"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="font-semibold text-slate-100">
+                  <h3 className="font-semibold text-slate-900">
                     {artifactType.toUpperCase()}
                   </h3>
                   <StatusBadge
@@ -130,14 +130,14 @@ export default function GeneratedArtifactsPanel({
           return (
             <article
               key={artifact.id}
-              className="rounded-lg border border-slate-800 bg-slate-950 p-4"
+              className="rounded-lg border border-slate-200 bg-white p-4"
             >
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
-                  <h3 className="font-semibold text-slate-100">
+                  <h3 className="font-semibold text-slate-900">
                     {artifactLabel(artifact)}
                   </h3>
-                  <p className="mt-1 text-sm text-slate-400">
+                  <p className="mt-1 text-sm text-slate-500">
                     {artifact.mime_type}
                   </p>
                 </div>
@@ -151,7 +151,7 @@ export default function GeneratedArtifactsPanel({
                     downloadingId !== null &&
                     downloadingId !== artifact.id
                   }
-                  className="inline-flex justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:bg-slate-700"
+                  className="inline-flex justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   {downloadingId === artifact.id
                     ? `Downloading ${artifact.artifact_type.toUpperCase()}...`

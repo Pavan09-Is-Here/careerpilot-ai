@@ -357,8 +357,8 @@ export default function CandidateProfileForm() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <p className="text-slate-300">
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-900">
+        <p className="text-slate-600">
           Loading candidate profile...
         </p>
       </main>
@@ -366,12 +366,12 @@ export default function CandidateProfileForm() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+    <main className="cp-page">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8">
           <Link
             href="/"
-            className="text-sm font-medium text-blue-400 transition hover:text-blue-300"
+            className="text-sm font-medium text-violet-600 transition hover:text-violet-700"
           >
             ← Back to dashboard
           </Link>
@@ -382,7 +382,7 @@ export default function CandidateProfileForm() {
                 Candidate Profile
               </h1>
 
-              <p className="mt-3 max-w-3xl leading-7 text-slate-400">
+              <p className="mt-3 max-w-3xl leading-7 text-slate-500">
                 This verified information will be
                 used for job matching, CV tailoring,
                 salary suggestions and applications.
@@ -738,13 +738,13 @@ export default function CandidateProfileForm() {
             </div>
           </FormSection>
 
-          <div className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-6 sm:flex-row sm:items-center">
+          <div className="flex flex-col justify-between gap-4 cp-card sm:flex-row sm:items-center">
             <div>
-              <p className="font-medium">
+              <p className="font-medium text-slate-900">
                 Candidate facts vault
               </p>
 
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-slate-500">
                 {lastSaved
                   ? `Last saved: ${new Date(
                       lastSaved,
@@ -756,7 +756,7 @@ export default function CandidateProfileForm() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-blue-600 px-7 py-3 font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-violet-600 px-7 py-3 font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving
                 ? "Saving..."
@@ -788,12 +788,12 @@ function FormSection({
   children,
 }: FormSectionProps) {
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-      <h2 className="text-xl font-semibold">
+    <section className="cp-card">
+      <h2 className="text-xl font-semibold text-slate-900">
         {title}
       </h2>
 
-      <p className="mt-2 mb-6 text-sm leading-6 text-slate-400">
+      <p className="mt-2 mb-6 text-sm leading-6 text-slate-500">
         {description}
       </p>
 
@@ -829,7 +829,7 @@ function TextField({
 }: TextFieldProps) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-300">
+      <span className="mb-2 block text-sm font-medium text-slate-700">
         {label}
       </span>
 
@@ -843,7 +843,7 @@ function TextField({
         onChange={(event) =>
           onChange(event.target.value)
         }
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500"
+        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
       />
     </label>
   );
@@ -864,7 +864,7 @@ function TextAreaField({
 }: TextAreaFieldProps) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-300">
+      <span className="mb-2 block text-sm font-medium text-slate-700">
         {label}
       </span>
 
@@ -875,7 +875,7 @@ function TextAreaField({
         onChange={(event) =>
           onChange(event.target.value)
         }
-        className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500"
+        className="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
       />
     </label>
   );
@@ -912,7 +912,7 @@ function CheckboxField({
         className="mt-1 h-4 w-4"
       />
 
-      <span className="text-sm leading-6 text-slate-300">
+      <span className="text-sm leading-6 text-slate-600">
         {label}
       </span>
     </label>
@@ -928,8 +928,8 @@ function ProfileVerificationBadge({
     <span
       className={`rounded-full border px-4 py-2 text-sm font-semibold ${
         verified
-          ? "border-emerald-800 bg-emerald-950 text-emerald-300"
-          : "border-amber-800 bg-amber-950 text-amber-300"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-amber-200 bg-amber-50 text-amber-700"
       }`}
     >
       {verified
@@ -948,8 +948,8 @@ function MessageBox({
 }) {
   const className =
     type === "success"
-      ? "border-emerald-800 bg-emerald-950/50 text-emerald-300"
-      : "border-red-900 bg-red-950/50 text-red-300";
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : "border-red-200 bg-red-50 text-red-700";
 
   return (
     <div

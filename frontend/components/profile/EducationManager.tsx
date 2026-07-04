@@ -296,28 +296,28 @@ export default function EducationManager() {
   return (
     <section className="mt-10">
       <div className="mb-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-400">
+        <p className="cp-eyebrow">
           Verified facts vault
         </p>
 
-        <h2 className="mt-3 text-3xl font-bold">
+        <h2 className="mt-3 text-3xl font-bold text-slate-900">
           Education
         </h2>
 
-        <p className="mt-3 max-w-3xl leading-7 text-slate-400">
+        <p className="mt-3 max-w-3xl leading-7 text-slate-500">
           Add your education exactly as it should
           appear in CVs and application forms.
         </p>
       </div>
 
       {successMessage && (
-        <div className="mb-6 rounded-xl border border-emerald-800 bg-emerald-950/50 p-4 text-emerald-300">
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
           {successMessage}
         </div>
       )}
 
       {errorMessage && (
-        <div className="mb-6 rounded-xl border border-red-900 bg-red-950/50 p-4 text-red-300">
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
           {errorMessage}
         </div>
       )}
@@ -328,7 +328,7 @@ export default function EducationManager() {
           onSubmit={(event) =>
             void handleSubmit(event)
           }
-          className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
+          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
         >
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
@@ -338,7 +338,7 @@ export default function EducationManager() {
                   : "Edit education"}
               </h3>
 
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-slate-500">
                 Fields marked with an asterisk are
                 required.
               </p>
@@ -348,7 +348,7 @@ export default function EducationManager() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-violet-400 hover:text-violet-700"
               >
                 Cancel editing
               </button>
@@ -477,7 +477,7 @@ export default function EducationManager() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-xl bg-blue-600 px-6 py-3 font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving
                 ? "Saving..."
@@ -489,12 +489,12 @@ export default function EducationManager() {
         </form>
 
         <div className="space-y-5">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-xl font-semibold">
               Saved education
             </h3>
 
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-slate-500">
               {records.length} education{" "}
               {records.length === 1
                 ? "record"
@@ -503,18 +503,18 @@ export default function EducationManager() {
           </div>
 
           {loading && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-500 shadow-sm">
               Loading education records...
             </div>
           )}
 
           {!loading && records.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 p-8 text-center">
-              <p className="font-medium">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+              <p className="font-medium text-slate-900">
                 No education added yet
               </p>
 
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-slate-500">
                 Add your university, college or
                 relevant qualification.
               </p>
@@ -525,7 +525,7 @@ export default function EducationManager() {
             records.map((education) => (
               <article
                 key={education.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
               >
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                   <div>
@@ -541,12 +541,12 @@ export default function EducationManager() {
                       />
                     </div>
 
-                    <p className="mt-2 font-medium text-blue-300">
+                    <p className="mt-2 font-medium text-violet-700">
                       {education.institution}
                     </p>
 
                     {education.field_of_study && (
-                      <p className="mt-1 text-sm text-slate-300">
+                      <p className="mt-1 text-sm text-slate-600">
                         {
                           education.field_of_study
                         }
@@ -560,7 +560,7 @@ export default function EducationManager() {
                       onClick={() =>
                         beginEditing(education)
                       }
-                      className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium hover:border-slate-500"
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-violet-400 hover:text-violet-700"
                     >
                       Edit
                     </button>
@@ -575,7 +575,7 @@ export default function EducationManager() {
                           education.id,
                         )
                       }
-                      className="rounded-lg border border-red-900 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-950 disabled:opacity-50"
+                      className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                     >
                       {deletingId === education.id
                         ? "Deleting..."
@@ -642,7 +642,7 @@ function TextField({
 }: TextFieldProps) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-300">
+      <span className="mb-2 block text-sm font-medium text-slate-700">
         {label}
       </span>
 
@@ -655,7 +655,7 @@ function TextField({
         onChange={(event) =>
           onChange(event.target.value)
         }
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
       />
     </label>
   );
@@ -676,7 +676,7 @@ function TextAreaField({
 }: TextAreaFieldProps) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-300">
+      <span className="mb-2 block text-sm font-medium text-slate-700">
         {label}
       </span>
 
@@ -687,7 +687,7 @@ function TextAreaField({
         onChange={(event) =>
           onChange(event.target.value)
         }
-        className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500"
+        className="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
       />
     </label>
   );
@@ -715,7 +715,7 @@ function CheckboxField({
         className="mt-1 h-4 w-4"
       />
 
-      <span className="text-sm leading-6 text-slate-300">
+      <span className="text-sm leading-6 text-slate-600">
         {label}
       </span>
     </label>
@@ -731,8 +731,8 @@ function VerificationBadge({
     <span
       className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
         verified
-          ? "border-emerald-800 bg-emerald-950 text-emerald-300"
-          : "border-amber-800 bg-amber-950 text-amber-300"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-amber-200 bg-amber-50 text-amber-700"
       }`}
     >
       {verified ? "Verified" : "Not verified"}

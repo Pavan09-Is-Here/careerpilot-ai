@@ -15,6 +15,10 @@ import {
   updateApplicationAnswer,
 } from "@/lib/api";
 
+import EmptyState from "@/components/ui/EmptyState";
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import Spinner from "@/components/ui/Spinner";
+
 import type {
   ApplicationAnswer,
   ApplicationAnswerCategory,
@@ -179,8 +183,8 @@ export default function ApplicationAnswersPage() {
         </header>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+          <div className="mb-6">
+            <ErrorNotice>{error}</ErrorNotice>
           </div>
         )}
 
@@ -258,6 +262,13 @@ export default function ApplicationAnswersPage() {
             />
           </label>
 
+          <p className="mt-3 text-xs cp-muted">
+            Verified answers are the only ones used in prepared
+            applications. Sensitive or legal answers, such as work
+            authorisation and sponsorship, must be manually confirmed
+            before they can count as verified.
+          </p>
+
           <div className="mt-4 flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
@@ -313,11 +324,12 @@ export default function ApplicationAnswersPage() {
         </section>
 
         {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <Spinner label="Loading answers…" />
         ) : answers.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
-            No answers yet.
-          </div>
+          <EmptyState
+            title="No answers yet"
+            description="Add reusable answers to common application questions above. Only verified answers are used in prepared applications."
+          />
         ) : (
           <ul className="space-y-3">
             {answers.map((answer) => {

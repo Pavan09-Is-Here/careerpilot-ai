@@ -2,12 +2,13 @@ import Link from "next/link";
 
 import {
   DetailRow,
-  EmptyState,
   StatusBadge,
   documentSummaryGrid,
   formatDateTime,
   humanizeToken,
 } from "@/components/documents/DocumentPrimitives";
+
+import EmptyState from "@/components/ui/EmptyState";
 
 import type { CVDocumentListItem } from "@/types/document";
 
@@ -20,9 +21,10 @@ export default function DocumentList({
 }: DocumentListProps) {
   if (documents.length === 0) {
     return (
-      <EmptyState title="No documents uploaded">
-        Upload a PDF or DOCX CV to begin processing.
-      </EmptyState>
+      <EmptyState
+        title="No documents uploaded"
+        description="Upload a PDF or DOCX CV to begin processing. We extract your details for review before anything is saved."
+      />
     );
   }
 

@@ -23,12 +23,14 @@ import type {
 } from "@/types/job";
 
 import {
-  EmptyState,
-  ErrorBanner,
   LifecycleBadge,
   formatDateTime,
   humanizeToken,
 } from "@/components/jobs/JobPrimitives";
+
+import EmptyState from "@/components/ui/EmptyState";
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import Spinner from "@/components/ui/Spinner";
 
 const LIFECYCLE_OPTIONS: JobLifecycleStatus[] = [
   "discovered",
@@ -367,24 +369,16 @@ export default function JobDiscoveryPage() {
 
       <section className="mt-6" aria-label="Job list">
         {error ? (
-          <ErrorBanner message={error} />
+          <ErrorNotice>{error}</ErrorNotice>
         ) : loading ? (
-          <p className="text-sm text-slate-500">
-            Loading jobs…
-          </p>
+          <Spinner label="Loading jobs…" />
         ) : !jobPage || jobPage.items.length === 0 ? (
-          <EmptyState title="No jobs found">
-            Connect a company&apos;s public job board to load its
-            latest roles, or adjust the filters.
-            <span className="mt-3 block">
-              <Link
-                href="/job-sources"
-                className="font-medium text-violet-700 hover:underline"
-              >
-                Connect a company board
-              </Link>
-            </span>
-          </EmptyState>
+          <EmptyState
+            title="No jobs yet"
+            description="Connect a company's public job board to load its latest roles, or adjust the filters."
+            actionLabel="Connect a company board"
+            actionHref="/job-sources"
+          />
         ) : (
           <ul className="grid gap-4">
             {jobPage.items.map((job) => (

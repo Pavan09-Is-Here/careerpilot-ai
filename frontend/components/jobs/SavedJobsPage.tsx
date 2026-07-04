@@ -20,13 +20,15 @@ import type {
 } from "@/types/savedJob";
 
 import {
-  EmptyState,
-  ErrorBanner,
   LifecycleBadge,
   ReviewBadge,
   formatDateTime,
   humanizeToken,
 } from "@/components/jobs/JobPrimitives";
+
+import EmptyState from "@/components/ui/EmptyState";
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import Spinner from "@/components/ui/Spinner";
 
 const STATUS_FILTERS: SavedJobReviewStatus[] = [
   "saved",
@@ -200,17 +202,17 @@ export default function SavedJobsPage() {
         aria-label="Saved job list"
       >
         {error ? (
-          <ErrorBanner message={error} />
+          <ErrorNotice>{error}</ErrorNotice>
         ) : loading ? (
-          <p className="text-sm text-slate-500">
-            Loading saved jobs…
-          </p>
+          <Spinner label="Loading saved jobs…" />
         ) : !savedPage ||
           savedPage.items.length === 0 ? (
-          <EmptyState title="No saved jobs">
-            Save jobs from the discovery page to
-            review them here.
-          </EmptyState>
+          <EmptyState
+            title="No saved jobs"
+            description="Save jobs from the discovery page to review them here."
+            actionLabel="Discover jobs"
+            actionHref="/jobs"
+          />
         ) : (
           <ul className="grid gap-4">
             {savedPage.items.map((saved) => (

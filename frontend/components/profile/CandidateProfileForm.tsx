@@ -698,6 +698,7 @@ export default function CandidateProfileForm() {
                   form.work_authorization
                 }
                 placeholder="Describe your current right-to-work status."
+                helperText="Your right-to-work status in plain words (for example, a citizen, a visa holder, or requiring a permit). Used only as you write it; never inferred."
                 onChange={(value) =>
                   updateField(
                     "work_authorization",
@@ -706,18 +707,25 @@ export default function CandidateProfileForm() {
                 }
               />
 
-              <CheckboxField
-                label="I require employment sponsorship"
-                checked={
-                  form.requires_sponsorship
-                }
-                onChange={(checked) =>
-                  updateField(
-                    "requires_sponsorship",
-                    checked,
-                  )
-                }
-              />
+              <div>
+                <CheckboxField
+                  label="I require employment sponsorship"
+                  checked={
+                    form.requires_sponsorship
+                  }
+                  onChange={(checked) =>
+                    updateField(
+                      "requires_sponsorship",
+                      checked,
+                    )
+                  }
+                />
+                <p className="mt-1.5 text-xs cp-muted">
+                  Tick this if you would need an employer to sponsor a
+                  work visa. It informs eligibility checks and
+                  application answers.
+                </p>
+              </div>
             </div>
           </FormSection>
 
@@ -762,6 +770,7 @@ export default function CandidateProfileForm() {
                 value={
                   form.minimum_match_score
                 }
+                helperText="Only jobs scoring at or above this percentage (85–100) are treated as matches for filtering and automatic decisions."
                 onChange={(value) =>
                   updateField(
                     "minimum_match_score",
@@ -891,6 +900,7 @@ type TextFieldProps = {
   required?: boolean;
   min?: string;
   max?: string;
+  helperText?: string;
 };
 
 function TextField({
@@ -902,6 +912,7 @@ function TextField({
   required = false,
   min,
   max,
+  helperText,
 }: TextFieldProps) {
   return (
     <label className="block">
@@ -921,6 +932,12 @@ function TextField({
         }
         className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
       />
+
+      {helperText ? (
+        <span className="mt-1.5 block text-xs cp-muted">
+          {helperText}
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -930,6 +947,7 @@ type TextAreaFieldProps = {
   value: string;
   placeholder?: string;
   onChange: (value: string) => void;
+  helperText?: string;
 };
 
 function TextAreaField({
@@ -937,6 +955,7 @@ function TextAreaField({
   value,
   placeholder,
   onChange,
+  helperText,
 }: TextAreaFieldProps) {
   return (
     <label className="block">
@@ -953,6 +972,12 @@ function TextAreaField({
         }
         className="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
       />
+
+      {helperText ? (
+        <span className="mt-1.5 block text-xs cp-muted">
+          {helperText}
+        </span>
+      ) : null}
     </label>
   );
 }

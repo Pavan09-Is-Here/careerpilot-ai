@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import GettingStarted from "@/components/dashboard/GettingStarted";
+
 const profileSections = [
   "Candidate profile",
   "Education",
@@ -119,6 +121,10 @@ export default function DashboardPage() {
             </Link>
           </div>
         </header>
+
+        <div className="mb-6">
+          <GettingStarted />
+        </div>
 
         <section className="cp-card border-violet-200 bg-violet-50/60">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

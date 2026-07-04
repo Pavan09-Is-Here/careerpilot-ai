@@ -9,6 +9,10 @@ import {
 
 import { getApplications, isAbortError } from "@/lib/api";
 
+import EmptyState from "@/components/ui/EmptyState";
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import Spinner from "@/components/ui/Spinner";
+
 import type {
   Application,
   ApplicationStatus,
@@ -101,18 +105,20 @@ export default function ApplicationsPage() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+          <div className="mb-6">
+            <ErrorNotice>{error}</ErrorNotice>
           </div>
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <Spinner label="Loading applications…" />
         ) : applications.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
-            No tracked applications yet. Open a job and choose
-            &ldquo;Track application&rdquo; to start.
-          </div>
+          <EmptyState
+            title="No tracked applications yet"
+            description="Open a job and choose “Track application” to start following it through to an outcome."
+            actionLabel="Discover jobs"
+            actionHref="/jobs"
+          />
         ) : (
           <ul className="space-y-3">
             {applications.map((application) => (

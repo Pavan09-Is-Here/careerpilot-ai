@@ -13,6 +13,10 @@ import {
   isAbortError,
 } from "@/lib/api";
 
+import EmptyState from "@/components/ui/EmptyState";
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import Spinner from "@/components/ui/Spinner";
+
 import type {
   Notification,
   NotificationCategory,
@@ -224,17 +228,18 @@ export default function NotificationsPage() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+          <div className="mb-6">
+            <ErrorNotice>{error}</ErrorNotice>
           </div>
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <Spinner label="Loading notifications…" />
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
-            No notifications yet.
-          </div>
+          <EmptyState
+            title="No notifications yet"
+            description="Alerts appear here when applications are prepared, submissions are recorded, or something needs your input."
+          />
         ) : (
           <ul className="space-y-3">
             {items.map((notification) => (

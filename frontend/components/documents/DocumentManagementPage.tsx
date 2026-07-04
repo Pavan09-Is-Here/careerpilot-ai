@@ -11,10 +11,11 @@ import DocumentList from "@/components/documents/DocumentList";
 import DocumentUploadForm from "@/components/documents/DocumentUploadForm";
 
 import {
-  ErrorNotice,
-  LoadingState,
   SuccessNotice,
 } from "@/components/documents/DocumentPrimitives";
+
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import Spinner from "@/components/ui/Spinner";
 
 import {
   getDocuments,
@@ -157,7 +158,7 @@ export default function DocumentManagementPage() {
             </div>
 
             {loading ? (
-              <LoadingState label="Loading documents..." />
+              <Spinner label="Loading documents…" />
             ) : (
               <DocumentList documents={documents} />
             )}

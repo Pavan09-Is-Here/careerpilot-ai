@@ -1875,6 +1875,23 @@ export async function resendVerification(
   );
 }
 
+export type TestEmailResult = {
+  ok: boolean;
+  detail: string;
+  recipient: string;
+};
+
+export async function sendTestEmail(
+  signal?: AbortSignal,
+): Promise<TestEmailResult> {
+  return requestJsonBody<TestEmailResult>(
+    "/api/auth/test-email",
+    "POST",
+    {},
+    signal,
+  );
+}
+
 export async function forgotPassword(
   email: string,
   signal?: AbortSignal,

@@ -14,6 +14,7 @@ import {
   logout,
   register,
   resendVerification,
+  sendTestEmail,
 } from "@/lib/api";
 import {
   clearAuthToken,
@@ -207,6 +208,24 @@ export default function AuthPage() {
                   Resend verification email
                 </button>
               )}
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    const result = await sendTestEmail();
+                    if (result.ok) {
+                      setNotice(result.detail);
+                    } else {
+                      setError(result.detail);
+                    }
+                  })
+                }
+                className="mt-3 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700 disabled:opacity-50"
+              >
+                Send test email
+              </button>
 
               <button
                 type="button"

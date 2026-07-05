@@ -42,6 +42,7 @@ from app.services.auth_email import (
     send_password_reset_email,
     send_verification_email,
 )
+from app.services.notification import send_test_email
 
 
 router = APIRouter(
@@ -264,6 +265,20 @@ def logout(
 ) -> dict[str, str]:
     revoke_session(session, database)
     return {"message": "Logged out."}
+
+
+@router.post("/test-email")
+def test_email_route(
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> dict[str, object]:
+    settings = get_settings()
+    try:
+        email = get_profile_for_user(user, database).email
+    except AuthServiceError:
+        email = ""
+    ok, detail = send_test_email(email, settings)
+    return {"ok": ok, "detail": detail, "recipient": email}
 
 
 @router.post("/change-password", response_model=MessageResponse)

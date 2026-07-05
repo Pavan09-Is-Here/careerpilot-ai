@@ -157,6 +157,37 @@ def send_email_best_effort(
         return False
 
 
+def send_test_email(
+    recipient: str,
+    settings: Settings,
+) -> tuple[bool, str]:
+    """Send a diagnostic email and report the outcome.
+
+    Unlike the best-effort sender, this surfaces WHY sending failed so a
+    user can fix their SMTP settings. The error text may include the SMTP
+    server's response but never the configured password.
+    """
+    if not recipient:
+        return False, "No email address is set on your account."
+    if not smtp_configured(settings):
+        return (
+            False,
+            "Email is not configured on the server "
+            "(CAREERPILOT_SMTP_HOST is not set).",
+        )
+    try:
+        _send_email(
+            recipient,
+            "CareerPilot test email",
+            "This is a test email. If you received it, your CareerPilot "
+            "email settings are working.",
+            settings,
+        )
+    except Exception as exc:  # noqa: BLE001 - report the reason
+        return False, f"Sending failed: {exc}"[:500]
+    return True, "Test email sent. Check your inbox and spam folder."
+
+
 def _send_via_smtp(
     notification: Notification,
     settings: Settings,

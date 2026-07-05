@@ -13,11 +13,15 @@ real recorded events.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+
+logger = logging.getLogger("careerpilot.email")
 
 from app.core.config import Settings
 from app.models.candidate_profile import CandidateProfile
@@ -148,12 +152,23 @@ def send_email_best_effort(
     (e.g. registration) stay non-blocking: an email failure must not fail
     the request. No secrets are logged.
     """
-    if not recipient or not smtp_configured(settings):
+    if not recipient:
+        logger.warning("Email skipped: no recipient address.")
+        return False
+    if not smtp_configured(settings):
+        logger.warning(
+            "Email skipped: SMTP is not configured "
+            "(CAREERPILOT_SMTP_HOST is not set)."
+        )
         return False
     try:
         _send_email(recipient, subject, body, settings)
+        logger.info("Email sent to %s: %s", recipient, subject)
         return True
-    except Exception:  # noqa: BLE001 - best effort, never propagate
+    except Exception as exc:  # noqa: BLE001 - best effort, never propagate
+        # Log the reason (SMTP server response) so delivery problems are
+        # diagnosable in the platform logs. The password is never logged.
+        logger.warning("Email send failed to %s: %s", recipient, exc)
         return False
 
 

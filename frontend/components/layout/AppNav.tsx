@@ -193,19 +193,6 @@ export default function AppNav() {
                     Account
                   </Link>
 
-                  <div className="flex items-center justify-between px-3 py-2 text-sm text-slate-600">
-                    <span>Email</span>
-                    {session.email_verified ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                        Verified
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                        Not verified
-                      </span>
-                    )}
-                  </div>
-
                   <button
                     type="button"
                     role="menuitem"

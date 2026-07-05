@@ -13,8 +13,6 @@ import {
   login,
   logout,
   register,
-  resendVerification,
-  sendTestEmail,
 } from "@/lib/api";
 import {
   clearAuthToken,
@@ -170,20 +168,6 @@ export default function AuthPage() {
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <dt className="text-slate-500">Email status</dt>
-                  <dd>
-                    {session.email_verified ? (
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                        Verified
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                        Not verified
-                      </span>
-                    )}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
                   <dt className="text-slate-500">Session expires</dt>
                   <dd>{formatDateTime(session.expires_at)}</dd>
                 </div>
@@ -192,40 +176,6 @@ export default function AuthPage() {
                   <dd>{formatDateTime(session.last_used_at)}</dd>
                 </div>
               </dl>
-
-              {!session.email_verified && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    run(async () => {
-                      const result = await resendVerification();
-                      setNotice(result.message);
-                    })
-                  }
-                  className="mt-4 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700 disabled:opacity-50"
-                >
-                  Resend verification email
-                </button>
-              )}
-
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  run(async () => {
-                    const result = await sendTestEmail();
-                    if (result.ok) {
-                      setNotice(result.detail);
-                    } else {
-                      setError(result.detail);
-                    }
-                  })
-                }
-                className="mt-3 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:border-violet-400 hover:text-violet-700 disabled:opacity-50"
-              >
-                Send test email
-              </button>
 
               <button
                 type="button"
@@ -342,7 +292,7 @@ export default function AuthPage() {
                   setAuthToken(result.token);
                   resetCredentialFields();
                   setNotice(
-                    "Account created. Check your email to verify your address.",
+                    "Account created. You're signed in.",
                   );
                   await refresh();
                 })

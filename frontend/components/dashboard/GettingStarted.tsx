@@ -89,12 +89,6 @@ export default function GettingStarted() {
           href: "/auth",
         },
         {
-          key: "verify_email",
-          label: "Verify your email",
-          done: Boolean(session?.email_verified),
-          href: "/auth",
-        },
-        {
           key: "profile",
           label: "Add your profile",
           done: Boolean(

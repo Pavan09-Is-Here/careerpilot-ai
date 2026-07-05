@@ -144,6 +144,7 @@ def list_job_metadata(
     updated_within_hours: int | None = Query(
         default=None, ge=1, le=8760
     ),
+    search: str | None = Query(default=None, max_length=200),
     database: Session = Depends(get_db),
 ) -> dict[str, object]:
     try:
@@ -158,6 +159,7 @@ def list_job_metadata(
             remote_mode=remote_mode,
             posted_within_hours=posted_within_hours,
             updated_within_hours=updated_within_hours,
+            search=search,
         )
     except JobServiceError as exc:
         raise_job_http_error(exc)

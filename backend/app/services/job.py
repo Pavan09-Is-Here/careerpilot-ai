@@ -699,10 +699,17 @@ def list_normalized_jobs(
     remote_mode: str | None = None,
     posted_within_hours: int | None = None,
     updated_within_hours: int | None = None,
+    search: str | None = None,
     now: datetime | None = None,
 ) -> dict[str, object]:
     statement = select(NormalizedJob)
     evaluation_time = now or datetime.now(timezone.utc)
+
+    if search is not None and search.strip():
+        pattern = f"%{search.strip().lower()}%"
+        statement = statement.where(
+            func.lower(NormalizedJob.title).like(pattern)
+        )
 
     if source_id is not None:
         statement = statement.where(NormalizedJob.job_source_id == source_id)

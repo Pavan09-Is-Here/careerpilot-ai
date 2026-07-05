@@ -1369,6 +1369,10 @@ export async function getJobs(
     );
   }
 
+  if (filters.search && filters.search.trim()) {
+    params.set("search", filters.search.trim());
+  }
+
   return requestJson<NormalizedJobPage>(
     `/api/jobs?${params.toString()}`,
     { signal },

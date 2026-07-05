@@ -88,6 +88,7 @@ export default function JobDiscoveryPage() {
   >(undefined);
   const [postedWithinHours, setPostedWithinHours] =
     useState<number | undefined>(undefined);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(
     null,
@@ -129,6 +130,7 @@ export default function JobDiscoveryPage() {
           employmentType,
           remoteMode,
           postedWithinHours,
+          search,
         },
         signal,
       )
@@ -155,6 +157,7 @@ export default function JobDiscoveryPage() {
       employmentType,
       remoteMode,
       postedWithinHours,
+      search,
     ],
   );
 
@@ -230,9 +233,23 @@ export default function JobDiscoveryPage() {
         </div>
       </header>
 
+      <label className="mt-6 flex flex-col gap-1 text-xs text-slate-500">
+        Search by title
+        <input
+          type="text"
+          value={search}
+          onChange={(event) => {
+            setPage(1);
+            setSearch(event.target.value);
+          }}
+          placeholder="e.g. intern, python, engineer, data"
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
+        />
+      </label>
+
       <section
         aria-label="Job filters"
-        className="mt-6 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
       >
         <label className="flex flex-col gap-1 text-xs text-slate-500">
           Source

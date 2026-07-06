@@ -19,8 +19,14 @@ import {
 import type { ApplicationPackage } from "@/types/applicationPackage";
 import type {
   ApplicationRun,
+  ApplicationRunConsentGate,
   ApplicationRunGate,
 } from "@/types/applicationRun";
+
+const CONSENT_GATES: ApplicationRunConsentGate[] = [
+  "legal_declaration",
+  "submission_confirmation",
+];
 
 function humanize(value: string): string {
   return value
@@ -56,6 +62,8 @@ export default function ApplicationPrepPage({
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [consentLegal, setConsentLegal] = useState(false);
+  const [consentSubmit, setConsentSubmit] = useState(false);
 
   const loadPackage = useCallback(
     async (signal?: AbortSignal) => {
@@ -124,9 +132,11 @@ export default function ApplicationPrepPage({
           </h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
             Assemble the tailored application, review what&rsquo;s
-            ready or blocked, then step through the safety gates. The
-            tool never submits for you — you perform the final
-            submission and record it here.
+            ready or blocked, then apply. With your explicit consent
+            the application is submitted automatically where the job
+            source permits it; anything that needs you (CAPTCHAs,
+            sensitive questions, or the final submission on other
+            sites) pauses the run and notifies you by email.
           </p>
         </div>
 
@@ -140,6 +150,97 @@ export default function ApplicationPrepPage({
           <p className="text-sm text-slate-500">Loading…</p>
         ) : (
           <>
+            <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-5 shadow-sm">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">
+                One-click apply
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Analyzes the match, tailors your CV and cover letter
+                from verified facts, and prepares the application in
+                one step. Nothing is ever invented, safety checks are
+                never bypassed, and you&rsquo;ll get an email if any
+                step needs you — and when the application is
+                submitted.
+              </p>
+              <div className="mt-3 space-y-2">
+                <label className="flex items-start gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={consentLegal}
+                    onChange={(event) =>
+                      setConsentLegal(event.target.checked)
+                    }
+                    className="mt-0.5"
+                  />
+                  I have reviewed my legal declarations (work
+                  authorization, background-check consent) and they
+                  are accurate.
+                </label>
+                <label className="flex items-start gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={consentSubmit}
+                    onChange={(event) =>
+                      setConsentSubmit(event.target.checked)
+                    }
+                    className="mt-0.5"
+                  />
+                  I authorize submitting this application on my
+                  behalf where the job source permits it. Submission
+                  is irreversible.
+                </label>
+              </div>
+              <button
+                type="button"
+                disabled={busy || !consentLegal || !consentSubmit}
+                onClick={() =>
+                  run_action(async () => {
+                    setRun(
+                      await startApplicationRun(jobId, {
+                        driver: "auto_submit",
+                        acknowledged_gates: CONSENT_GATES,
+                      }),
+                    );
+                    await loadPackage();
+                  })
+                }
+                className="mt-4 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+              >
+                Apply automatically
+              </button>
+              {run?.driver === "auto_submit" &&
+                run.status === "submitted" && (
+                  <p
+                    role="status"
+                    className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+                  >
+                    Application submitted
+                    {run.submission_method &&
+                    run.submission_method !== "manual"
+                      ? ` via ${humanize(run.submission_method)}`
+                      : ""}
+                    {run.confirmation_number
+                      ? ` — confirmation ${run.confirmation_number}`
+                      : ""}
+                    . A confirmation email has been recorded for you.
+                  </p>
+                )}
+              {run?.driver === "auto_submit" &&
+                run.status === "paused_for_gate" && (
+                  <p
+                    role="alert"
+                    className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                  >
+                    {run.pause_reason === "manual_fields_required"
+                      ? "Some entries need you before submission — see the list below. You've been notified by email."
+                      : run.pause_reason === "submission_confirmation"
+                        ? "Everything is prepared, but this job source has no permitted automatic submission channel. Submit it yourself below and record the confirmation number. You've been notified by email."
+                        : `Paused: ${humanize(
+                            run.pause_reason ?? "action needed",
+                          )} — complete this step yourself below. You've been notified by email.`}
+                  </p>
+                )}
+            </section>
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">

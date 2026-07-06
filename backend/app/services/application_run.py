@@ -13,6 +13,16 @@ The live browser driver (e.g. Playwright) is intentionally abstracted
 and deferred: the default 'manual_assist' driver plans and pauses
 only. Any future live driver must route through these same gates and
 must not bypass site protections.
+
+Phase 16 adds the 'auto_submit' driver: one explicit per-job consent
+action from the candidate (acknowledging the legal declarations and
+the irreversible submission) lets the run prepare everything and, ONLY
+where the job's source offers a permitted submission channel, submit
+through it. CAPTCHA/MFA/assessment gates, sensitive answers, and
+missing required answers always pause the run and notify the candidate
+by email; they are never bypassed. Where no permitted channel exists
+the run pauses at the submission gate for the candidate to submit
+manually — exactly like manual assist.
 """
 
 from datetime import datetime, timezone
@@ -20,14 +30,27 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings
 from app.models.application_package import ApplicationPackage
 from app.models.application_run import ApplicationRun
 from app.models.candidate_profile import CandidateProfile
 from app.models.job import NormalizedJob
+from app.schemas.cv_version import CVMasterGenerationRequest
 from app.services.application_package import (
+    ApplicationPackageServiceError,
     load_answers,
+    load_job_match,
     load_tailored_cv,
+    prepare_application_package,
 )
+from app.services.cv_tailoring import CVTailoringError, generate_tailored_cv
+from app.services.job_match import JobMatchServiceError, analyze_job_match
+from app.services.notification import (
+    create_notification,
+    send_email_best_effort,
+    smtp_configured,
+)
+from app.services.submission import attempt_submission
 
 
 WORKFLOW_VERSION = "browser-assist-1"
@@ -79,6 +102,19 @@ GATE_DETAILS = {
         "record it."
     ),
 }
+
+RUN_DRIVERS = ("manual_assist", "auto_submit")
+
+# Gates the candidate must explicitly acknowledge in the apply action
+# itself before an auto-submit run may start. This is the recorded
+# consent: without it the run is rejected, and it never covers safety
+# gates (CAPTCHA/MFA/assessment), which cannot be pre-acknowledged.
+AUTO_CONSENT_GATES = frozenset(
+    {"legal_declaration", "submission_confirmation"}
+)
+
+# Safety gates that always pause an auto-submit run for the candidate.
+SAFETY_GATES = frozenset({"captcha", "mfa", "assessment"})
 
 # Package readiness states that may never begin an application run.
 REJECTED_READINESS = frozenset(
@@ -309,13 +345,43 @@ def active_run_for_job(
     )
 
 
-def start_application_run(
-    job_id: int,
+def _ensure_package_ready(
+    job: NormalizedJob,
     database: Session,
     candidate_profile_id: int,
-) -> ApplicationRun:
-    job = get_job_or_404(job_id, database)
-    profile = require_profile(database, candidate_profile_id)
+) -> ApplicationPackage:
+    """Auto-prepare chain for one-click apply: analyze the match,
+    tailor the CV, and prepare the package when missing. Every step
+    uses the existing verified-facts services — nothing is fabricated,
+    and an unverified profile still fails CV tailoring as always.
+    """
+    if load_job_match(job.id, database) is None:
+        try:
+            analyze_job_match(job.id, database)
+        except JobMatchServiceError as exc:
+            raise ApplicationRunServiceError(
+                exc.safe_message,
+                status_code=exc.status_code,
+            ) from exc
+
+    if load_tailored_cv(job.id, database) is None:
+        request = CVMasterGenerationRequest(
+            idempotency_key=(
+                f"auto-apply-job-{job.id}-profile-{candidate_profile_id}"
+            ),
+        )
+        try:
+            generate_tailored_cv(
+                job.id,
+                request,
+                database,
+                candidate_profile_id=candidate_profile_id,
+            )
+        except CVTailoringError as exc:
+            raise ApplicationRunServiceError(
+                exc.safe_message,
+                status_code=exc.status_code,
+            ) from exc
 
     package = database.scalar(
         select(ApplicationPackage).where(
@@ -323,10 +389,240 @@ def start_application_run(
         )
     )
     if package is None:
-        raise ApplicationRunServiceError(
-            "Prepare the application package before applying.",
-            status_code=409,
+        try:
+            package = prepare_application_package(
+                job.id,
+                database,
+                candidate_profile_id,
+            )
+        except ApplicationPackageServiceError as exc:
+            raise ApplicationRunServiceError(
+                exc.safe_message,
+                status_code=exc.status_code,
+            ) from exc
+    return package
+
+
+def notify_run_event(
+    database: Session,
+    settings: Settings | None,
+    run: ApplicationRun,
+    job: NormalizedJob,
+    *,
+    event: str,
+    subject: str,
+    body: str,
+) -> None:
+    """Record a notification for a run event and attempt immediate
+    best-effort email delivery. Never raises: a notification problem
+    must not fail the application run.
+    """
+    category = (
+        "application_submitted"
+        if event == "submitted"
+        else "manual_action_required"
+    )
+    notification = create_notification(
+        database,
+        candidate_profile_id=run.candidate_profile_id,
+        category=category,
+        subject=subject,
+        body=body,
+        related_job_id=job.id,
+        dedupe_key=f"application-run-{run.id}-{event}",
+    )
+    if (
+        notification is None
+        or notification.status != "pending"
+        or settings is None
+        or not smtp_configured(settings)
+    ):
+        return
+    delivered = send_email_best_effort(
+        notification.recipient,
+        notification.subject,
+        notification.body,
+        settings,
+    )
+    if delivered:
+        notification.status = "sent"
+        notification.sent_at = current_utc_time()
+    else:
+        notification.status = "failed"
+        notification.error = "SMTP delivery failed; see server logs."
+    database.commit()
+
+
+def _manual_fields_summary(
+    manual_fields: list[dict[str, object]],
+) -> str:
+    lines = [
+        f"- {field.get('field')}: {field.get('reason')}"
+        for field in manual_fields
+    ]
+    return "\n".join(lines)
+
+
+def _progress_auto_submit(
+    run: ApplicationRun,
+    job: NormalizedJob,
+    package: ApplicationPackage,
+    database: Session,
+    settings: Settings | None,
+) -> ApplicationRun:
+    """Progress a freshly created auto-submit run as far as safety
+    allows: pause on safety gates or manual fields, otherwise attempt
+    submission through a source-permitted channel.
+    """
+    gates = [dict(gate) for gate in run.gates]
+    current = first_unacknowledged_gate(gates)
+
+    if current is not None and current["code"] in SAFETY_GATES:
+        notify_run_event(
+            database,
+            settings,
+            run,
+            job,
+            event="action_required",
+            subject=f"Action needed to apply: {job.title}",
+            body=(
+                f"Your application for '{job.title}' is prepared but "
+                f"paused: {GATE_DETAILS[current['code']]} Open "
+                "CareerPilot to continue."
+            ),
         )
+        return run
+
+    if run.manual_fields:
+        run.pause_reason = "manual_fields_required"
+        run.updated_at = current_utc_time()
+        database.commit()
+        database.refresh(run)
+        notify_run_event(
+            database,
+            settings,
+            run,
+            job,
+            event="action_required",
+            subject=f"Manual entries needed to apply: {job.title}",
+            body=(
+                f"Your application for '{job.title}' is prepared, but "
+                "these entries need you before submission:\n"
+                f"{_manual_fields_summary(run.manual_fields)}\n\n"
+                "Complete them, submit, and record the confirmation "
+                "number in CareerPilot."
+            ),
+        )
+        return run
+
+    # No safety gate and nothing manual: attempt permitted submission.
+    result = attempt_submission(job, package, run.fill_plan, database)
+    now = current_utc_time()
+
+    if result.status == "submitted":
+        for gate in gates:
+            if gate["code"] == "submission_confirmation":
+                gate["acknowledged"] = True
+        run.gates = gates
+        run.status = "submitted"
+        run.pause_reason = None
+        run.submitted_at = now
+        run.confirmation_number = result.confirmation_number
+        run.submission_method = result.method
+        run.attempts += 1
+        run.updated_at = now
+        database.commit()
+        database.refresh(run)
+        notify_run_event(
+            database,
+            settings,
+            run,
+            job,
+            event="submitted",
+            subject=f"Application submitted: {job.title}",
+            body=(
+                f"Your application for '{job.title}' was submitted "
+                f"via the '{result.method}' channel."
+                + (
+                    f" Confirmation: {result.confirmation_number}."
+                    if result.confirmation_number
+                    else ""
+                )
+            ),
+        )
+        return run
+
+    # Unsupported or failed: pause at the submission gate for the
+    # candidate — identical to the manual-assist ending.
+    if result.status == "failed":
+        run.error = result.detail[:1000]
+    run.pause_reason = "submission_confirmation"
+    run.updated_at = now
+    database.commit()
+    database.refresh(run)
+    notify_run_event(
+        database,
+        settings,
+        run,
+        job,
+        event="action_required",
+        subject=f"Ready to submit: {job.title}",
+        body=(
+            f"Your application for '{job.title}' is fully prepared. "
+            f"{result.detail} Open CareerPilot for the prefilled "
+            "details, submit, and record the confirmation number."
+        ),
+    )
+    return run
+
+
+def start_application_run(
+    job_id: int,
+    database: Session,
+    candidate_profile_id: int,
+    *,
+    driver: str = "manual_assist",
+    acknowledged_gates: list[str] | None = None,
+    settings: Settings | None = None,
+) -> ApplicationRun:
+    if driver not in RUN_DRIVERS:
+        raise ApplicationRunServiceError(
+            "Unknown application driver.",
+        )
+
+    auto = driver == "auto_submit"
+    acknowledged = set(acknowledged_gates or [])
+
+    if auto and not AUTO_CONSENT_GATES.issubset(acknowledged):
+        raise ApplicationRunServiceError(
+            "Automatic application requires explicitly acknowledging "
+            "the legal declarations and the irreversible submission.",
+        )
+    if acknowledged - AUTO_CONSENT_GATES:
+        raise ApplicationRunServiceError(
+            "Safety gates cannot be pre-acknowledged.",
+        )
+
+    job = get_job_or_404(job_id, database)
+    profile = require_profile(database, candidate_profile_id)
+
+    if auto:
+        package = _ensure_package_ready(
+            job,
+            database,
+            candidate_profile_id,
+        )
+    else:
+        package = database.scalar(
+            select(ApplicationPackage).where(
+                ApplicationPackage.job_id == job.id
+            )
+        )
+        if package is None:
+            raise ApplicationRunServiceError(
+                "Prepare the application package before applying.",
+                status_code=409,
+            )
 
     if package.readiness_status in REJECTED_READINESS:
         raise ApplicationRunServiceError(
@@ -340,10 +636,19 @@ def start_application_run(
         package.readiness_status in CONFIRMATION_REQUIRED_READINESS
         and not package.user_confirmed
     ):
-        raise ApplicationRunServiceError(
-            "Confirm the application package before applying.",
-            status_code=409,
-        )
+        if auto and package.readiness_status == (
+            "ready_for_automatic_application"
+        ):
+            # The apply action itself is the explicit confirmation for
+            # a package the system judged ready. 'needs_user_review'
+            # is never skipped: the candidate must review it first.
+            package.user_confirmed = True
+            database.commit()
+        else:
+            raise ApplicationRunServiceError(
+                "Confirm the application package before applying.",
+                status_code=409,
+            )
 
     existing = active_run_for_job(job.id, database)
     if existing is not None:
@@ -356,9 +661,16 @@ def start_application_run(
         candidate_profile_id,
     )
     gates = build_gates(package)
-    current = first_unacknowledged_gate(gates)
 
     now = current_utc_time()
+    if auto:
+        # Recorded consent covers the legal-declaration review only;
+        # safety gates and the actual submission are handled below.
+        for gate in gates:
+            if gate["code"] == "legal_declaration":
+                gate["acknowledged"] = True
+
+    current = first_unacknowledged_gate(gates)
     run = ApplicationRun(
         job_id=job.id,
         candidate_profile_id=profile.id,
@@ -370,9 +682,11 @@ def start_application_run(
         manual_fields=manual_fields,
         confirmation_number=None,
         submitted_at=None,
+        consented_at=now if auto else None,
+        submission_method=None,
         error=None,
         attempts=0,
-        driver="manual_assist",
+        driver=driver,
         workflow_version=WORKFLOW_VERSION,
         created_at=now,
         updated_at=now,
@@ -380,6 +694,15 @@ def start_application_run(
     database.add(run)
     database.commit()
     database.refresh(run)
+
+    if auto:
+        return _progress_auto_submit(
+            run,
+            job,
+            package,
+            database,
+            settings,
+        )
     return run
 
 
@@ -402,6 +725,8 @@ def resume_application_run(
     confirmation_number: str | None,
     database: Session,
     candidate_profile_id: int,
+    *,
+    settings: Settings | None = None,
 ) -> ApplicationRun:
     run = get_run_or_404(run_id, database, candidate_profile_id)
 
@@ -432,6 +757,7 @@ def resume_application_run(
         run.confirmation_number = confirmation_number
         run.submitted_at = now
         run.status = "submitted"
+        run.submission_method = "manual"
         run.pause_reason = None
     else:
         current["acknowledged"] = True
@@ -444,6 +770,23 @@ def resume_application_run(
     run.updated_at = now
     database.commit()
     database.refresh(run)
+
+    if run.status == "submitted":
+        job = database.get(NormalizedJob, run.job_id)
+        if job is not None:
+            notify_run_event(
+                database,
+                settings,
+                run,
+                job,
+                event="submitted",
+                subject=f"Application submitted: {job.title}",
+                body=(
+                    f"Your application for '{job.title}' was "
+                    "submitted (recorded confirmation: "
+                    f"{run.confirmation_number})."
+                ),
+            )
     return run
 
 

@@ -44,10 +44,29 @@ class ApplicationRunResponse(BaseModel):
     manual_fields: list[ApplicationRunManualField]
     confirmation_number: str | None
     submitted_at: datetime | None
+    consented_at: datetime | None
+    submission_method: str | None
     driver: str
     workflow_version: str
     created_at: datetime
     updated_at: datetime
+
+
+class ApplicationRunStartRequest(BaseModel):
+    """Optional body for POST /jobs/{job_id}/apply.
+
+    Omitting the body (or sending the default driver) preserves the
+    original manual-assist behaviour. Auto-submit requires the
+    candidate to acknowledge the two consent gates explicitly; safety
+    gates can never be pre-acknowledged.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    driver: Literal["manual_assist", "auto_submit"] = "manual_assist"
+    acknowledged_gates: list[
+        Literal["legal_declaration", "submission_confirmation"]
+    ] = Field(default_factory=list, max_length=2)
 
 
 class ApplicationRunResumeRequest(BaseModel):

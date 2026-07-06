@@ -99,7 +99,10 @@ import type {
   ApplicationPackageUpdateInput,
 } from "@/types/applicationPackage";
 
-import type { ApplicationRun } from "@/types/applicationRun";
+import type {
+  ApplicationRun,
+  ApplicationRunStartOptions,
+} from "@/types/applicationRun";
 
 import type {
   AuthSession,
@@ -1737,6 +1740,7 @@ export async function updateApplicationPackage(
 
 export async function startApplicationRun(
   jobId: number,
+  options?: ApplicationRunStartOptions,
   signal?: AbortSignal,
 ): Promise<ApplicationRun> {
   assertPositiveIntegerId(jobId, "job id");
@@ -1744,7 +1748,7 @@ export async function startApplicationRun(
   return requestJsonBody<ApplicationRun>(
     `/api/jobs/${jobId}/apply`,
     "POST",
-    {},
+    options ?? {},
     signal,
   );
 }

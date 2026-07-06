@@ -2419,6 +2419,31 @@ alembic current               # Show database's current revision
 
 ---
 
+### Phase 16 — One-Click Auto-Apply (Consented Automatic Submission)
+
+**Milestone Status:** IN REVIEW — implementation complete and validated locally; awaiting commit approval.
+
+**Scope:** The candidate selects a job and clicks "Apply automatically" once. That click records explicit per-job consent (acknowledging the legal declarations and the irreversible submission). The run then auto-prepares everything missing — match analysis, tailored CV, application package (via the existing verified-facts services; nothing is ever fabricated) — and either submits through a source-permitted channel or pauses and notifies the candidate by email.
+
+**Safety model (unchanged guarantees):**
+- CAPTCHA / MFA / assessment gates always pause the run and are never bypassed; consent cannot pre-acknowledge them (schema-enforced).
+- Sensitive/legal answers (`requires_manual_confirmation`) and missing required answers block automatic submission (`pause_reason: manual_fields_required`).
+- `needs_user_review` packages are never auto-confirmed; only `ready_for_automatic_application` is confirmed by the consent click.
+- Submission happens only through a registered per-`provider_type` adapter (`app/services/submission.py`). No adapter is registered by default — no currently integrated source offers a permitted candidate-side submission API — so today's runs end paused at the `submission_confirmation` gate exactly like manual assist, with the candidate notified by email. Adapter failures are contained (run pauses, safe error recorded).
+- Email notifications reuse the notifications outbox (`manual_action_required`, `application_submitted`) with per-run dedupe keys and immediate best-effort SMTP delivery when configured; pending otherwise (never lost).
+
+**Changes:**
+- Migration `f4a5b6c7d8e9` (reversible, additive): `application_runs.consented_at`, `application_runs.submission_method`.
+- `POST /api/jobs/{job_id}/apply` accepts an optional body (`driver`, `acknowledged_gates`); no body preserves manual-assist behaviour. Manual resume now records `submission_method: "manual"` and sends a submitted-confirmation notification.
+- Frontend: "One-click apply" panel on the prepare page (two explicit consent checkboxes gate the button; submitted / action-needed outcome states).
+- Tests: `backend/tests/test_auto_submit_phase16.py` (14 tests: consent enforcement, safety-gate protection, unsupported-source pause+notify, permitted-adapter submission, contained adapter failure, manual-fields blocking, captcha pause, needs_user_review rejection, consent-confirms-ready-package, auto package preparation, manual-assist regression).
+
+**Validation (this milestone):** full backend suite green (526 passed, 1 environment-restricted skip, run in shards); `compileall app` passed; migration upgrade → downgrade → re-upgrade validated on SQLite; migration-parity head updated to `f4a5b6c7d8e9`; frontend `tsc --noEmit`, ESLint, and 54 node tests pass.
+
+**Deferred:** real submission adapters (require a source whose terms permit API submission with candidate-authorized credentials); per-profile worker loop (Phase 15 remainder); SMTP provider configuration (recommended: Resend SMTP endpoint via existing `CAREERPILOT_SMTP_*` settings).
+
+---
+
 ## Dependency Map
 
 ```
@@ -2677,7 +2702,7 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code groundwork committed; deployed to Supabase + Render + Vercel). Phase 15 — Multi-tenant accounts IN PROGRESS: 15A (users table, username+password login, per-account sessions/profile) COMMITTED; 15B (all personal API routes scoped to the authenticated user's candidate profile; cross-user isolation tests) COMPLETE and validated (full suite green; upgrade/downgrade validated on SQLite and real PostgreSQL; alembic head `d2e3f4a5b6c7`). 15C (frontend registration + username login) and per-user background workers (the auto-apply/matching pipeline still operates on a single candidate profile and must be looped over all profiles) remain.
+**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code groundwork committed; deployed to Supabase + Render + Vercel). Phase 15 — Multi-tenant accounts IN PROGRESS: 15A (users table, username+password login, per-account sessions/profile) COMMITTED; 15B (all personal API routes scoped to the authenticated user's candidate profile; cross-user isolation tests) COMPLETE and validated (full suite green; upgrade/downgrade validated on SQLite and real PostgreSQL). 15C (frontend registration + username login) and per-user background workers (the auto-apply/matching pipeline still operates on a single candidate profile and must be looped over all profiles) remain. Phase 16 — One-Click Auto-Apply IN REVIEW: consented automatic submission implemented and validated locally (alembic head `f4a5b6c7d8e9`, full suite 526 passed); awaiting commit approval — see the Phase 16 milestone section.
 
 **First Not-Started Milestone:** Phase 14 infrastructure/deployment steps (provisioning, hosting, backups) — see `docs/deployment.md`.
 

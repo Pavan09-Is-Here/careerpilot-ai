@@ -34,8 +34,19 @@ export type ApplicationRun = {
   manual_fields: ApplicationRunManualField[];
   confirmation_number: string | null;
   submitted_at: string | null;
+  consented_at: string | null;
+  submission_method: string | null;
   driver: string;
   workflow_version: string;
   created_at: string;
   updated_at: string;
+};
+
+export type ApplicationRunConsentGate =
+  | "legal_declaration"
+  | "submission_confirmation";
+
+export type ApplicationRunStartOptions = {
+  driver: "manual_assist" | "auto_submit";
+  acknowledged_gates: ApplicationRunConsentGate[];
 };

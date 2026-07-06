@@ -37,9 +37,11 @@ class ApplicationRun(Base):
     application form fields to verified vault data, and enforces
     mandatory safety pauses for CAPTCHA, MFA, assessments, legal
     declarations, and the irreversible submission step. The tool
-    never bypasses site protections and never submits on its own —
-    the candidate performs the submission and records the resulting
-    confirmation number. No candidate information is fabricated.
+    never bypasses site protections. Submission happens either by the
+    candidate (who records the resulting confirmation number) or —
+    with the candidate's explicit recorded consent (``consented_at``)
+    — through a source-permitted submission adapter
+    (``submission_method``). No candidate information is fabricated.
     """
 
     __tablename__ = "application_runs"
@@ -114,6 +116,22 @@ class ApplicationRun(Base):
 
     submitted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Phase 16: explicit per-job candidate consent for auto-submission.
+    # Set only when the candidate acknowledged the legal declarations
+    # and the irreversible submission in the apply action itself.
+    consented_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Phase 16: which channel performed the submission — "manual" when
+    # the candidate submitted themselves, otherwise the name of the
+    # source-permitted submission adapter that was used.
+    submission_method: Mapped[str | None] = mapped_column(
+        String(50),
         nullable=True,
     )
 

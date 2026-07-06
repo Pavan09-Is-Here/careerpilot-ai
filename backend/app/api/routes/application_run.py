@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_profile_id
+from app.api.deps import get_current_profile_id, get_settings
 from app.core.database import get_db
 from app.models.application_run import ApplicationRun
 from app.schemas.application_run import (
     ApplicationRunResponse,
     ApplicationRunResumeRequest,
+    ApplicationRunStartRequest,
 )
 from app.services.application_run import (
     ApplicationRunServiceError,
@@ -36,11 +37,20 @@ def raise_run_http_error(error: ApplicationRunServiceError) -> None:
 )
 def start_application(
     job_id: int,
+    payload: ApplicationRunStartRequest | None = None,
     database: Session = Depends(get_db),
     profile_id: int = Depends(get_current_profile_id),
 ) -> ApplicationRun:
+    options = payload or ApplicationRunStartRequest()
     try:
-        return start_application_run(job_id, database, profile_id)
+        return start_application_run(
+            job_id,
+            database,
+            profile_id,
+            driver=options.driver,
+            acknowledged_gates=list(options.acknowledged_gates),
+            settings=get_settings(),
+        )
     except ApplicationRunServiceError as exc:
         raise_run_http_error(exc)
 
@@ -76,6 +86,7 @@ def resume_application(
             payload.confirmation_number,
             database,
             profile_id,
+            settings=get_settings(),
         )
     except ApplicationRunServiceError as exc:
         raise_run_http_error(exc)

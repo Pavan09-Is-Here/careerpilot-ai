@@ -2421,7 +2421,7 @@ alembic current               # Show database's current revision
 
 ### Phase 16 — One-Click Auto-Apply (Consented Automatic Submission)
 
-**Milestone Status:** IN REVIEW — implementation complete and validated locally; awaiting commit approval.
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `264c166caa14357e41b04ece234daf08fbb5b16c`)
 
 **Scope:** The candidate selects a job and clicks "Apply automatically" once. That click records explicit per-job consent (acknowledging the legal declarations and the irreversible submission). The run then auto-prepares everything missing — match analysis, tailored CV, application package (via the existing verified-facts services; nothing is ever fabricated) — and either submits through a source-permitted channel or pauses and notifies the candidate by email.
 
@@ -2702,7 +2702,7 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code groundwork committed; deployed to Supabase + Render + Vercel). Phase 15 — Multi-tenant accounts IN PROGRESS: 15A (users table, username+password login, per-account sessions/profile) COMMITTED; 15B (all personal API routes scoped to the authenticated user's candidate profile; cross-user isolation tests) COMPLETE and validated (full suite green; upgrade/downgrade validated on SQLite and real PostgreSQL). 15C (frontend registration + username login) and per-user background workers (the auto-apply/matching pipeline still operates on a single candidate profile and must be looped over all profiles) remain. Phase 16 — One-Click Auto-Apply IN REVIEW: consented automatic submission implemented and validated locally (alembic head `f4a5b6c7d8e9`, full suite 526 passed); awaiting commit approval — see the Phase 16 milestone section.
+**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code groundwork committed; deployed to Supabase + Render + Vercel). Phase 15 — Multi-tenant accounts IN PROGRESS: 15A (users table, username+password login, per-account sessions/profile) COMMITTED; 15B (all personal API routes scoped to the authenticated user's candidate profile; cross-user isolation tests) COMPLETE and validated (full suite green; upgrade/downgrade validated on SQLite and real PostgreSQL). 15C (frontend registration + username login) and per-user background workers (the auto-apply/matching pipeline still operates on a single candidate profile and must be looped over all profiles) remain. Phase 16 — One-Click Auto-Apply COMPLETED (Committed — Git revision `264c166caa14357e41b04ece234daf08fbb5b16c`; alembic head `f4a5b6c7d8e9`; full suite 526 passed) — see the Phase 16 milestone section.
 
 **First Not-Started Milestone:** Phase 14 infrastructure/deployment steps (provisioning, hosting, backups) — see `docs/deployment.md`.
 

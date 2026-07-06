@@ -2461,7 +2461,7 @@ alembic current               # Show database's current revision
 
 ### Phase 16.2 — Multi-Tenant Ownership, GDPR File Erasure, Per-User Workers, Frontend Fixes
 
-**Milestone Status:** IN REVIEW — implemented and validated; awaiting commit.
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `87763e50a5c41713a31cd4a5b1000668e776ab94`)
 
 **Scope:**
 - **Per-profile ownership (audit H1).** Migration `a5b6c7d8e9f0` (reversible): `application_packages` and `applications` unique per `(job_id, candidate_profile_id)` instead of per job globally; `job_tailored_cvs` gains a backfilled `candidate_profile_id` (FK, index) and per-profile uniqueness. Services scoped: `get_package_or_404`, `update_application_package`, `prepare_application_package` lookup, `load_tailored_cv` (ownership via the CV version's owner), `link_tailored_cv`, `get_tailored_cv_or_404`, `track_application`, `derive_initial_status`, `latest_run`, `active_run_for_job`. Two accounts can now each apply to the same job, and no account can reach another's package/CV/application/run. New isolation test: both users track the same job independently.

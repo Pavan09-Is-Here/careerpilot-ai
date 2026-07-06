@@ -254,7 +254,9 @@ def worker_job_analysis(ctx: WorkerContext) -> None:
         )
         return
 
-    analyzed_ids = select(JobMatch.job_id)
+    analyzed_ids = select(JobMatch.job_id).where(
+        JobMatch.candidate_profile_id == CANDIDATE_PROFILE_ID
+    )
     jobs = list(
         ctx.database.scalars(
             select(NormalizedJob)
@@ -270,7 +272,12 @@ def worker_job_analysis(ctx: WorkerContext) -> None:
 
     def handle(job: object) -> str:
         assert isinstance(job, NormalizedJob)
-        match = analyze_job_match(job.id, ctx.database, today=ctx.now.date())
+        match = analyze_job_match(
+            job.id,
+            ctx.database,
+            candidate_profile_id=CANDIDATE_PROFILE_ID,
+            today=ctx.now.date(),
+        )
         return (
             f"Analyzed '{job.title}' — eligibility "
             f"{match.eligibility_status}, score {match.match_score}."
@@ -300,7 +307,8 @@ def worker_application_preparation(ctx: WorkerContext) -> None:
     eligible_ids = select(JobMatch.job_id).where(
         JobMatch.eligibility_status.in_(
             ("eligible", "conditionally_eligible")
-        )
+        ),
+        JobMatch.candidate_profile_id == CANDIDATE_PROFILE_ID,
     )
     tailored_ids = select(JobTailoredCV.job_id)
 
@@ -442,7 +450,12 @@ def worker_auto_apply_pipeline(ctx: WorkerContext) -> None:
     for job in jobs:
         ctx.processed += 1
         try:
-            match = analyze_job_match(job.id, ctx.database, today=ctx.now.date())
+            match = analyze_job_match(
+                job.id,
+                ctx.database,
+                candidate_profile_id=CANDIDATE_PROFILE_ID,
+                today=ctx.now.date(),
+            )
             if match.eligibility_status == "ineligible":
                 ctx.audit(
                     "auto_apply_skip_ineligible",
@@ -461,6 +474,7 @@ def worker_auto_apply_pipeline(ctx: WorkerContext) -> None:
                             idempotency_key=f"auto-apply-job{job.id}",
                         ),
                         ctx.database,
+                        candidate_profile_id=CANDIDATE_PROFILE_ID,
                     )
                 except CVTailoringError as exc:
                     create_notification(

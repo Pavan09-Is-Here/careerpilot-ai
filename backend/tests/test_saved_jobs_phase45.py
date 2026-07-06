@@ -308,7 +308,10 @@ def test_saved_job_table_persists_after_maintenance(
     job = make_job(db_session)
     save(db_session, job, account.profile_id)
 
-    response = client.post("/api/jobs/maintenance")
+    response = client.post(
+        "/api/jobs/maintenance",
+        headers=account.headers,
+    )
 
     assert response.status_code == 200
     assert db_session.scalar(select(SavedJob)) is not None

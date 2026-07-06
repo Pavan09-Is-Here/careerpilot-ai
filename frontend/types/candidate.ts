@@ -18,11 +18,13 @@ export type CandidateProfileInput = {
   salary_currency: string;
   minimum_match_score: number;
   auto_apply_enabled: boolean;
-  facts_verified: boolean;
 };
 
 export type CandidateProfile = CandidateProfileInput & {
   id: number;
   created_at: string;
   updated_at: string;
+  // Read-only: changes only via the verification workflow
+  // (POST /profile/verify-all), never via profile upsert.
+  facts_verified: boolean;
 };

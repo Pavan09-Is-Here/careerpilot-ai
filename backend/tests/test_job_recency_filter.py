@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,14 @@ from app.services.job import (
     create_normalized_job,
     list_normalized_jobs,
 )
+
+
+from app.api.routes.auth import login_rate_limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
 
 
 NOW = datetime(2026, 7, 2, 12, 0, tzinfo=timezone.utc)
@@ -133,7 +142,7 @@ def test_no_recency_filter_returns_all(db_session: Session) -> None:
 
 
 def test_recency_filter_via_api(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     now = datetime.now(timezone.utc)
@@ -150,16 +159,16 @@ def test_recency_filter_via_api(
         last_seen_at=now,
     )
 
-    response = client.get("/api/jobs", params={"posted_within_hours": 24})
+    response = auth_client.get("/api/jobs", params={"posted_within_hours": 24})
     assert response.status_code == 200
     titles = {item["title"] for item in response.json()["items"]}
     assert titles == {"API Fresh"}
 
 
-def test_api_rejects_invalid_hours(client: TestClient) -> None:
+def test_api_rejects_invalid_hours(auth_client: TestClient) -> None:
     assert (
-        client.get("/api/jobs", params={"posted_within_hours": 0})
+        auth_client.get("/api/jobs", params={"posted_within_hours": 0})
     ).status_code == 422
     assert (
-        client.get("/api/jobs", params={"updated_within_hours": 99999})
+        auth_client.get("/api/jobs", params={"updated_within_hours": 99999})
     ).status_code == 422

@@ -169,8 +169,6 @@ backend/
 │   │   ├── generated_cv_storage.py # Safe generated artifact storage
 │   │   ├── verified_master_cv.py  # Verified master CV generation
 │   │   └── job.py                 # Phase 4.1 compliance, lifecycle, read/filter rules
-│   ├── repositories/              # Database access layer (extensible)
-│   └── utils/
 ├── alembic/
 │   ├── env.py                     # Alembic configuration
 │   ├── versions/                  # Versioned migrations
@@ -2441,6 +2439,23 @@ alembic current               # Show database's current revision
 **Validation (this milestone):** full backend suite green (526 passed, 1 environment-restricted skip, run in shards); `compileall app` passed; migration upgrade → downgrade → re-upgrade validated on SQLite; migration-parity head updated to `f4a5b6c7d8e9`; frontend `tsc --noEmit`, ESLint, and 54 node tests pass.
 
 **Deferred:** real submission adapters (require a source whose terms permit API submission with candidate-authorized credentials); per-profile worker loop (Phase 15 remainder); SMTP provider configuration (recommended: Resend SMTP endpoint via existing `CAREERPILOT_SMTP_*` settings).
+
+---
+
+### Phase 16.1 — Security Hardening and Cleanup
+
+**Milestone Status:** IN REVIEW — implemented and validated; awaiting commit.
+
+**Scope (from the July 2026 code audit):**
+- Authentication required on ALL previously open routes: every `job.py` endpoint (analyze, match, tailor-cv, tailored-cv, salary-recommendation, maintenance, listings, duplicates), all `worker.py` endpoints (start, status, audit-log), all `ingestion.py` endpoints. Anonymous callers can no longer read candidate data, trigger CV generation, or drive the auto-apply pipeline.
+- Per-profile scoping of candidate-fact queries: `analyze_job_match`, `get_job_match_or_404`, `recommend_salary`, `load_job_match`, and `matched_verified_skill_names` now require and filter by `candidate_profile_id` — one profile's verified facts can never appear in another profile's match report or cover letter (candidate-truth rule). `get_tailored_cv_or_404` enforces CV-version ownership. Worker job-selection queries scoped to the worker profile.
+- `facts_verified` removed from `CandidateProfileUpsert`: verification state changes only via `POST /profile/verify-all`, never by direct client write (in either direction). Frontend no longer sends it.
+- Cleanup: removed empty `app/repositories/` and `app/utils/` packages and dead/unreachable frontend branches in `JobDetailPage`.
+- Tests updated to authenticate against the protected routes (401 paths asserted), plus a new regression test that a PUT can neither set nor unset `facts_verified`.
+
+**Validation:** full backend suite green (527 passed, 1 environment-restricted skip); `compileall` passed; frontend `tsc --noEmit`, ESLint, and node tests (54) pass. No route renamed or removed; no schema/database migration required.
+
+**Known remaining (documented, not yet fixed):** per-profile uniqueness/ownership for application packages, tailored CVs, applications, and runs (audit finding H1 — one-per-job globally); GDPR erasure does not yet delete stored CV files (H3); per-profile worker loop (Phase 15 remainder); rate-limiter proxy awareness (M2/M3).
 
 ---
 

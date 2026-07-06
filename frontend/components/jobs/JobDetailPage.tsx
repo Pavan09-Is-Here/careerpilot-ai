@@ -18,7 +18,6 @@ import type {
 } from "@/types/job";
 
 import {
-  EmptyState,
   ErrorBanner,
   LifecycleBadge,
   formatDateTime,
@@ -260,14 +259,10 @@ export default function JobDetailPage({
                 className="rounded-md border border-slate-200 bg-white px-3 py-1.5"
               >
                 {location.raw_location_text ??
-                  [
-                    location.city,
-                    location.region,
-                    location.country,
-                  ]
+                  ([location.city, location.region, location.country]
                     .filter(Boolean)
-                    .join(", ") ??
-                  "—"}
+                    .join(", ") ||
+                    "—")}
               </li>
             ))}
           </ul>
@@ -371,11 +366,6 @@ export default function JobDetailPage({
         )}
       </section>
 
-      {duplicates.length === 0 && !job ? (
-        <EmptyState title="No data">
-          Nothing to display.
-        </EmptyState>
-      ) : null}
     </main>
   );
 }

@@ -99,12 +99,12 @@ def make_job(
 
 def test_requires_job_and_profile(db_session: Session) -> None:
     with pytest.raises(SalaryServiceError) as missing_job:
-        recommend_salary(987654, db_session)
+        recommend_salary(987654, db_session, candidate_profile_id=1)
     assert missing_job.value.status_code == 404
 
     job = make_job(db_session)
     with pytest.raises(SalaryServiceError) as missing_profile:
-        recommend_salary(job.id, db_session)
+        recommend_salary(job.id, db_session, candidate_profile_id=1)
     assert missing_profile.value.status_code == 404
 
 
@@ -117,7 +117,7 @@ def test_advertised_range_gives_high_confidence(
         compensations=[compensation("70000", "90000")],
     )
 
-    result = recommend_salary(job.id, db_session)
+    result = recommend_salary(job.id, db_session, candidate_profile_id=1)
 
     assert result.basis == "advertised_range"
     assert result.confidence == "high"
@@ -145,7 +145,7 @@ def test_comparables_give_medium_confidence_with_three_jobs(
         )
     target = make_job(db_session)
 
-    result = recommend_salary(target.id, db_session)
+    result = recommend_salary(target.id, db_session, candidate_profile_id=1)
 
     assert result.basis == "comparable_jobs"
     assert result.confidence == "medium"
@@ -164,7 +164,7 @@ def test_few_comparables_give_low_confidence(
     )
     target = make_job(db_session)
 
-    result = recommend_salary(target.id, db_session)
+    result = recommend_salary(target.id, db_session, candidate_profile_id=1)
 
     assert result.basis == "comparable_jobs"
     assert result.confidence == "low"
@@ -182,7 +182,7 @@ def test_different_titles_are_not_comparable(
     )
     target = make_job(db_session, title="Platform Engineer")
 
-    result = recommend_salary(target.id, db_session)
+    result = recommend_salary(target.id, db_session, candidate_profile_id=1)
 
     assert result.basis == "insufficient_data"
     assert result.minimum is None
@@ -194,7 +194,7 @@ def test_no_data_recommends_nothing_instead_of_inventing(
     make_profile(db_session)
     job = make_job(db_session)
 
-    result = recommend_salary(job.id, db_session)
+    result = recommend_salary(job.id, db_session, candidate_profile_id=1)
 
     assert result.basis == "insufficient_data"
     assert result.confidence == "low"
@@ -215,7 +215,7 @@ def test_currency_groups_are_not_mixed(db_session: Session) -> None:
         )
     target = make_job(db_session)
 
-    result = recommend_salary(target.id, db_session)
+    result = recommend_salary(target.id, db_session, candidate_profile_id=1)
 
     assert result.currency == "GBP"
     assert result.minimum == Decimal("60000")
@@ -235,7 +235,7 @@ def test_below_declared_minimum_is_flagged_not_disclosed(
         compensations=[compensation("60000", "80000")],
     )
 
-    result = recommend_salary(job.id, db_session)
+    result = recommend_salary(job.id, db_session, candidate_profile_id=1)
 
     assert result.below_declared_minimum is True
     assert "100000" not in result.safe_answer
@@ -255,13 +255,13 @@ def test_minimum_in_other_currency_is_not_compared(
         compensations=[compensation("60000", "80000", currency="GBP")],
     )
 
-    result = recommend_salary(job.id, db_session)
+    result = recommend_salary(job.id, db_session, candidate_profile_id=1)
 
     assert result.below_declared_minimum is False
 
 
 def test_endpoint_shape_and_404(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     make_profile(db_session)
@@ -270,7 +270,7 @@ def test_endpoint_shape_and_404(
         compensations=[compensation("70000", "90000")],
     )
 
-    response = client.post(
+    response = auth_client.post(
         "/api/salary-recommendation",
         json={"job_id": job.id},
     )
@@ -282,13 +282,13 @@ def test_endpoint_shape_and_404(
     assert body["safe_answer"]
     assert isinstance(body["factors"], list)
 
-    missing = client.post(
+    missing = auth_client.post(
         "/api/salary-recommendation",
         json={"job_id": 987654},
     )
     assert missing.status_code == 404
 
-    invalid = client.post(
+    invalid = auth_client.post(
         "/api/salary-recommendation",
         json={"job_id": 0},
     )

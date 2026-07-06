@@ -32,6 +32,15 @@ from app.services.ingestion import (
 from app.services.job import create_job_source, create_normalized_job
 
 
+from app.api.routes.auth import login_rate_limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
+
+
+
 PHASE41_HEAD = "b8c9d0e1f2a3"
 PHASE42_HEAD = "c9d0e1f2a3b4"
 
@@ -474,14 +483,14 @@ def test_retention_cleanup_with_no_expired_snapshots(
 
 
 def test_list_runs_endpoint(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     source = enabled_source(db_session)
     first = make_run(db_session, source=source)
     second = make_run(db_session, source=source)
 
-    response = client.get("/api/ingestion-runs")
+    response = auth_client.get("/api/ingestion-runs")
 
     assert response.status_code == 200
     body = response.json()
@@ -491,7 +500,7 @@ def test_list_runs_endpoint(
 
 
 def test_list_runs_filters_by_source_and_status(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     source_a = enabled_source(db_session)
@@ -499,7 +508,7 @@ def test_list_runs_filters_by_source_and_status(
     run_a = make_running_run(db_session, source=source_a)
     make_run(db_session, source=source_b)
 
-    response = client.get(
+    response = auth_client.get(
         "/api/ingestion-runs",
         params={"source": source_a.id, "run_status": "running"},
     )
@@ -510,8 +519,8 @@ def test_list_runs_filters_by_source_and_status(
     assert body["items"][0]["id"] == run_a.id
 
 
-def test_list_runs_rejects_invalid_status(client: TestClient) -> None:
-    response = client.get(
+def test_list_runs_rejects_invalid_status(auth_client: TestClient) -> None:
+    response = auth_client.get(
         "/api/ingestion-runs",
         params={"run_status": "exploded"},
     )
@@ -520,13 +529,13 @@ def test_list_runs_rejects_invalid_status(client: TestClient) -> None:
 
 
 def test_get_run_detail_and_404(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     run = make_run(db_session)
 
-    found = client.get(f"/api/ingestion-runs/{run.id}")
-    missing = client.get("/api/ingestion-runs/987654")
+    found = auth_client.get(f"/api/ingestion-runs/{run.id}")
+    missing = auth_client.get("/api/ingestion-runs/987654")
 
     assert found.status_code == 200
     assert found.json()["id"] == run.id
@@ -534,14 +543,14 @@ def test_get_run_detail_and_404(
 
 
 def test_run_snapshots_endpoint_and_404(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     run = make_running_run(db_session)
     snapshot = make_snapshot(db_session, run)
 
-    found = client.get(f"/api/ingestion-runs/{run.id}/snapshots")
-    missing = client.get("/api/ingestion-runs/987654/snapshots")
+    found = auth_client.get(f"/api/ingestion-runs/{run.id}/snapshots")
+    missing = auth_client.get("/api/ingestion-runs/987654/snapshots")
 
     assert found.status_code == 200
     body = found.json()
@@ -551,7 +560,7 @@ def test_run_snapshots_endpoint_and_404(
 
 
 def test_snapshot_responses_never_expose_payload_or_storage(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     run = make_running_run(db_session)
@@ -561,7 +570,7 @@ def test_snapshot_responses_never_expose_payload_or_storage(
         storage_reference=f"snapshot-{uuid4().hex}",
     )
 
-    response = client.get(f"/api/ingestion-runs/{run.id}/snapshots")
+    response = auth_client.get(f"/api/ingestion-runs/{run.id}/snapshots")
 
     assert response.status_code == 200
     item = response.json()["items"][0]
@@ -572,12 +581,12 @@ def test_snapshot_responses_never_expose_payload_or_storage(
     assert "storage_reference" not in item
 
 
-def test_run_pagination_bounds(client: TestClient) -> None:
-    too_large = client.get(
+def test_run_pagination_bounds(auth_client: TestClient) -> None:
+    too_large = auth_client.get(
         "/api/ingestion-runs",
         params={"page_size": 1000},
     )
-    zero_page = client.get(
+    zero_page = auth_client.get(
         "/api/ingestion-runs",
         params={"page": 0},
     )

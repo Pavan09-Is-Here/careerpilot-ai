@@ -82,6 +82,19 @@ def create_profile(
     return cast(dict[str, Any], response.json())
 
 
+def mark_profile_verified(
+    database: Session,
+    account: Account,
+) -> None:
+    """facts_verified is no longer client-writable via the profile
+    PUT; tests that need an already-verified profile set the vault
+    state directly, simulating a completed verification workflow."""
+    profile = database.get(CandidateProfile, account.profile_id)
+    assert profile is not None
+    profile.facts_verified = True
+    database.commit()
+
+
 def create_ready_document(
     database: Session,
     sections: list[tuple[str, str, str]],
@@ -335,6 +348,7 @@ def test_profile_facts_and_harmless_formatting_are_confirmed(
     db_session: Session,
 ) -> None:
     create_profile(client, account)
+    mark_profile_verified(db_session, account)
     document = create_ready_document(
         db_session,
         [
@@ -385,6 +399,7 @@ def test_profile_mismatch_detection_requires_manual_review(
     db_session: Session,
 ) -> None:
     create_profile(client, account)
+    mark_profile_verified(db_session, account)
     document = create_ready_document(
         db_session,
         [
@@ -1037,6 +1052,7 @@ def test_comparison_does_not_modify_candidate_facts_vault(
     db_session: Session,
 ) -> None:
     create_profile(client, account)
+    mark_profile_verified(db_session, account)
     skill = add_skill(db_session, name="Python", candidate_profile_id=account.profile_id)
     education = add_education(db_session, candidate_profile_id=account.profile_id)
     profile = db_session.get(CandidateProfile, account.profile_id)

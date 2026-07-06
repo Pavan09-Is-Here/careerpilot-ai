@@ -355,9 +355,13 @@ def _ensure_package_ready(
     uses the existing verified-facts services — nothing is fabricated,
     and an unverified profile still fails CV tailoring as always.
     """
-    if load_job_match(job.id, database) is None:
+    if load_job_match(job.id, database, candidate_profile_id) is None:
         try:
-            analyze_job_match(job.id, database)
+            analyze_job_match(
+                job.id,
+                database,
+                candidate_profile_id=candidate_profile_id,
+            )
         except JobMatchServiceError as exc:
             raise ApplicationRunServiceError(
                 exc.safe_message,

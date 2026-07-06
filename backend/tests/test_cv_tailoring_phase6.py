@@ -33,6 +33,7 @@ def clear_phase6_rows_after_test(db_session: Session) -> None:
     db_session.execute(text("PRAGMA foreign_keys=ON"))
 
 from app.models.candidate_profile import CandidateProfile
+from tests.conftest import Account
 from app.models.cv_version import CVVersion
 from app.models.experience import Experience
 from app.models.job import JobSkillRequirement, NormalizedJob
@@ -56,6 +57,15 @@ from app.services.cv_tailoring import (
 from app.services.job import create_job_source, create_normalized_job
 
 
+from app.api.routes.auth import login_rate_limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
+
+
+
 PHASE5_HEAD = "f2a3b4c5d6e7"
 PHASE6_HEAD = "a3b4c5d6e7f8"
 
@@ -65,27 +75,34 @@ def content_hash(seed: str | None = None) -> str:
 
 
 def make_profile(database: Session) -> CandidateProfile:
-    profile = CandidateProfile(
-        id=1,
-        full_name="Pavan Test",
-        email="pavan@example.com",
-        location="London",
-        professional_title="Senior Backend Engineer",
-        professional_summary=(
+    values: dict[str, object] = {
+        "full_name": "Pavan Test",
+        "email": "pavan@example.com",
+        "location": "London",
+        "professional_title": "Senior Backend Engineer",
+        "professional_summary": (
             "Backend engineer focused on reliable APIs."
         ),
-        work_authorization="UK citizen",
-        requires_sponsorship=False,
-        willing_to_relocate=False,
-        preferred_work_modes=["remote"],
-        target_roles=["Backend Engineer"],
-        preferred_locations=["London"],
-        salary_currency="GBP",
-        minimum_match_score=50,
-        auto_apply_enabled=False,
-        facts_verified=True,
-    )
-    database.add(profile)
+        "work_authorization": "UK citizen",
+        "requires_sponsorship": False,
+        "willing_to_relocate": False,
+        "preferred_work_modes": ["remote"],
+        "target_roles": ["Backend Engineer"],
+        "preferred_locations": ["London"],
+        "salary_currency": "GBP",
+        "minimum_match_score": 50,
+        "auto_apply_enabled": False,
+        "facts_verified": True,
+    }
+    profile = database.get(CandidateProfile, 1)
+    if profile is None:
+        profile = CandidateProfile(id=1, **values)
+        database.add(profile)
+    else:
+        # An account-owned profile already exists (registration);
+        # reuse it so the authenticated caller owns the vault.
+        for key, value in values.items():
+            setattr(profile, key, value)
     database.commit()
     return profile
 
@@ -534,6 +551,7 @@ def test_get_tailored_cv_or_404(db_session: Session) -> None:
 
 def test_tailor_endpoints(
     client: TestClient,
+    account: Account,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -545,12 +563,20 @@ def test_tailor_endpoints(
     seed_vault(db_session)
     job = make_job(db_session, skills=["Python"])
 
-    missing = client.get(f"/api/jobs/{job.id}/tailored-cv")
+    # Tailoring endpoints require authentication.
+    anonymous = client.get(f"/api/jobs/{job.id}/tailored-cv")
+    assert anonymous.status_code == 401
+
+    missing = client.get(
+        f"/api/jobs/{job.id}/tailored-cv",
+        headers=account.headers,
+    )
     assert missing.status_code == 404
 
     created = client.post(
         f"/api/jobs/{job.id}/tailor-cv",
         json={"idempotency_key": "phase6-endpoint-key"},
+        headers=account.headers,
     )
     assert created.status_code == 201
     body = created.json()
@@ -560,13 +586,17 @@ def test_tailor_endpoints(
     for artifact in body["artifacts"]:
         assert "storage_path" not in artifact
 
-    fetched = client.get(f"/api/jobs/{job.id}/tailored-cv")
+    fetched = client.get(
+        f"/api/jobs/{job.id}/tailored-cv",
+        headers=account.headers,
+    )
     assert fetched.status_code == 200
     assert fetched.json()["version"]["id"] == body["version"]["id"]
 
     unknown = client.post(
         "/api/jobs/987654/tailor-cv",
         json={"idempotency_key": "phase6-unknown-job"},
+        headers=account.headers,
     )
     assert unknown.status_code == 404
 

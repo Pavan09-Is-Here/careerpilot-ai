@@ -31,6 +31,14 @@ from app.services.job_normalization import (
 )
 
 
+from app.api.routes.auth import login_rate_limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
+
+
 PHASE42_HEAD = "c9d0e1f2a3b4"
 PHASE44_HEAD = "d0e1f2a3b4c5"
 
@@ -384,13 +392,13 @@ def test_run_job_maintenance_combines_results(
 
 
 def test_maintenance_endpoint(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     source = make_source(db_session)
     upsert_one(db_session, source, job_create(source))
 
-    response = client.post("/api/jobs/maintenance")
+    response = auth_client.post("/api/jobs/maintenance")
 
     assert response.status_code == 200
     body = response.json()
@@ -402,7 +410,7 @@ def test_maintenance_endpoint(
 
 
 def test_job_duplicates_endpoint_and_404(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     source_a = make_source(db_session)
@@ -421,13 +429,13 @@ def test_job_duplicates_endpoint_and_404(
     detect_job_duplicates(db_session)
 
     for job_id in (first.id, second.id):
-        response = client.get(f"/api/jobs/{job_id}/duplicates")
+        response = auth_client.get(f"/api/jobs/{job_id}/duplicates")
         assert response.status_code == 200
         body = response.json()
         assert body["total"] == 1
         assert body["items"][0]["detection_method"] == "canonical_url"
 
-    missing = client.get("/api/jobs/987654/duplicates")
+    missing = auth_client.get("/api/jobs/987654/duplicates")
     assert missing.status_code == 404
 
 

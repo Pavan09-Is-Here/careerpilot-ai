@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.models.user import User
 from app.schemas.ingestion import (
     IngestionRunPageResponse,
     IngestionRunResponse,
@@ -40,6 +42,7 @@ def raise_ingestion_http_error(error: IngestionServiceError) -> None:
 def trigger_source_ingestion(
     source_id: int,
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> IngestionRunResponse:
     try:
         return ingest_greenhouse_source(source_id, database)
@@ -60,6 +63,7 @@ def list_ingestion_run_metadata(
     source_id: int | None = Query(default=None, gt=0, alias="source"),
     run_status: IngestionRunStatus | None = Query(default=None),
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     try:
         return list_ingestion_runs(
@@ -80,6 +84,7 @@ def list_ingestion_run_metadata(
 def get_ingestion_run_metadata(
     run_id: int,
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> IngestionRunResponse:
     try:
         return get_ingestion_run_or_404(run_id, database)
@@ -96,6 +101,7 @@ def list_ingestion_run_snapshot_metadata(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=100),
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     try:
         return list_run_snapshots(

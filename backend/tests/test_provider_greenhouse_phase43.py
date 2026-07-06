@@ -26,6 +26,14 @@ from app.services.provider_greenhouse import (
 )
 
 
+from app.api.routes.auth import login_rate_limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
+
+
 BOARD_URL = "https://boards-api.greenhouse.io/v1/boards/exampleco"
 
 
@@ -411,7 +419,7 @@ def test_html_stripping_is_deterministic() -> None:
 
 
 def test_ingest_endpoint_success(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -421,7 +429,7 @@ def test_ingest_endpoint_success(
         lambda: jobs_client(greenhouse_job()),
     )
 
-    response = client.post(f"/api/job-sources/{source.id}/ingest")
+    response = auth_client.post(f"/api/job-sources/{source.id}/ingest")
 
     assert response.status_code == 201
     body = response.json()
@@ -435,18 +443,18 @@ def test_ingest_endpoint_success(
 
 
 def test_ingest_endpoint_rejects_non_compliant_source(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     source = greenhouse_source(db_session, server_fetch_allowed=False)
 
-    response = client.post(f"/api/job-sources/{source.id}/ingest")
+    response = auth_client.post(f"/api/job-sources/{source.id}/ingest")
 
     assert response.status_code == 400
     assert "not allowed" in response.json()["detail"]
 
 
-def test_ingest_endpoint_unknown_source_404(client: TestClient) -> None:
-    response = client.post("/api/job-sources/987654/ingest")
+def test_ingest_endpoint_unknown_source_404(auth_client: TestClient) -> None:
+    response = auth_client.post("/api/job-sources/987654/ingest")
 
     assert response.status_code == 404

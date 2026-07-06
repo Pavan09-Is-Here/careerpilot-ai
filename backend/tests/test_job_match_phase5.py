@@ -31,6 +31,13 @@ from app.services.job_match import (
     merge_experience_years,
 )
 
+from app.api.routes.auth import login_rate_limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
+
 
 PHASE45_HEAD = "e1f2a3b4c5d6"
 PHASE5_HEAD = "f2a3b4c5d6e7"
@@ -61,8 +68,15 @@ def make_profile(
         "facts_verified": True,
     }
     values.update(overrides)
-    profile = CandidateProfile(**values)
-    database.add(profile)
+    profile = database.scalar(select(CandidateProfile))
+    if profile is None:
+        profile = CandidateProfile(**values)
+        database.add(profile)
+    else:
+        # An account-owned profile already exists (registration);
+        # reuse it so authenticated endpoints match against it.
+        for key, value in values.items():
+            setattr(profile, key, value)
     database.commit()
     database.refresh(profile)
     return profile
@@ -199,17 +213,32 @@ def analyze(
     database: Session,
     job: NormalizedJob,
 ) -> JobMatch:
-    return analyze_job_match(job.id, database, today=TODAY)
+    profile = database.scalar(select(CandidateProfile))
+    assert profile is not None
+    return analyze_job_match(
+        job.id,
+        database,
+        candidate_profile_id=profile.id,
+        today=TODAY,
+    )
 
 
 def test_analyze_requires_job_and_profile(db_session: Session) -> None:
     with pytest.raises(JobMatchServiceError) as missing_job:
-        analyze_job_match(987654, db_session)
+        analyze_job_match(
+            987654,
+            db_session,
+            candidate_profile_id=1,
+        )
     assert missing_job.value.status_code == 404
 
     job = make_job(db_session)
     with pytest.raises(JobMatchServiceError) as missing_profile:
-        analyze_job_match(job.id, db_session)
+        analyze_job_match(
+            job.id,
+            db_session,
+            candidate_profile_id=1,
+        )
     assert missing_profile.value.status_code == 404
 
 
@@ -590,7 +619,7 @@ def test_analysis_does_not_modify_candidate_facts(
 
 
 def test_analyze_and_match_endpoints(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     profile = make_profile(db_session)
@@ -601,10 +630,10 @@ def test_analyze_and_match_endpoints(
         remote_mode="remote",
     )
 
-    missing = client.get(f"/api/jobs/{job.id}/match")
+    missing = auth_client.get(f"/api/jobs/{job.id}/match")
     assert missing.status_code == 404
 
-    analyzed = client.post(f"/api/jobs/{job.id}/analyze")
+    analyzed = auth_client.post(f"/api/jobs/{job.id}/analyze")
     assert analyzed.status_code == 201
     body = analyzed.json()
     assert body["eligibility_status"] == "eligible"
@@ -612,21 +641,21 @@ def test_analyze_and_match_endpoints(
     assert ALGORITHM_VERSION in body["algorithm_version"]
     assert "deterministic" in body["explanation"]
 
-    fetched = client.get(f"/api/jobs/{job.id}/match")
+    fetched = auth_client.get(f"/api/jobs/{job.id}/match")
     assert fetched.status_code == 200
     assert fetched.json()["id"] == body["id"]
 
-    unknown = client.post("/api/jobs/987654/analyze")
+    unknown = auth_client.post("/api/jobs/987654/analyze")
     assert unknown.status_code == 404
 
 
 def test_match_response_has_no_internal_fields(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     make_profile(db_session)
     job = make_job(db_session)
-    response = client.post(f"/api/jobs/{job.id}/analyze")
+    response = auth_client.post(f"/api/jobs/{job.id}/analyze")
 
     body = response.json()
     forbidden_fragments = ("secret", "credential", "storage", "path")

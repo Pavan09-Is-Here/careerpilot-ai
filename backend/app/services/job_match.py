@@ -595,6 +595,7 @@ def analyze_job_match(
     job_id: int,
     database: Session,
     *,
+    candidate_profile_id: int,
     today: date | None = None,
 ) -> JobMatch:
     job = database.get(NormalizedJob, job_id)
@@ -604,7 +605,7 @@ def analyze_job_match(
             status_code=404,
         )
 
-    profile = database.scalar(select(CandidateProfile))
+    profile = database.get(CandidateProfile, candidate_profile_id)
     if profile is None:
         raise JobMatchServiceError(
             "Candidate profile was not found.",
@@ -613,24 +614,37 @@ def analyze_job_match(
 
     evaluation_date = today or current_utc_time().date()
 
+    # Only THIS candidate's verified facts may inform the match.
     verified_skills = list(
         database.scalars(
-            select(Skill).where(Skill.verified.is_(True))
+            select(Skill).where(
+                Skill.verified.is_(True),
+                Skill.candidate_profile_id == profile.id,
+            )
         ).all()
     )
     verified_experiences = list(
         database.scalars(
-            select(Experience).where(Experience.verified.is_(True))
+            select(Experience).where(
+                Experience.verified.is_(True),
+                Experience.candidate_profile_id == profile.id,
+            )
         ).all()
     )
     verified_education = list(
         database.scalars(
-            select(Education).where(Education.verified.is_(True))
+            select(Education).where(
+                Education.verified.is_(True),
+                Education.candidate_profile_id == profile.id,
+            )
         ).all()
     )
     verified_projects = list(
         database.scalars(
-            select(Project).where(Project.verified.is_(True))
+            select(Project).where(
+                Project.verified.is_(True),
+                Project.candidate_profile_id == profile.id,
+            )
         ).all()
     )
     job_skills = list(
@@ -740,9 +754,14 @@ def analyze_job_match(
 def get_job_match_or_404(
     job_id: int,
     database: Session,
+    *,
+    candidate_profile_id: int,
 ) -> JobMatch:
     match = database.scalar(
-        select(JobMatch).where(JobMatch.job_id == job_id)
+        select(JobMatch).where(
+            JobMatch.job_id == job_id,
+            JobMatch.candidate_profile_id == candidate_profile_id,
+        )
     )
     if match is None:
         raise JobMatchServiceError(

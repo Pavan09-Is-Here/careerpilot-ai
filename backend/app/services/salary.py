@@ -224,12 +224,14 @@ def build_safe_answer(
 def recommend_salary(
     job_id: int,
     database: Session,
+    *,
+    candidate_profile_id: int,
 ) -> SalaryRecommendation:
     job = database.get(NormalizedJob, job_id)
     if job is None:
         raise SalaryServiceError("Job was not found.", status_code=404)
 
-    profile = database.scalar(select(CandidateProfile))
+    profile = database.get(CandidateProfile, candidate_profile_id)
     if profile is None:
         raise SalaryServiceError(
             "Candidate profile was not found.",

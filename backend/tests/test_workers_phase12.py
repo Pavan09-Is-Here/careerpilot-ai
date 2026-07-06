@@ -167,11 +167,16 @@ def test_worker_retries_transient_failures(
     calls = {"n": 0}
     real = worker_service.analyze_job_match
 
-    def flaky(job_id, database, *, today=None):
+    def flaky(job_id, database, *, candidate_profile_id, today=None):
         calls["n"] += 1
         if calls["n"] == 1:
             raise RuntimeError("transient")
-        return real(job_id, database, today=today)
+        return real(
+            job_id,
+            database,
+            candidate_profile_id=candidate_profile_id,
+            today=today,
+        )
 
     monkeypatch.setattr(worker_service, "analyze_job_match", flaky)
     sleeps: list[float] = []
@@ -258,13 +263,13 @@ def test_run_all_workers_covers_registry(db_session: Session) -> None:
 
 
 def test_start_status_and_audit_endpoints(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     make_profile(db_session)
     make_job(db_session, lifecycle_status="active")
 
-    started = client.post(
+    started = auth_client.post(
         "/api/workers/start",
         json={"worker": "job_analysis"},
     )
@@ -273,19 +278,22 @@ def test_start_status_and_audit_endpoints(
     assert len(runs) == 1
     assert runs[0]["worker_name"] == "job_analysis"
 
-    status = client.get("/api/workers/status")
+    status = auth_client.get("/api/workers/status")
     assert status.status_code == 200
     workers = {w["worker_name"]: w for w in status.json()["workers"]}
     assert workers["job_analysis"]["health"] in {"healthy", "degraded"}
     assert workers["expiry_checker"]["health"] == "never_run"
 
-    audit = client.get("/api/audit-log", params={"worker": "job_analysis"})
+    audit = auth_client.get(
+        "/api/audit-log",
+        params={"worker": "job_analysis"},
+    )
     assert audit.status_code == 200
     assert audit.json()["total"] >= 1
 
 
-def test_start_unknown_worker_404(client: TestClient) -> None:
-    response = client.post(
+def test_start_unknown_worker_404(auth_client: TestClient) -> None:
+    response = auth_client.post(
         "/api/workers/start",
         json={"worker": "not_a_worker"},
     )

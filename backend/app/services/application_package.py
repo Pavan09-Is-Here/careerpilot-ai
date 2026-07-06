@@ -134,9 +134,16 @@ def require_profile(
     return profile
 
 
-def load_job_match(job_id: int, database: Session) -> JobMatch | None:
+def load_job_match(
+    job_id: int,
+    database: Session,
+    candidate_profile_id: int,
+) -> JobMatch | None:
     return database.scalar(
-        select(JobMatch).where(JobMatch.job_id == job_id)
+        select(JobMatch).where(
+            JobMatch.job_id == job_id,
+            JobMatch.candidate_profile_id == candidate_profile_id,
+        )
     )
 
 
@@ -186,10 +193,12 @@ def load_answers(
 def matched_verified_skill_names(
     job: NormalizedJob,
     database: Session,
+    candidate_profile_id: int,
 ) -> list[str]:
-    """Verified skill names that the posting explicitly lists as
-    structured skill requirements. Exact, deterministic overlap —
-    no fuzzy analogies, no invented skills."""
+    """Verified skill names — of THIS candidate only — that the
+    posting explicitly lists as structured skill requirements.
+    Exact, deterministic overlap — no fuzzy analogies, no invented
+    skills, never another profile's skills."""
     from app.models.skill import Skill
 
     job_skill_tokens = {
@@ -206,7 +215,10 @@ def matched_verified_skill_names(
     names: list[str] = []
     seen: set[str] = set()
     for skill in database.scalars(
-        select(Skill).where(Skill.verified.is_(True))
+        select(Skill).where(
+            Skill.verified.is_(True),
+            Skill.candidate_profile_id == candidate_profile_id,
+        )
     ).all():
         token = normalize_token(skill.name)
         if token in job_skill_tokens and token not in seen:
@@ -449,12 +461,16 @@ def prepare_application_package(
     job = get_job_or_404(job_id, database)
     profile = require_profile(database, candidate_profile_id)
 
-    match = load_job_match(job.id, database)
+    match = load_job_match(job.id, database, candidate_profile_id)
     tailored = load_tailored_cv(job.id, database)
     answers = load_answers(database, candidate_profile_id)
 
     try:
-        salary = recommend_salary(job.id, database)
+        salary = recommend_salary(
+            job.id,
+            database,
+            candidate_profile_id=candidate_profile_id,
+        )
     except SalaryServiceError as exc:
         raise ApplicationPackageServiceError(
             exc.safe_message,
@@ -462,7 +478,11 @@ def prepare_application_package(
         ) from exc
 
     blockers = detect_safety_blockers(job)
-    matched_skills = matched_verified_skill_names(job, database)
+    matched_skills = matched_verified_skill_names(
+        job,
+        database,
+        candidate_profile_id,
+    )
     company_interest = verified_company_interest_answer(answers)
     cover_letter = build_cover_letter(
         profile,
@@ -629,9 +649,17 @@ def build_answer_summaries(
     ]
 
 
-def build_salary_summary(job_id: int, database: Session) -> dict[str, object] | None:
+def build_salary_summary(
+    job_id: int,
+    database: Session,
+    candidate_profile_id: int,
+) -> dict[str, object] | None:
     try:
-        salary = recommend_salary(job_id, database)
+        salary = recommend_salary(
+            job_id,
+            database,
+            candidate_profile_id=candidate_profile_id,
+        )
     except SalaryServiceError:
         return None
     return {
@@ -652,7 +680,7 @@ def build_package_response(
     candidate_profile_id: int,
 ) -> dict[str, object]:
     job = get_job_or_404(package.job_id, database)
-    match = load_job_match(job.id, database)
+    match = load_job_match(job.id, database, candidate_profile_id)
     tailored = load_tailored_cv(job.id, database)
     answers = load_answers(database, candidate_profile_id)
 
@@ -671,5 +699,9 @@ def build_package_response(
         "match": build_match_summary(match),
         "tailored_cv": build_cv_summary(tailored),
         "verified_answers": build_answer_summaries(answers),
-        "salary": build_salary_summary(job.id, database),
+        "salary": build_salary_summary(
+            job.id,
+            database,
+            candidate_profile_id,
+        ),
     }

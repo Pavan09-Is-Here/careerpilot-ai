@@ -77,7 +77,10 @@ def test_profile_can_be_created_read_and_updated(
 
     assert created_profile["id"] == account.profile_id
     assert created_profile["email"] == "candidate@example.com"
-    assert created_profile["facts_verified"] is True
+    # The payload sends facts_verified=True, but verification state
+    # may only change through the verification workflow — a direct
+    # client write must never promote a profile to verified.
+    assert created_profile["facts_verified"] is False
 
     fetched_response = client.get("/api/profile", headers=account.headers)
 
@@ -98,6 +101,30 @@ def test_profile_can_be_created_read_and_updated(
         "Backend Engineer"
     )
     assert updated_response.json()["facts_verified"] is False
+
+
+def test_profile_put_cannot_unverify_or_verify_facts(
+    client: TestClient,
+    account: Account,
+) -> None:
+    """facts_verified is not client-writable in either direction."""
+    create_profile(client, account)
+
+    # Verify through the real workflow.
+    verify_response = client.post(
+        "/api/profile/verify-all",
+        headers=account.headers,
+    )
+    assert verify_response.status_code == 200
+
+    # A PUT trying to unset verification must not change it.
+    response = client.put(
+        "/api/profile",
+        json=profile_payload(facts_verified=False),
+        headers=account.headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["facts_verified"] is True
 
 
 @pytest.mark.parametrize(

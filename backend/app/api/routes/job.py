@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_profile_id, get_current_user
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.job import (
@@ -78,6 +78,7 @@ def list_job_source_metadata(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=100),
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     try:
         return list_job_sources(
@@ -119,6 +120,7 @@ def connect_greenhouse_job_board(
 def get_job_source_metadata(
     source_id: int,
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> JobSourceResponse:
     try:
         return get_job_source_or_404(source_id, database)
@@ -146,6 +148,7 @@ def list_job_metadata(
     ),
     search: str | None = Query(default=None, max_length=200),
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     try:
         return list_normalized_jobs(
@@ -171,6 +174,7 @@ def list_job_metadata(
 )
 def run_job_maintenance_pass(
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, int]:
     try:
         return run_job_maintenance(database)
@@ -188,6 +192,7 @@ def run_job_maintenance_pass(
 def get_job_metadata(
     job_id: int,
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     try:
         job = get_normalized_job_or_404(job_id, database)
@@ -204,9 +209,14 @@ def get_job_metadata(
 def analyze_job(
     job_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> JobMatchResponse:
     try:
-        return analyze_job_match(job_id, database)
+        return analyze_job_match(
+            job_id,
+            database,
+            candidate_profile_id=profile_id,
+        )
     except JobMatchServiceError as exc:
         raise HTTPException(
             status_code=exc.status_code,
@@ -221,9 +231,14 @@ def analyze_job(
 def get_job_match(
     job_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> JobMatchResponse:
     try:
-        return get_job_match_or_404(job_id, database)
+        return get_job_match_or_404(
+            job_id,
+            database,
+            candidate_profile_id=profile_id,
+        )
     except JobMatchServiceError as exc:
         raise HTTPException(
             status_code=exc.status_code,
@@ -238,9 +253,14 @@ def get_job_match(
 def get_salary_recommendation(
     payload: SalaryRecommendationRequest,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> SalaryRecommendationResponse:
     try:
-        recommendation = recommend_salary(payload.job_id, database)
+        recommendation = recommend_salary(
+            payload.job_id,
+            database,
+            candidate_profile_id=profile_id,
+        )
     except SalaryServiceError as exc:
         raise HTTPException(
             status_code=exc.status_code,
@@ -261,9 +281,15 @@ def tailor_cv_for_job(
     job_id: int,
     payload: CVMasterGenerationRequest,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVMasterGenerationResponse:
     try:
-        result = generate_tailored_cv(job_id, payload, database)
+        result = generate_tailored_cv(
+            job_id,
+            payload,
+            database,
+            candidate_profile_id=profile_id,
+        )
     except CVTailoringError as exc:
         raise HTTPException(
             status_code=exc.status_code,
@@ -284,9 +310,14 @@ def tailor_cv_for_job(
 def get_tailored_cv_for_job(
     job_id: int,
     database: Session = Depends(get_db),
+    profile_id: int = Depends(get_current_profile_id),
 ) -> CVMasterGenerationResponse:
     try:
-        result = get_tailored_cv_or_404(job_id, database)
+        result = get_tailored_cv_or_404(
+            job_id,
+            database,
+            candidate_profile_id=profile_id,
+        )
     except CVTailoringError as exc:
         raise HTTPException(
             status_code=exc.status_code,
@@ -307,6 +338,7 @@ def get_tailored_cv_for_job(
 def list_job_duplicate_links(
     job_id: int,
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     try:
         get_normalized_job_or_404(job_id, database)

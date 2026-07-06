@@ -199,13 +199,25 @@ def test_connect_then_ingest_creates_visible_jobs(
         ),
     )
 
-    ingest = client.post(f"/api/job-sources/{source_id}/ingest")
+    # Ingestion and job listing now require authentication.
+    anonymous_ingest = client.post(
+        f"/api/job-sources/{source_id}/ingest"
+    )
+    assert anonymous_ingest.status_code == 401
+
+    ingest = client.post(
+        f"/api/job-sources/{source_id}/ingest",
+        headers=account.headers,
+    )
     assert ingest.status_code == 201
     run = ingest.json()
     assert run["run_status"] == "succeeded"
     assert run["jobs_discovered"] == 2
 
-    jobs = client.get(f"/api/jobs?source={source_id}")
+    jobs = client.get(
+        f"/api/jobs?source={source_id}",
+        headers=account.headers,
+    )
     assert jobs.status_code == 200
     body = jobs.json()
     assert body["total"] == 2

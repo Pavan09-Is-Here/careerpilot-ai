@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.models.user import User
 from app.schemas.worker import (
     AuditLevel,
     AuditLogPageResponse,
@@ -32,6 +34,7 @@ router = APIRouter(
 def start_workers(
     payload: WorkerStartRequest | None = None,
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     request = payload or WorkerStartRequest()
     try:
@@ -54,6 +57,7 @@ def start_workers(
 )
 def get_worker_status(
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     return {"workers": all_worker_health(database)}
 
@@ -68,6 +72,7 @@ def get_audit_log(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     return list_audit_log(
         database,

@@ -216,9 +216,6 @@ function formToPayload(
 
     auto_apply_enabled:
       form.auto_apply_enabled,
-
-    facts_verified:
-      form.facts_verified,
   };
 }
 

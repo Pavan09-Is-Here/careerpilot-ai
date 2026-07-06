@@ -31,6 +31,14 @@ from app.services.job import (
 )
 
 
+from app.api.routes.auth import login_rate_limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter() -> None:
+    login_rate_limiter.reset()
+
+
 PHASE37_HEAD = "a7b8c9d0e1f2"
 PHASE41_HEAD = "b8c9d0e1f2a3"
 CHAIN_HEAD = "f4a5b6c7d8e9"
@@ -270,7 +278,7 @@ def test_documentation_url_does_not_infer_approval() -> None:
 
 
 def test_compliance_statuses_are_operational_not_legal_guarantees(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     source = make_source(
@@ -278,7 +286,7 @@ def test_compliance_statuses_are_operational_not_legal_guarantees(
         **approved_source_payload(source_key="operational-status"),
     )
 
-    response = client.get(f"/api/job-sources/{source.id}")
+    response = auth_client.get(f"/api/job-sources/{source.id}")
 
     assert response.status_code == 200
     payload = response.json()
@@ -288,14 +296,14 @@ def test_compliance_statuses_are_operational_not_legal_guarantees(
 
 
 def test_source_list_pagination(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     make_source(db_session, display_name="Beta Source")
     first = make_source(db_session, display_name="Alpha Source")
     make_source(db_session, display_name="Gamma Source")
 
-    response = client.get("/api/job-sources?page=1&page_size=1")
+    response = auth_client.get("/api/job-sources?page=1&page_size=1")
 
     assert response.status_code == 200
     payload = response.json()
@@ -305,8 +313,8 @@ def test_source_list_pagination(
     assert payload["items"][0]["id"] == first.id
 
 
-def test_source_detail_404(client: TestClient) -> None:
-    response = client.get("/api/job-sources/999999")
+def test_source_detail_404(auth_client: TestClient) -> None:
+    response = auth_client.get("/api/job-sources/999999")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Job source was not found."
@@ -377,13 +385,13 @@ def test_job_lifecycle_transition_validation() -> None:
 
 
 def test_job_list_pagination(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     first = make_job(db_session, title="First Job")
     make_job(db_session, title="Second Job")
 
-    response = client.get("/api/jobs?page=1&page_size=1")
+    response = auth_client.get("/api/jobs?page=1&page_size=1")
 
     assert response.status_code == 200
     payload = response.json()
@@ -393,86 +401,86 @@ def test_job_list_pagination(
 
 
 def test_job_list_filtering_by_source(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     selected_source = make_source(db_session)
     selected = make_job(db_session, source=selected_source)
     make_job(db_session, source=make_source(db_session))
 
-    response = client.get(f"/api/jobs?source={selected_source.id}")
+    response = auth_client.get(f"/api/jobs?source={selected_source.id}")
 
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == [selected.id]
 
 
 def test_job_list_filtering_by_lifecycle(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     active = make_job(db_session, lifecycle_status="active")
     make_job(db_session, lifecycle_status="expired")
 
-    response = client.get("/api/jobs?lifecycle_status=active")
+    response = auth_client.get("/api/jobs?lifecycle_status=active")
 
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == [active.id]
 
 
 def test_job_list_filtering_by_employer(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     selected = make_job(db_session, employer_name="Unicode Labs")
     make_job(db_session, employer_name="Other Employer")
 
-    response = client.get("/api/jobs?employer=unicode%20labs")
+    response = auth_client.get("/api/jobs?employer=unicode%20labs")
 
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == [selected.id]
 
 
 def test_job_list_filtering_by_employment_type(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     selected = make_job(db_session, employment_type="full_time")
     make_job(db_session, employment_type="contract")
 
-    response = client.get("/api/jobs?employment_type=full_time")
+    response = auth_client.get("/api/jobs?employment_type=full_time")
 
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == [selected.id]
 
 
 def test_job_list_filtering_by_remote_mode(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     selected = make_job(db_session, remote_mode="remote")
     make_job(db_session, remote_mode="hybrid")
 
-    response = client.get("/api/jobs?remote_mode=remote")
+    response = auth_client.get("/api/jobs?remote_mode=remote")
 
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == [selected.id]
 
 
-def test_job_detail_404(client: TestClient) -> None:
-    response = client.get("/api/jobs/999999")
+def test_job_detail_404(auth_client: TestClient) -> None:
+    response = auth_client.get("/api/jobs/999999")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Job was not found."
 
 
 def test_list_response_excludes_full_oversized_description(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     long_description = "A" * 1000
     job = make_job(db_session, description_text=long_description)
 
-    response = client.get("/api/jobs")
+    response = auth_client.get("/api/jobs")
 
     assert response.status_code == 200
     item = response.json()["items"][0]
@@ -482,13 +490,13 @@ def test_list_response_excludes_full_oversized_description(
 
 
 def test_detail_response_returns_bounded_safe_text(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     description = "Detailed synthetic description " * 20
     job = make_job(db_session, description_text=description)
 
-    response = client.get(f"/api/jobs/{job.id}")
+    response = auth_client.get(f"/api/jobs/{job.id}")
 
     assert response.status_code == 200
     payload = response.json()
@@ -562,7 +570,7 @@ def test_no_server_side_url_request_occurs(
 
 
 def test_unicode_job_text_is_preserved(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     job = make_job(
@@ -572,7 +580,7 @@ def test_unicode_job_text_is_preserved(
         description_text="Build tooling for São Paulo, Kraków, and 東京.",
     )
 
-    response = client.get(f"/api/jobs/{job.id}")
+    response = auth_client.get(f"/api/jobs/{job.id}")
 
     assert response.status_code == 200
     payload = response.json()
@@ -644,7 +652,7 @@ def test_currency_validation(
 
 
 def test_no_currency_conversion(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     job = make_job(
@@ -660,7 +668,7 @@ def test_no_currency_conversion(
         ],
     )
 
-    response = client.get(f"/api/jobs/{job.id}")
+    response = auth_client.get(f"/api/jobs/{job.id}")
 
     assert response.status_code == 200
     compensation = response.json()["compensations"][0]
@@ -687,7 +695,7 @@ def test_duplicate_skill_requirement_prevention(
 
 
 def test_skill_stable_ordering(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     job = make_job(
@@ -706,7 +714,7 @@ def test_skill_stable_ordering(
         ],
     )
 
-    response = client.get(f"/api/jobs/{job.id}")
+    response = auth_client.get(f"/api/jobs/{job.id}")
 
     assert response.status_code == 200
     assert [
@@ -716,7 +724,7 @@ def test_skill_stable_ordering(
 
 
 def test_no_ai_or_inferred_skills_from_description(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     job = make_job(
@@ -724,7 +732,7 @@ def test_no_ai_or_inferred_skills_from_description(
         description_text="This source text mentions Python and Kubernetes.",
     )
 
-    response = client.get(f"/api/jobs/{job.id}")
+    response = auth_client.get(f"/api/jobs/{job.id}")
 
     assert response.status_code == 200
     assert response.json()["skill_requirements"] == []
@@ -793,7 +801,7 @@ def test_normalization_version_validation(
 
 
 def test_location_preserves_source_fields_without_geocoding(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     job = make_job(
@@ -807,7 +815,7 @@ def test_location_preserves_source_fields_without_geocoding(
         ],
     )
 
-    response = client.get(f"/api/jobs/{job.id}")
+    response = auth_client.get(f"/api/jobs/{job.id}")
 
     assert response.status_code == 200
     location = response.json()["locations"][0]
@@ -817,14 +825,14 @@ def test_location_preserves_source_fields_without_geocoding(
 
 
 def test_api_responses_do_not_expose_internal_notes_secrets_or_paths(
-    client: TestClient,
+    auth_client: TestClient,
     db_session: Session,
 ) -> None:
     source = make_source(db_session)
     job = make_job(db_session, source=source)
 
-    source_response = client.get(f"/api/job-sources/{source.id}")
-    job_response = client.get(f"/api/jobs/{job.id}")
+    source_response = auth_client.get(f"/api/job-sources/{source.id}")
+    job_response = auth_client.get(f"/api/jobs/{job.id}")
 
     assert source_response.status_code == 200
     assert job_response.status_code == 200

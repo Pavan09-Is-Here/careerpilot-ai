@@ -96,7 +96,6 @@ class CandidateProfileBase(BaseModel):
     )
 
     auto_apply_enabled: bool = False
-    facts_verified: bool = False
 
     @field_validator("email")
     @classmethod
@@ -156,11 +155,18 @@ class CandidateProfileBase(BaseModel):
 
 
 class CandidateProfileUpsert(CandidateProfileBase):
-    pass
+    """Client-writable profile fields.
+
+    ``facts_verified`` is deliberately NOT accepted here: verification
+    state may only change through the verification workflow
+    (``POST /profile/verify-all``), never by direct client write.
+    """
 
 
 class CandidateProfileResponse(CandidateProfileBase):
     model_config = ConfigDict(from_attributes=True)
+
+    facts_verified: bool = False
 
     id: int
     created_at: datetime

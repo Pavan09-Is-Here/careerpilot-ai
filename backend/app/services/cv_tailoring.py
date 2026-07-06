@@ -544,7 +544,10 @@ def get_tailored_cv_or_404(
         )
 
     version = database.get(CVVersion, link.cv_version_id)
-    if version is None:
+    if (
+        version is None
+        or version.candidate_profile_id != candidate_profile_id
+    ):
         raise CVTailoringError(
             "Tailored CV version was not found.",
             status_code=404,

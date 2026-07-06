@@ -248,17 +248,28 @@ export default function CandidateProfileForm() {
     setVerifying(true);
     try {
       const result = await verifyAllProfileFacts();
+
+      // Re-fetch the profile in place so the verification state
+      // reflects the server, without a full page reload that
+      // would discard unsaved edits. Section managers re-fetch
+      // their own records when their tab is opened.
+      const profile = await getCandidateProfile();
+
       setForm((previous) => ({
         ...previous,
-        facts_verified: true,
+        facts_verified:
+          profile?.facts_verified ?? true,
       }));
+
+      if (profile) {
+        setLastSaved(profile.updated_at);
+      }
+
       setSuccessMessage(
         `Verified ${result.total} record${
           result.total === 1 ? "" : "s"
-        }. Reloading…`,
+        }.`,
       );
-      // Reload so each section reflects its verified state.
-      setTimeout(() => window.location.reload(), 600);
     } catch (error) {
       setErrorMessage(
         error instanceof Error

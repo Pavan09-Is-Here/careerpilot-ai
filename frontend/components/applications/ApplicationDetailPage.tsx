@@ -27,6 +27,8 @@ import {
   statusClasses,
 } from "@/components/applications/applicationHelpers";
 
+import { safeExternalHref } from "@/lib/url";
+
 const SUBMIT_READY_STATUSES: ApplicationStatus[] = [
   "ready_to_apply",
   "applying",
@@ -134,6 +136,9 @@ export default function ApplicationDetailPage({
   }
 
   const canSubmit = SUBMIT_READY_STATUSES.includes(application.status);
+  const jobPostingHref = safeExternalHref(
+    application.job.source_url,
+  );
 
   return (
     <main className="cp-page">
@@ -160,15 +165,21 @@ export default function ApplicationDetailPage({
           </div>
 
           <p className="mt-1 text-sm text-slate-500">
-            {application.job.employer_name} ·{" "}
-            <a
-              href={application.job.source_url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="text-violet-700 hover:text-violet-800"
-            >
-              Job posting
-            </a>
+            {application.job.employer_name}
+            {jobPostingHref ? (
+              <>
+                {" "}
+                ·{" "}
+                <a
+                  href={jobPostingHref}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-violet-700 hover:text-violet-800"
+                >
+                  Job posting
+                </a>
+              </>
+            ) : null}
           </p>
         </div>
 

@@ -18,6 +18,8 @@ import type {
   ProjectInput,
 } from "@/types/project";
 
+import { safeExternalHref } from "@/lib/url";
+
 type ProjectFormState = {
   name: string;
   role: string;
@@ -759,12 +761,20 @@ export default function ProjectManager() {
                   />
                 )}
 
-                {(project.project_url ||
-                  project.github_url) && (
+                {(safeExternalHref(
+                  project.project_url,
+                ) ||
+                  safeExternalHref(
+                    project.github_url,
+                  )) && (
                   <div className="mt-5 flex flex-wrap gap-3">
-                    {project.project_url && (
+                    {safeExternalHref(
+                      project.project_url,
+                    ) && (
                       <a
-                        href={project.project_url}
+                        href={safeExternalHref(
+                          project.project_url,
+                        )}
                         target="_blank"
                         rel="noreferrer"
                         className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
@@ -773,9 +783,13 @@ export default function ProjectManager() {
                       </a>
                     )}
 
-                    {project.github_url && (
+                    {safeExternalHref(
+                      project.github_url,
+                    ) && (
                       <a
-                        href={project.github_url}
+                        href={safeExternalHref(
+                          project.github_url,
+                        )}
                         target="_blank"
                         rel="noreferrer"
                         className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"

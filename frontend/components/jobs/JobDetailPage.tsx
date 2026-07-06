@@ -24,6 +24,8 @@ import {
   humanizeToken,
 } from "@/components/jobs/JobPrimitives";
 
+import { safeExternalHref } from "@/lib/url";
+
 type JobDetailPageProps = {
   jobId: number;
 };
@@ -64,33 +66,39 @@ export default function JobDetailPage({
   );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<string | null>(
-    null,
-  );
+  const [notice, setNotice] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    Promise.all([
-      getJob(jobId, controller.signal),
-      getJobDuplicates(jobId, controller.signal),
-    ])
-      .then(([jobDetail, duplicateList]) => {
-        setJob(jobDetail);
-        setDuplicates(duplicateList.items);
-        setLoading(false);
-      })
-      .catch((requestError: unknown) => {
-        if (isAbortError(requestError)) {
-          return;
-        }
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "Failed to load the job.",
-        );
-        setLoading(false);
-      });
+    queueMicrotask(() => {
+      setLoading(true);
+      setError(null);
+
+      Promise.all([
+        getJob(jobId, controller.signal),
+        getJobDuplicates(jobId, controller.signal),
+      ])
+        .then(([jobDetail, duplicateList]) => {
+          setJob(jobDetail);
+          setDuplicates(duplicateList.items);
+          setLoading(false);
+        })
+        .catch((requestError: unknown) => {
+          if (isAbortError(requestError)) {
+            return;
+          }
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Failed to load the job.",
+          );
+          setLoading(false);
+        });
+    });
 
     return () => controller.abort();
   }, [jobId]);
@@ -104,14 +112,19 @@ export default function JobDetailPage({
 
     saveJob(jobId)
       .then(() =>
-        setNotice("Job saved for review."),
+        setNotice({
+          tone: "success",
+          message: "Job saved for review.",
+        }),
       )
       .catch((requestError: unknown) => {
-        setNotice(
-          requestError instanceof Error
-            ? requestError.message
-            : "Failed to save job.",
-        );
+        setNotice({
+          tone: "error",
+          message:
+            requestError instanceof Error
+              ? requestError.message
+              : "Failed to save job.",
+        });
       })
       .finally(() => setSaving(false));
   };
@@ -125,11 +138,13 @@ export default function JobDetailPage({
         router.push(`/applications/${application.id}`);
       })
       .catch((requestError: unknown) => {
-        setNotice(
-          requestError instanceof Error
-            ? requestError.message
-            : "Failed to track application.",
-        );
+        setNotice({
+          tone: "error",
+          message:
+            requestError instanceof Error
+              ? requestError.message
+              : "Failed to track application.",
+        });
         setTracking(false);
       });
   };
@@ -159,6 +174,8 @@ export default function JobDetailPage({
       </main>
     );
   }
+
+  const sourceHref = safeExternalHref(job.source_url);
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
@@ -220,25 +237,37 @@ export default function JobDetailPage({
       </header>
 
       {notice ? (
-        <p
-          role="status"
-          className="mt-3 text-sm text-violet-700"
-        >
-          {notice}
-        </p>
+        notice.tone === "error" ? (
+          <div className="mt-3">
+            <ErrorBanner message={notice.message} />
+          </div>
+        ) : (
+          <p
+            role="status"
+            className="mt-3 text-sm text-violet-700"
+          >
+            {notice.message}
+          </p>
+        )
       ) : null}
 
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
         <p>
           Original posting:{" "}
-          <a
-            href={job.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="break-all text-violet-700 hover:underline"
-          >
-            {job.source_url}
-          </a>
+          {sourceHref ? (
+            <a
+              href={sourceHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-violet-700 hover:underline"
+            >
+              {job.source_url}
+            </a>
+          ) : (
+            <span className="break-all">
+              {job.source_url}
+            </span>
+          )}
         </p>
         {job.source_attribution_text ? (
           <p className="mt-2 text-xs text-slate-500">

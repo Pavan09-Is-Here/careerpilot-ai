@@ -18,6 +18,8 @@ import type {
   CertificationInput,
 } from "@/types/certification";
 
+import { safeExternalHref } from "@/lib/url";
+
 type CertificationFormState = {
   name: string;
   issuing_organization: string;
@@ -822,11 +824,13 @@ export default function CertificationManager() {
                       </div>
                     )}
 
-                    {certification.credential_url && (
+                    {safeExternalHref(
+                      certification.credential_url,
+                    ) && (
                       <a
-                        href={
-                          certification.credential_url
-                        }
+                        href={safeExternalHref(
+                          certification.credential_url,
+                        )}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-5 inline-block rounded-lg border border-slate-300 px-4 py-2 text-sm text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"

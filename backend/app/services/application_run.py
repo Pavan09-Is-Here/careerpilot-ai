@@ -151,7 +151,11 @@ def build_fill_plan_and_manual(
     candidate_profile_id: int,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     answers = load_answers(database, candidate_profile_id)
-    tailored = load_tailored_cv(package.job_id, database)
+    tailored = load_tailored_cv(
+        package.job_id,
+        database,
+        candidate_profile_id,
+    )
 
     fill_plan: list[dict[str, object]] = []
     manual_fields: list[dict[str, object]] = []
@@ -334,11 +338,14 @@ def require_profile(
 def active_run_for_job(
     job_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationRun | None:
     return database.scalar(
         select(ApplicationRun)
         .where(
             ApplicationRun.job_id == job_id,
+            ApplicationRun.candidate_profile_id
+            == candidate_profile_id,
             ApplicationRun.status == "paused_for_gate",
         )
         .order_by(ApplicationRun.id.desc())
@@ -368,7 +375,7 @@ def _ensure_package_ready(
                 status_code=exc.status_code,
             ) from exc
 
-    if load_tailored_cv(job.id, database) is None:
+    if load_tailored_cv(job.id, database, candidate_profile_id) is None:
         request = CVMasterGenerationRequest(
             idempotency_key=(
                 f"auto-apply-job-{job.id}-profile-{candidate_profile_id}"
@@ -389,7 +396,9 @@ def _ensure_package_ready(
 
     package = database.scalar(
         select(ApplicationPackage).where(
-            ApplicationPackage.job_id == job.id
+            ApplicationPackage.job_id == job.id,
+            ApplicationPackage.candidate_profile_id
+            == candidate_profile_id,
         )
     )
     if package is None:
@@ -619,7 +628,9 @@ def start_application_run(
     else:
         package = database.scalar(
             select(ApplicationPackage).where(
-                ApplicationPackage.job_id == job.id
+                ApplicationPackage.job_id == job.id,
+                ApplicationPackage.candidate_profile_id
+                == candidate_profile_id,
             )
         )
         if package is None:
@@ -654,7 +665,11 @@ def start_application_run(
                 status_code=409,
             )
 
-    existing = active_run_for_job(job.id, database)
+    existing = active_run_for_job(
+        job.id,
+        database,
+        candidate_profile_id,
+    )
     if existing is not None:
         return existing
 

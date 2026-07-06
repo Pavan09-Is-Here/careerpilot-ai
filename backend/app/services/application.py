@@ -73,16 +73,28 @@ def current_utc_time() -> datetime:
 # --- Status derivation ----------------------------------------------------
 
 
-def latest_run(job_id: int, database: Session) -> ApplicationRun | None:
+def latest_run(
+    job_id: int,
+    database: Session,
+    candidate_profile_id: int,
+) -> ApplicationRun | None:
     return database.scalar(
         select(ApplicationRun)
-        .where(ApplicationRun.job_id == job_id)
+        .where(
+            ApplicationRun.job_id == job_id,
+            ApplicationRun.candidate_profile_id
+            == candidate_profile_id,
+        )
         .order_by(ApplicationRun.id.desc())
     )
 
 
-def derive_initial_status(job_id: int, database: Session) -> str:
-    run = latest_run(job_id, database)
+def derive_initial_status(
+    job_id: int,
+    database: Session,
+    candidate_profile_id: int,
+) -> str:
+    run = latest_run(job_id, database, candidate_profile_id)
     if run is not None:
         if run.status == "submitted":
             return "submitted"
@@ -93,7 +105,9 @@ def derive_initial_status(job_id: int, database: Session) -> str:
 
     package = database.scalar(
         select(ApplicationPackage).where(
-            ApplicationPackage.job_id == job_id
+            ApplicationPackage.job_id == job_id,
+            ApplicationPackage.candidate_profile_id
+            == candidate_profile_id,
         )
     )
     if package is not None:
@@ -102,11 +116,17 @@ def derive_initial_status(job_id: int, database: Session) -> str:
             return mapped
         # blocked_by_missing_information falls through to earlier stages.
 
-    if load_tailored_cv(job_id, database) is not None:
+    if (
+        load_tailored_cv(job_id, database, candidate_profile_id)
+        is not None
+    ):
         return "cv_generated"
 
     match = database.scalar(
-        select(JobMatch).where(JobMatch.job_id == job_id)
+        select(JobMatch).where(
+            JobMatch.job_id == job_id,
+            JobMatch.candidate_profile_id == candidate_profile_id,
+        )
     )
     if match is not None:
         if match.eligibility_status == "ineligible":
@@ -173,22 +193,33 @@ def track_application(
     job = get_job_or_404(job_id, database)
 
     existing = database.scalar(
-        select(Application).where(Application.job_id == job.id)
+        select(Application).where(
+            Application.job_id == job.id,
+            Application.candidate_profile_id == candidate_profile_id,
+        )
     )
     if existing is not None:
         return existing
 
-    status = derive_initial_status(job.id, database)
+    status = derive_initial_status(
+        job.id,
+        database,
+        candidate_profile_id,
+    )
 
     cv_id: int | None = None
-    tailored = load_tailored_cv(job.id, database)
+    tailored = load_tailored_cv(
+        job.id,
+        database,
+        candidate_profile_id,
+    )
     if tailored is not None:
         version, _artifacts = tailored
         cv_id = version.id
 
     applied_at: datetime | None = None
     confirmation_number: str | None = None
-    run = latest_run(job.id, database)
+    run = latest_run(job.id, database, candidate_profile_id)
     if run is not None and run.status == "submitted":
         applied_at = run.submitted_at
         confirmation_number = run.confirmation_number

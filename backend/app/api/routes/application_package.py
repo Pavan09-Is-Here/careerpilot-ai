@@ -57,7 +57,7 @@ def get_application_package(
     profile_id: int = Depends(get_current_profile_id),
 ) -> dict[str, object]:
     try:
-        package = get_package_or_404(job_id, database)
+        package = get_package_or_404(job_id, database, profile_id)
         return build_package_response(package, database, profile_id)
     except ApplicationPackageServiceError as exc:
         raise_package_http_error(exc)
@@ -78,6 +78,7 @@ def update_application_package_record(
             job_id,
             payload,
             database,
+            profile_id,
         )
         return build_package_response(package, database, profile_id)
     except ApplicationPackageServiceError as exc:

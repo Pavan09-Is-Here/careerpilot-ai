@@ -138,6 +138,14 @@ export default function ApplicationAnswersPage() {
 
   const remove = useCallback(
     async (answerId: number) => {
+      const confirmed = window.confirm(
+        "Delete this answer? This cannot be undone.",
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
       setBusy(true);
       setError(null);
 

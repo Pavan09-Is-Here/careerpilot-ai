@@ -339,6 +339,51 @@ def test_application_is_not_visible_to_other_user(
     )
 
 
+def test_both_users_can_track_the_same_job(
+    client: TestClient,
+    db_session: Session,
+    alice: Account,
+    bob: Account,
+) -> None:
+    """Applications are unique per (job, profile), not per job:
+    two accounts may each apply to the same posting, and tracking by
+    one must never return (or block) the other's record."""
+    job = make_job(db_session)
+
+    alice_tracked = client.post(
+        f"/api/jobs/{job.id}/track",
+        headers=alice.headers,
+    )
+    assert alice_tracked.status_code in (200, 201)
+    alice_id = alice_tracked.json()["id"]
+
+    bob_tracked = client.post(
+        f"/api/jobs/{job.id}/track",
+        headers=bob.headers,
+    )
+    assert bob_tracked.status_code in (200, 201)
+    bob_id = bob_tracked.json()["id"]
+
+    assert alice_id != bob_id
+
+    # Re-tracking is idempotent per profile.
+    assert (
+        client.post(
+            f"/api/jobs/{job.id}/track", headers=alice.headers
+        ).json()["id"]
+        == alice_id
+    )
+
+    alice_items = client.get(
+        "/api/applications", headers=alice.headers
+    ).json()
+    bob_items = client.get(
+        "/api/applications", headers=bob.headers
+    ).json()
+    assert [item["id"] for item in alice_items] == [alice_id]
+    assert [item["id"] for item in bob_items] == [bob_id]
+
+
 # --- Privacy export/delete isolation ---------------------------------------
 
 

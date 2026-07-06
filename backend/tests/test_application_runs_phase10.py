@@ -186,6 +186,7 @@ def add_tailored_cv(
     database.add(
         JobTailoredCV(
             job_id=job.id,
+            candidate_profile_id=version.candidate_profile_id,
             cv_version_id=version.id,
             created_at=now,
             updated_at=now,

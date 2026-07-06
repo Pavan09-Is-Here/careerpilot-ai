@@ -2455,7 +2455,21 @@ alembic current               # Show database's current revision
 
 **Validation:** full backend suite green (527 passed, 1 environment-restricted skip); `compileall` passed; frontend `tsc --noEmit`, ESLint, and node tests (54) pass. No route renamed or removed; no schema/database migration required.
 
-**Known remaining (documented, not yet fixed):** per-profile uniqueness/ownership for application packages, tailored CVs, applications, and runs (audit finding H1 — one-per-job globally); GDPR erasure does not yet delete stored CV files (H3); per-profile worker loop (Phase 15 remainder); rate-limiter proxy awareness (M2/M3).
+**Known remaining (documented, not yet fixed):** rate-limiter proxy awareness (M2/M3). H1, H3, and the per-profile worker loop were fixed in Phase 16.2 below.
+
+---
+
+### Phase 16.2 — Multi-Tenant Ownership, GDPR File Erasure, Per-User Workers, Frontend Fixes
+
+**Milestone Status:** IN REVIEW — implemented and validated; awaiting commit.
+
+**Scope:**
+- **Per-profile ownership (audit H1).** Migration `a5b6c7d8e9f0` (reversible): `application_packages` and `applications` unique per `(job_id, candidate_profile_id)` instead of per job globally; `job_tailored_cvs` gains a backfilled `candidate_profile_id` (FK, index) and per-profile uniqueness. Services scoped: `get_package_or_404`, `update_application_package`, `prepare_application_package` lookup, `load_tailored_cv` (ownership via the CV version's owner), `link_tailored_cv`, `get_tailored_cv_or_404`, `track_application`, `derive_initial_status`, `latest_run`, `active_run_for_job`. Two accounts can now each apply to the same job, and no account can reach another's package/CV/application/run. New isolation test: both users track the same job independently.
+- **GDPR file erasure (audit H3).** `delete_candidate_data` now collects the candidate's uploaded document filenames and generated CV artifact paths before row deletion and best-effort removes the files afterwards (failures logged and counted, never raised; no paths in the response). Response gains `files_deleted` / `files_failed`. New test proves both file classes are removed from disk.
+- **Per-user background workers (Phase 15 remainder).** `CANDIDATE_PROFILE_ID = 1` removed; `job_analysis`, `application_preparation`, and `auto_apply_pipeline` iterate every candidate profile with per-profile job selection and per-profile notification dedupe keys. Daily limits unchanged (per worker).
+- **Frontend audit fixes (medium/low):** delete-document no longer re-fetches the deleted document; ApplicationPrepPage distinguishes real errors from "no package yet"; SavedJobs pagination controls; `/jobs?source=` filter honoured (Suspense-wrapped `useSearchParams`); session check no longer signs out on network blips; verify-all refetches in place instead of `window.location.reload`; loading state resets on id change; errors render as errors (role="alert"), not success notices; 300 ms search debounce; confirm before answer delete; `safeExternalHref` guards all external links (`javascript:` URLs neutralised).
+
+**Validation:** full backend suite green (529 passed, 1 environment-restricted skip); migration upgrade → downgrade → re-upgrade validated on SQLite; `compileall` passed; frontend `tsc --noEmit`, ESLint, and 54 node tests pass.
 
 ---
 

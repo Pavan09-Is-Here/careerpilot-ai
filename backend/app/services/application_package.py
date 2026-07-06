@@ -150,9 +150,18 @@ def load_job_match(
 def load_tailored_cv(
     job_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> tuple[CVVersion, list[CVVersionArtifact]] | None:
     link = database.scalar(
-        select(JobTailoredCV).where(JobTailoredCV.job_id == job_id)
+        select(JobTailoredCV)
+        .join(
+            CVVersion,
+            JobTailoredCV.cv_version_id == CVVersion.id,
+        )
+        .where(
+            JobTailoredCV.job_id == job_id,
+            CVVersion.candidate_profile_id == candidate_profile_id,
+        )
     )
     if link is None:
         return None
@@ -462,7 +471,11 @@ def prepare_application_package(
     profile = require_profile(database, candidate_profile_id)
 
     match = load_job_match(job.id, database, candidate_profile_id)
-    tailored = load_tailored_cv(job.id, database)
+    tailored = load_tailored_cv(
+        job.id,
+        database,
+        candidate_profile_id,
+    )
     answers = load_answers(database, candidate_profile_id)
 
     try:
@@ -505,7 +518,8 @@ def prepare_application_package(
     now = current_utc_time()
     package = database.scalar(
         select(ApplicationPackage).where(
-            ApplicationPackage.job_id == job.id
+            ApplicationPackage.job_id == job.id,
+            ApplicationPackage.candidate_profile_id == profile.id,
         )
     )
     if package is None:
@@ -544,10 +558,13 @@ def prepare_application_package(
 def get_package_or_404(
     job_id: int,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationPackage:
     package = database.scalar(
         select(ApplicationPackage).where(
-            ApplicationPackage.job_id == job_id
+            ApplicationPackage.job_id == job_id,
+            ApplicationPackage.candidate_profile_id
+            == candidate_profile_id,
         )
     )
     if package is None:
@@ -563,8 +580,13 @@ def update_application_package(
     job_id: int,
     data: ApplicationPackageUpdate,
     database: Session,
+    candidate_profile_id: int,
 ) -> ApplicationPackage:
-    package = get_package_or_404(job_id, database)
+    package = get_package_or_404(
+        job_id,
+        database,
+        candidate_profile_id,
+    )
 
     if data.user_confirmed and package.readiness_status not in {
         "ready_for_automatic_application",
@@ -681,7 +703,11 @@ def build_package_response(
 ) -> dict[str, object]:
     job = get_job_or_404(package.job_id, database)
     match = load_job_match(job.id, database, candidate_profile_id)
-    tailored = load_tailored_cv(job.id, database)
+    tailored = load_tailored_cv(
+        job.id,
+        database,
+        candidate_profile_id,
+    )
     answers = load_answers(database, candidate_profile_id)
 
     return {

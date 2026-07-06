@@ -10,6 +10,7 @@ import {
 import {
   cancelApplicationRun,
   getApplicationPackage,
+  isAbortError,
   prepareApplication,
   resumeApplicationRun,
   startApplicationRun,
@@ -74,11 +75,30 @@ export default function ApplicationPrepPage({
         const loaded = await getApplicationPackage(jobId, signal);
         setPkg(loaded);
         setNotes(loaded.user_notes ?? "");
-      } catch {
-        // No package prepared yet — that is expected.
-        setPkg(null);
+      } catch (loadError) {
+        if (isAbortError(loadError)) {
+          return;
+        }
+
+        const message =
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load the application package.";
+
+        // The backend answers 404 with this detail when the
+        // package has not been prepared yet — that is expected.
+        if (
+          message.startsWith("No application package exists") ||
+          message === "Job was not found."
+        ) {
+          setPkg(null);
+        } else {
+          setError(message);
+        }
       } finally {
-        setLoading(false);
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
       }
     },
     [jobId],

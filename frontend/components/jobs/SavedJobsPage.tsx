@@ -61,9 +61,10 @@ export default function SavedJobsPage() {
   const [updatingId, setUpdatingId] = useState<
     number | null
   >(null);
-  const [notice, setNotice] = useState<string | null>(
-    null,
-  );
+  const [notice, setNotice] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const loadSavedJobs = useCallback(
     (signal?: AbortSignal) => {
@@ -109,20 +110,32 @@ export default function SavedJobsPage() {
       review_status: nextStatus,
     })
       .then(() => {
-        setNotice(
-          `Moved to ${humanizeToken(nextStatus)}.`,
-        );
+        setNotice({
+          tone: "success",
+          message: `Moved to ${humanizeToken(nextStatus)}.`,
+        });
         loadSavedJobs();
       })
       .catch((requestError: unknown) => {
-        setNotice(
-          requestError instanceof Error
-            ? requestError.message
-            : "Failed to update the saved job.",
-        );
+        setNotice({
+          tone: "error",
+          message:
+            requestError instanceof Error
+              ? requestError.message
+              : "Failed to update the saved job.",
+        });
       })
       .finally(() => setUpdatingId(null));
   };
+
+  const totalPages = savedPage
+    ? Math.max(
+        1,
+        Math.ceil(
+          savedPage.total / savedPage.page_size,
+        ),
+      )
+    : 1;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -189,12 +202,18 @@ export default function SavedJobsPage() {
       </nav>
 
       {notice ? (
-        <p
-          role="status"
-          className="mt-4 text-sm text-violet-700"
-        >
-          {notice}
-        </p>
+        notice.tone === "error" ? (
+          <ErrorNotice className="mt-4">
+            {notice.message}
+          </ErrorNotice>
+        ) : (
+          <p
+            role="status"
+            className="mt-4 text-sm text-violet-700"
+          >
+            {notice.message}
+          </p>
+        )
       ) : null}
 
       <section
@@ -283,6 +302,34 @@ export default function SavedJobsPage() {
           </ul>
         )}
       </section>
+
+      {savedPage &&
+      savedPage.total > savedPage.page_size ? (
+        <nav
+          aria-label="Pagination"
+          className="mt-6 flex items-center justify-between text-sm text-slate-600"
+        >
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage(page - 1)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 transition hover:border-violet-400 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => setPage(page + 1)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 transition hover:border-violet-400 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next
+          </button>
+        </nav>
+      ) : null}
     </main>
   );
 }

@@ -176,6 +176,7 @@ class Application(Base):
         ),
         UniqueConstraint(
             "job_id",
-            name="uq_applications_job_id",
+            "candidate_profile_id",
+            name="uq_applications_job_profile",
         ),
     )

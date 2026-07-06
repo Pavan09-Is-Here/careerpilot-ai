@@ -309,6 +309,102 @@ def test_delete_erases_candidate_data(
     assert client.get("/api/auth/session", headers=headers).status_code == 401
 
 
+def test_delete_erases_stored_files(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """Erasure removes the candidate's files from storage, not just
+    the database rows: uploaded CV documents and generated CV
+    artifacts must both be gone."""
+    from datetime import timezone
+
+    from app.models.cv_version import CVVersion
+    from app.models.cv_version_artifact import CVVersionArtifact
+
+    documents_dir = tmp_path / "documents"
+    generated_dir = tmp_path / "generated"
+    documents_dir.mkdir()
+    generated_dir.mkdir()
+    monkeypatch.setenv(
+        "CAREERPILOT_DOCUMENT_STORAGE_DIR",
+        str(documents_dir),
+    )
+    monkeypatch.setenv(
+        "CAREERPILOT_GENERATED_CV_STORAGE_DIR",
+        str(generated_dir),
+    )
+
+    headers = auth_headers(client)
+    profile = db_session.query(CandidateProfile).one()
+
+    uploaded = documents_dir / "stored-cv.pdf"
+    uploaded.write_bytes(b"%PDF-1.4 uploaded")
+    generated = generated_dir / "artifact-cv.pdf"
+    generated.write_bytes(b"%PDF-1.4 generated")
+
+    db_session.add(
+        Document(
+            candidate_profile_id=profile.id,
+            original_filename="cv.pdf",
+            stored_filename="stored-cv.pdf",
+            file_extension=".pdf",
+            media_type="application/pdf",
+            size_bytes=17,
+            sha256_hash="a" * 64,
+            document_type="original_cv",
+            upload_status="validated",
+            is_primary=True,
+        )
+    )
+    now = datetime.now(timezone.utc)
+    version = CVVersion(
+        candidate_profile_id=profile.id,
+        version_type="tailored",
+        status="ready",
+        display_name="Tailored CV",
+        is_primary=False,
+        created_at=now,
+        updated_at=now,
+    )
+    db_session.add(version)
+    db_session.commit()
+    db_session.refresh(version)
+    db_session.add(
+        CVVersionArtifact(
+            cv_version_id=version.id,
+            artifact_type="pdf",
+            mime_type="application/pdf",
+            safe_filename="cv.pdf",
+            storage_path="artifact-cv.pdf",
+            file_size=18,
+            sha256="b" * 64,
+            page_count=1,
+            renderer_version="test",
+            content_version="test",
+            created_at=now,
+        )
+    )
+    db_session.commit()
+
+    deleted = client.post(
+        "/api/privacy/delete",
+        json={"confirm": True},
+        headers=headers,
+    )
+    assert deleted.status_code == 200
+    body = deleted.json()
+    assert body["profile_deleted"] is True
+    assert body["files_deleted"] == 2
+    assert body["files_failed"] == 0
+    assert not uploaded.exists()
+    assert not generated.exists()
+    # The response must not leak storage paths.
+    assert "stored-cv" not in deleted.text
+    assert "artifact-cv" not in deleted.text
+
+
 # --- Service-level password hashing ---------------------------------------
 
 

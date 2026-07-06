@@ -137,6 +137,7 @@ export default function CVVersionDetailPage({
   useEffect(() => {
     const controller = new AbortController();
     queueMicrotask(() => {
+      setLoading(true);
       void loadVersion(controller.signal);
     });
 

@@ -147,6 +147,7 @@ class ApplicationPackage(Base):
         ),
         UniqueConstraint(
             "job_id",
-            name="uq_application_packages_job_id",
+            "candidate_profile_id",
+            name="uq_application_packages_job_profile",
         ),
     )

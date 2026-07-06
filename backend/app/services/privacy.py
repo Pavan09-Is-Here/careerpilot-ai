@@ -3,9 +3,12 @@
 Export returns the candidate's own data, sanitized of internal storage
 references (no absolute paths, no server-side stored filenames). Erasure
 ("right to be forgotten") removes all candidate-owned records on an
-explicit, confirmed, authenticated request and revokes all sessions.
+explicit, confirmed, authenticated request, deletes the candidate's
+stored files (uploaded CV documents and generated CV artifacts), and
+revokes all sessions.
 """
 
+import logging
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -19,6 +22,7 @@ from app.models.application_run import ApplicationRun
 from app.models.candidate_profile import CandidateProfile
 from app.models.certification import Certification
 from app.models.cv_version import CVVersion
+from app.models.cv_version_artifact import CVVersionArtifact
 from app.models.document import Document
 from app.models.education import Education
 from app.models.experience import Experience
@@ -26,6 +30,9 @@ from app.models.job_match import JobMatch
 from app.models.project import Project
 from app.models.skill import Skill
 from app.services.auth import revoke_user_sessions
+
+
+logger = logging.getLogger("careerpilot.privacy")
 
 
 # Internal columns that must never leave the system in an export.
@@ -176,6 +183,28 @@ def delete_candidate_data(
         lambda model: model.candidate_profile_id == candidate_profile_id
     )
 
+    # Collect the candidate's stored file references BEFORE the rows
+    # are deleted: uploaded CV documents and generated CV artifacts
+    # must be erased from storage too ("right to be forgotten" covers
+    # the files, not just the database rows).
+    stored_document_filenames = [
+        name
+        for name in database.scalars(
+            select(Document.stored_filename).where(where(Document))
+        ).all()
+        if name
+    ]
+    owned_version_ids = select(CVVersion.id).where(where(CVVersion))
+    generated_artifact_paths = [
+        path
+        for path in database.scalars(
+            select(CVVersionArtifact.storage_path).where(
+                CVVersionArtifact.cv_version_id.in_(owned_version_ids)
+            )
+        ).all()
+        if path
+    ]
+
     # Delete references first, then owned records, in FK-safe order.
     database.execute(delete(ApplicationRun).where(where(ApplicationRun)))
     database.execute(delete(Application).where(where(Application)))
@@ -205,6 +234,11 @@ def delete_candidate_data(
     database.delete(profile)
     database.commit()
 
+    files_deleted, files_failed = _delete_candidate_files(
+        stored_document_filenames,
+        generated_artifact_paths,
+    )
+
     revoked = (
         revoke_user_sessions(owner_user_id, database)
         if owner_user_id is not None
@@ -215,4 +249,45 @@ def delete_candidate_data(
         "deleted": summary,
         "profile_deleted": True,
         "sessions_revoked": revoked,
+        "files_deleted": files_deleted,
+        "files_failed": files_failed,
     }
+
+
+def _delete_candidate_files(
+    stored_document_filenames: list[str],
+    generated_artifact_paths: list[str],
+) -> tuple[int, int]:
+    """Best-effort removal of the candidate's stored files.
+
+    File-system failures are logged and counted, never raised: the
+    database erasure has already been committed and must not appear
+    to fail because one file could not be unlinked. No paths are
+    included in the returned summary.
+    """
+    from app.services.document_storage import remove_uploaded_file
+    from app.services.generated_cv_storage import (
+        remove_generated_artifact,
+    )
+
+    deleted = 0
+    failed = 0
+    for stored_filename in stored_document_filenames:
+        try:
+            remove_uploaded_file(stored_filename)
+            deleted += 1
+        except Exception:  # noqa: BLE001 - contained, logged
+            failed += 1
+            logger.warning(
+                "Erasure could not remove an uploaded document file."
+            )
+    for storage_path in generated_artifact_paths:
+        try:
+            remove_generated_artifact(storage_path)
+            deleted += 1
+        except Exception:  # noqa: BLE001 - contained, logged
+            failed += 1
+            logger.warning(
+                "Erasure could not remove a generated CV artifact."
+            )
+    return deleted, failed

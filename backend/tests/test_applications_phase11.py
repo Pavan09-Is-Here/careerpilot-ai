@@ -142,6 +142,7 @@ def add_tailored_cv(
     database.add(
         JobTailoredCV(
             job_id=job.id,
+            candidate_profile_id=version.candidate_profile_id,
             cv_version_id=version.id,
             created_at=now,
             updated_at=now,
@@ -160,7 +161,7 @@ def test_derive_status_discovered(
 ) -> None:
     make_profile(db_session, account)
     job = make_job(db_session)
-    assert derive_initial_status(job.id, db_session) == "discovered"
+    assert derive_initial_status(job.id, db_session, account.profile_id) == "discovered"
 
 
 def test_derive_status_matched_and_not_eligible(
@@ -170,11 +171,11 @@ def test_derive_status_matched_and_not_eligible(
     profile = make_profile(db_session, account)
     job = make_job(db_session)
     add_match(db_session, job, profile)
-    assert derive_initial_status(job.id, db_session) == "matched"
+    assert derive_initial_status(job.id, db_session, account.profile_id) == "matched"
 
     job2 = make_job(db_session)
     add_match(db_session, job2, profile, eligibility_status="ineligible")
-    assert derive_initial_status(job2.id, db_session) == "not_eligible"
+    assert derive_initial_status(job2.id, db_session, account.profile_id) == "not_eligible"
 
 
 def test_derive_status_cv_generated(
@@ -185,7 +186,7 @@ def test_derive_status_cv_generated(
     job = make_job(db_session)
     add_match(db_session, job, profile)
     add_tailored_cv(db_session, job, profile)
-    assert derive_initial_status(job.id, db_session) == "cv_generated"
+    assert derive_initial_status(job.id, db_session, account.profile_id) == "cv_generated"
 
 
 # --- Transitions ----------------------------------------------------------

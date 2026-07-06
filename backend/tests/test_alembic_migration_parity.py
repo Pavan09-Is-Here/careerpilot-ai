@@ -157,6 +157,7 @@ EXPECTED_FOREIGN_KEYS = {
     "job_tailored_cvs": {
         ("job_id", "normalized_jobs", "id", "RESTRICT"),
         ("cv_version_id", "cv_versions", "id", "CASCADE"),
+        ("candidate_profile_id", "candidate_profiles", "id", "CASCADE"),
     },
     "application_answers": {
         ("candidate_profile_id", "candidate_profiles", "id", "CASCADE"),
@@ -283,6 +284,7 @@ EXPECTED_INDEXES = {
     "job_tailored_cvs": {
         "ix_job_tailored_cvs_job_id",
         "ix_job_tailored_cvs_cv_version_id",
+        "ix_job_tailored_cvs_candidate_profile_id",
     },
     "application_answers": {
         "ix_application_answers_candidate_profile_id",
@@ -358,7 +360,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["f4a5b6c7d8e9"]
+    assert script.get_heads() == ["a5b6c7d8e9f0"]
 
     command.upgrade(config, "head")
 

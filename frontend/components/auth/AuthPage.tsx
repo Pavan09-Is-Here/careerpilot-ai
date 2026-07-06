@@ -64,9 +64,32 @@ export default function AuthPage() {
       if (getAuthToken()) {
         try {
           setSession(await getSession(signal));
-        } catch {
-          clearAuthToken();
-          setSession(null);
+        } catch (sessionError) {
+          if (isAbortError(sessionError)) {
+            return;
+          }
+
+          const message =
+            sessionError instanceof Error
+              ? sessionError.message
+              : "";
+
+          // Only drop the stored token when the backend actually
+          // rejected it (401). A network blip must not sign the
+          // user out.
+          if (
+            message === "Not authenticated." ||
+            message === "Request failed with status 401"
+          ) {
+            clearAuthToken();
+            setSession(null);
+          } else {
+            setSession(null);
+            setError(
+              "Could not verify your session right now. " +
+                "Your sign-in was kept — reload to try again.",
+            );
+          }
         }
       } else {
         setSession(null);

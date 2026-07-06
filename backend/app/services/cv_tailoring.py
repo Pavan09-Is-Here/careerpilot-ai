@@ -335,12 +335,25 @@ def link_tailored_cv(
     version: CVVersion,
 ) -> None:
     now = current_utc_time()
+    # One tailored CV per (job, candidate profile): scope the lookup
+    # by the version owner so one candidate's regeneration can never
+    # replace another candidate's link.
     link = database.scalar(
-        select(JobTailoredCV).where(JobTailoredCV.job_id == job.id)
+        select(JobTailoredCV)
+        .join(
+            CVVersion,
+            JobTailoredCV.cv_version_id == CVVersion.id,
+        )
+        .where(
+            JobTailoredCV.job_id == job.id,
+            CVVersion.candidate_profile_id
+            == version.candidate_profile_id,
+        )
     )
     if link is None:
         link = JobTailoredCV(
             job_id=job.id,
+            candidate_profile_id=version.candidate_profile_id,
             cv_version_id=version.id,
             created_at=now,
             updated_at=now,
@@ -348,6 +361,7 @@ def link_tailored_cv(
         database.add(link)
     else:
         link.cv_version_id = version.id
+        link.candidate_profile_id = version.candidate_profile_id
         link.updated_at = now
 
     try:
@@ -535,7 +549,15 @@ def get_tailored_cv_or_404(
     candidate_profile_id: int = DEFAULT_CANDIDATE_PROFILE_ID,
 ) -> GeneratedMasterCVResult:
     link = database.scalar(
-        select(JobTailoredCV).where(JobTailoredCV.job_id == job_id)
+        select(JobTailoredCV)
+        .join(
+            CVVersion,
+            JobTailoredCV.cv_version_id == CVVersion.id,
+        )
+        .where(
+            JobTailoredCV.job_id == job_id,
+            CVVersion.candidate_profile_id == candidate_profile_id,
+        )
     )
     if link is None:
         raise CVTailoringError(

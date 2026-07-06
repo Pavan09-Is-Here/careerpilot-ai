@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -65,7 +66,22 @@ const RECENCY_OPTIONS: { label: string; hours: number | undefined }[] =
     { label: "Last 30 days", hours: 720 },
   ];
 
+function parseSourceParam(
+  value: string | null,
+): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0
+    ? parsed
+    : undefined;
+}
+
 export default function JobDiscoveryPage() {
+  const searchParams = useSearchParams();
   const [jobPage, setJobPage] =
     useState<NormalizedJobPage | null>(null);
   const [sources, setSources] = useState<JobSource[]>(
@@ -74,7 +90,7 @@ export default function JobDiscoveryPage() {
   const [page, setPage] = useState(1);
   const [sourceId, setSourceId] = useState<
     number | undefined
-  >(undefined);
+  >(() => parseSourceParam(searchParams.get("source")));
   const [lifecycleStatus, setLifecycleStatus] =
     useState<JobLifecycleStatus | undefined>(
       undefined,
@@ -89,6 +105,8 @@ export default function JobDiscoveryPage() {
   const [postedWithinHours, setPostedWithinHours] =
     useState<number | undefined>(undefined);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] =
+    useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(
     null,
@@ -99,9 +117,20 @@ export default function JobDiscoveryPage() {
   const [savedJobIds, setSavedJobIds] = useState<
     Set<number>
   >(new Set());
-  const [notice, setNotice] = useState<string | null>(
-    null,
-  );
+  const [notice, setNotice] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // Debounce the search text so typing does not trigger a
+  // request per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -130,7 +159,7 @@ export default function JobDiscoveryPage() {
           employmentType,
           remoteMode,
           postedWithinHours,
-          search,
+          search: debouncedSearch,
         },
         signal,
       )
@@ -157,7 +186,7 @@ export default function JobDiscoveryPage() {
       employmentType,
       remoteMode,
       postedWithinHours,
-      search,
+      debouncedSearch,
     ],
   );
 
@@ -180,14 +209,19 @@ export default function JobDiscoveryPage() {
           next.add(jobId);
           return next;
         });
-        setNotice("Job saved for review.");
+        setNotice({
+          tone: "success",
+          message: "Job saved for review.",
+        });
       })
       .catch((requestError: unknown) => {
-        setNotice(
-          requestError instanceof Error
-            ? requestError.message
-            : "Failed to save job.",
-        );
+        setNotice({
+          tone: "error",
+          message:
+            requestError instanceof Error
+              ? requestError.message
+              : "Failed to save job.",
+        });
       })
       .finally(() => setSavingJobId(null));
   };
@@ -376,12 +410,18 @@ export default function JobDiscoveryPage() {
       </section>
 
       {notice ? (
-        <p
-          role="status"
-          className="mt-4 text-sm text-violet-700"
-        >
-          {notice}
-        </p>
+        notice.tone === "error" ? (
+          <ErrorNotice className="mt-4">
+            {notice.message}
+          </ErrorNotice>
+        ) : (
+          <p
+            role="status"
+            className="mt-4 text-sm text-violet-700"
+          >
+            {notice.message}
+          </p>
+        )
       ) : null}
 
       <section className="mt-6" aria-label="Job list">

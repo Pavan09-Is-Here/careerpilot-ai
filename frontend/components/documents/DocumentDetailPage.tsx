@@ -498,6 +498,7 @@ export default function DocumentDetailPage({
   useEffect(() => {
     const controller = new AbortController();
     queueMicrotask(() => {
+      setLoading(true);
       void loadDetail(controller.signal);
     });
 
@@ -507,6 +508,7 @@ export default function DocumentDetailPage({
   async function runAction(
     actionId: string,
     action: () => Promise<string>,
+    options: { reload?: boolean } = {},
   ): Promise<void> {
     if (busyAction !== null) {
       return;
@@ -519,7 +521,10 @@ export default function DocumentDetailPage({
 
       const message = await action();
       setSuccessMessage(message);
-      await loadDetail();
+
+      if (options.reload !== false) {
+        await loadDetail();
+      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -915,6 +920,7 @@ export default function DocumentDetailPage({
                       router.push("/documents");
                       return "Document deleted.";
                     },
+                    { reload: false },
                   );
                 }}
               >

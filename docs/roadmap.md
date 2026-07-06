@@ -2444,7 +2444,7 @@ alembic current               # Show database's current revision
 
 ### Phase 16.1 — Security Hardening and Cleanup
 
-**Milestone Status:** IN REVIEW — implemented and validated; awaiting commit.
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `268c76f44248e21afa2b9d0a2bcfbbcac4a7e5f2`)
 
 **Scope (from the July 2026 code audit):**
 - Authentication required on ALL previously open routes: every `job.py` endpoint (analyze, match, tailor-cv, tailored-cv, salary-recommendation, maintenance, listings, duplicates), all `worker.py` endpoints (start, status, audit-log), all `ingestion.py` endpoints. Anonymous callers can no longer read candidate data, trigger CV generation, or drive the auto-apply pipeline.

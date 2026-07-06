@@ -358,9 +358,13 @@ def _ensure_package_ready(
     candidate_profile_id: int,
 ) -> ApplicationPackage:
     """Auto-prepare chain for one-click apply: analyze the match,
-    tailor the CV, and prepare the package when missing. Every step
-    uses the existing verified-facts services — nothing is fabricated,
-    and an unverified profile still fails CV tailoring as always.
+    tailor the CV, and prepare the package when missing. A stale
+    package stuck in a rejected state (blocked by missing information
+    or not eligible) is re-prepared so it reflects the vault's current
+    verified data — a confirmed reviewable package is never reset.
+    Every step uses the existing verified-facts services — nothing is
+    fabricated, and an unverified profile still fails CV tailoring as
+    always.
     """
     if load_job_match(job.id, database, candidate_profile_id) is None:
         try:
@@ -401,7 +405,14 @@ def _ensure_package_ready(
             == candidate_profile_id,
         )
     )
-    if package is None:
+    if (
+        package is None
+        or package.readiness_status in REJECTED_READINESS
+    ):
+        # Missing, or stale in a state that can never start a run:
+        # (re-)prepare so newly verified answers and the tailored CV
+        # are reflected. Confirmation-requiring packages are left
+        # untouched so a candidate's confirmation is never reset here.
         try:
             package = prepare_application_package(
                 job.id,

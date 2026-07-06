@@ -473,6 +473,87 @@ def test_consent_confirms_ready_package(
     assert run.status == "paused_for_gate"  # unsupported source
 
 
+def test_auto_reprepares_stale_blocked_package(
+    db_session: Session,
+    account: Account,
+) -> None:
+    """A package stuck in 'blocked_by_missing_information' from an
+    earlier attempt must not block one-click apply forever: once the
+    missing verified data exists, the auto chain re-prepares it."""
+    profile = make_profile(db_session, account)
+    job = make_job(db_session)
+    add_match(db_session, job, profile)
+    add_tailored_cv(db_session, job, profile)
+
+    # First preparation happens with NO verified answers on file, so
+    # the package is blocked by missing information.
+    stale = prepare_application_package(
+        job.id, db_session, profile.id
+    )
+    assert stale.readiness_status == "blocked_by_missing_information"
+
+    # The candidate then adds the required (and recommended) verified
+    # answers — exactly the fix the blocked panel asks for.
+    for category in (
+        "work_authorization",
+        "availability",
+        "sponsorship",
+        "expected_salary",
+        "relocation",
+        "notice_period",
+    ):
+        add_answer(
+            db_session,
+            category,
+            candidate_profile_id=profile.id,
+        )
+
+    run = start_application_run(
+        job.id,
+        db_session,
+        account.profile_id,
+        driver="auto_submit",
+        acknowledged_gates=CONSENT,
+    )
+
+    db_session.refresh(stale)
+    assert stale.readiness_status == (
+        "ready_for_automatic_application"
+    )
+    assert run.status == "paused_for_gate"  # unsupported source
+    assert run.pause_reason == "submission_confirmation"
+
+
+def test_auto_never_resets_confirmed_reviewable_package(
+    db_session: Session,
+    account: Account,
+) -> None:
+    """Re-preparation must not touch a reviewable package the
+    candidate already confirmed — their confirmation stands."""
+    from app.models.application_package import ApplicationPackage
+
+    job = prepare_ready_job(db_session, account)
+    package = (
+        db_session.query(ApplicationPackage)
+        .filter(ApplicationPackage.job_id == job.id)
+        .one()
+    )
+    package.readiness_status = "needs_user_review"
+    package.user_confirmed = True
+    db_session.commit()
+
+    run = start_application_run(
+        job.id,
+        db_session,
+        account.profile_id,
+        driver="auto_submit",
+        acknowledged_gates=CONSENT,
+    )
+    db_session.refresh(package)
+    assert package.user_confirmed is True
+    assert run.status == "paused_for_gate"
+
+
 def test_auto_prepares_missing_package(
     db_session: Session,
     account: Account,

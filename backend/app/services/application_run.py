@@ -651,10 +651,22 @@ def start_application_run(
             )
 
     if package.readiness_status in REJECTED_READINESS:
+        if package.readiness_status == "not_eligible":
+            raise ApplicationRunServiceError(
+                "This application cannot start: the match analysis "
+                "found you are not eligible for this job (see the "
+                "match report for the reason).",
+                status_code=409,
+            )
+        missing = "; ".join(
+            str(item) for item in (package.missing_items or [])[:6]
+        )
         raise ApplicationRunServiceError(
-            "This application cannot start while the package is "
-            f"'{package.readiness_status}'. Resolve it and re-prepare "
-            "first.",
+            "This application cannot start yet — it is still missing: "
+            f"{missing or 'required information'}. Add the missing "
+            "items (application answers live on the Application "
+            "Answers page, and profile facts must be verified), then "
+            "apply again.",
             status_code=409,
         )
 

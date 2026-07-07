@@ -355,10 +355,13 @@ def test_apply_builds_fill_plan_and_gates(
     assert {"full_name", "email", "availability"}.issubset(fill_fields)
     assert "resume" in fill_fields
 
-    # Sensitive/legal answers are never auto-filled.
+    # Sensitive/legal answers are never auto-filled...
     assert "work_authorization" not in fill_fields
+    # ...but an answer the candidate already verified AND manually
+    # confirmed no longer pauses every run; only unconfirmed
+    # sensitive answers appear as manual fields.
     manual = {f["field"] for f in body["manual_fields"]}
-    assert "work_authorization" in manual
+    assert "work_authorization" not in manual
 
     # Legal declaration and submission gates always present.
     gate_codes = [g["code"] for g in body["gates"]]

@@ -9,6 +9,7 @@ import {
 
 import {
   cancelApplicationRun,
+  createApplicationAnswer,
   getApplicationPackage,
   isAbortError,
   prepareApplication,
@@ -18,11 +19,69 @@ import {
 } from "@/lib/api";
 
 import type { ApplicationPackage } from "@/types/applicationPackage";
+import type { ApplicationAnswerCategory } from "@/types/applicationAnswer";
 import type {
   ApplicationRun,
   ApplicationRunConsentGate,
   ApplicationRunGate,
 } from "@/types/applicationRun";
+
+const ANSWER_QUESTIONS: Record<ApplicationAnswerCategory, string> = {
+  work_authorization:
+    "Are you legally authorized to work in the job's country?",
+  sponsorship:
+    "Do you now, or will you in the future, require visa sponsorship?",
+  availability: "When are you available to start?",
+  notice_period: "What is your notice period?",
+  relocation: "Are you willing to relocate for this role?",
+  remote_preference: "What is your remote / on-site preference?",
+  expected_salary: "What is your expected salary?",
+  company_interest: "Why are you interested in this company?",
+  cover_letter: "Cover letter",
+  other: "Application question",
+};
+
+const ANSWER_PLACEHOLDERS: Partial<
+  Record<ApplicationAnswerCategory, string>
+> = {
+  work_authorization:
+    'e.g. "UK citizen — authorized to work in the UK"',
+  sponsorship: 'e.g. "No, I do not require sponsorship"',
+  availability: 'e.g. "Available immediately"',
+  notice_period: 'e.g. "One month"',
+  relocation: 'e.g. "Yes, willing to relocate within the UK"',
+  expected_salary: 'e.g. "£55,000 depending on the full package"',
+};
+
+const KNOWN_CATEGORIES = new Set<string>(
+  Object.keys(ANSWER_QUESTIONS),
+);
+
+/** Answer categories referenced by the package's missing items and
+ * review warnings, in first-mention order. */
+function missingAnswerCategories(
+  pkg: ApplicationPackage,
+): ApplicationAnswerCategory[] {
+  const found: ApplicationAnswerCategory[] = [];
+  const texts = [...pkg.missing_items, ...pkg.risk_warnings];
+  for (const text of texts) {
+    const match = /'([a-z_]+)'/.exec(text);
+    if (
+      match &&
+      KNOWN_CATEGORIES.has(match[1]) &&
+      !found.includes(match[1] as ApplicationAnswerCategory)
+    ) {
+      found.push(match[1] as ApplicationAnswerCategory);
+    }
+  }
+  return found;
+}
+
+function needsProfileVerification(pkg: ApplicationPackage): boolean {
+  return pkg.missing_items.some((item) =>
+    item.includes("verified candidate profile"),
+  );
+}
 
 const CONSENT_GATES: ApplicationRunConsentGate[] = [
   "legal_declaration",
@@ -65,6 +124,12 @@ export default function ApplicationPrepPage({
   const [confirmation, setConfirmation] = useState("");
   const [consentLegal, setConsentLegal] = useState(false);
   const [consentSubmit, setConsentSubmit] = useState(false);
+  const [answerDrafts, setAnswerDrafts] = useState<
+    Partial<Record<ApplicationAnswerCategory, string>>
+  >({});
+  const [answerConfirms, setAnswerConfirms] = useState<
+    Partial<Record<ApplicationAnswerCategory, boolean>>
+  >({});
 
   const loadPackage = useCallback(
     async (signal?: AbortSignal) => {
@@ -136,6 +201,44 @@ export default function ApplicationPrepPage({
   );
   const atSubmissionGate =
     currentGate?.code === "submission_confirmation";
+
+  const quickFixCategories = pkg ? missingAnswerCategories(pkg) : [];
+  const profileNeedsVerification = pkg
+    ? needsProfileVerification(pkg)
+    : false;
+  const cvIsMissing =
+    pkg?.missing_items.some((item) =>
+      item.includes("tailored CV"),
+    ) ?? false;
+
+  const saveQuickAnswer = (category: ApplicationAnswerCategory) =>
+    run_action(async () => {
+      const text = (answerDrafts[category] ?? "").trim();
+      if (!text) {
+        return;
+      }
+      await createApplicationAnswer({
+        category,
+        question_label: ANSWER_QUESTIONS[category],
+        answer_text: text,
+        verified: true,
+        manually_confirmed: true,
+        notes: null,
+      });
+      // Re-prepare so the readiness and the missing list update
+      // immediately — no manual Re-prepare click needed.
+      const updated = await prepareApplication(jobId);
+      setPkg(updated);
+      setNotes(updated.user_notes ?? "");
+      setAnswerDrafts((previous) => ({
+        ...previous,
+        [category]: "",
+      }));
+      setAnswerConfirms((previous) => ({
+        ...previous,
+        [category]: false,
+      }));
+    });
 
   return (
     <main className="cp-page">
@@ -321,6 +424,116 @@ export default function ApplicationPrepPage({
                       tone="amber"
                       items={pkg.risk_warnings}
                     />
+                  )}
+
+                  {(quickFixCategories.length > 0 ||
+                    profileNeedsVerification ||
+                    cvIsMissing) && (
+                    <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                        Fix it here
+                      </h3>
+                      {profileNeedsVerification && (
+                        <p className="mt-2 text-sm text-slate-700">
+                          Your profile facts aren&rsquo;t verified
+                          yet —{" "}
+                          <Link
+                            href="/profile"
+                            className="font-medium text-violet-700 hover:underline"
+                          >
+                            open your profile
+                          </Link>{" "}
+                          and click &ldquo;Verify all facts&rdquo;,
+                          then come back.
+                        </p>
+                      )}
+                      {cvIsMissing && (
+                        <p className="mt-2 text-sm text-slate-600">
+                          The tailored CV is created for you
+                          automatically when you click Apply
+                          automatically — nothing to do here.
+                        </p>
+                      )}
+                      {quickFixCategories.length > 0 && (
+                        <div className="mt-3 space-y-4">
+                          <p className="text-sm text-slate-600">
+                            Answer these once — they&rsquo;re saved
+                            to your vault as verified answers and
+                            reused for every future application.
+                          </p>
+                          {quickFixCategories.map((category) => (
+                            <div key={category}>
+                              <label className="flex flex-col gap-1 text-sm text-slate-700">
+                                <span className="font-medium">
+                                  {ANSWER_QUESTIONS[category]}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={
+                                    answerDrafts[category] ?? ""
+                                  }
+                                  placeholder={
+                                    ANSWER_PLACEHOLDERS[category] ??
+                                    "Your answer"
+                                  }
+                                  onChange={(event) =>
+                                    setAnswerDrafts(
+                                      (previous) => ({
+                                        ...previous,
+                                        [category]:
+                                          event.target.value,
+                                      }),
+                                    )
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
+                                />
+                              </label>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                                <label className="flex items-center gap-2 text-xs text-slate-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={
+                                      answerConfirms[category] ??
+                                      false
+                                    }
+                                    onChange={(event) =>
+                                      setAnswerConfirms(
+                                        (previous) => ({
+                                          ...previous,
+                                          [category]:
+                                            event.target.checked,
+                                        }),
+                                      )
+                                    }
+                                  />
+                                  I confirm this answer is true and
+                                  accurate.
+                                </label>
+                                <button
+                                  type="button"
+                                  disabled={
+                                    busy ||
+                                    !(
+                                      answerDrafts[category] ?? ""
+                                    ).trim() ||
+                                    !(
+                                      answerConfirms[category] ??
+                                      false
+                                    )
+                                  }
+                                  onClick={() =>
+                                    saveQuickAnswer(category)
+                                  }
+                                  className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+                                >
+                                  Save verified answer
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   <div className="grid gap-3 sm:grid-cols-2">

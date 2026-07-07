@@ -238,9 +238,17 @@ def build_fill_plan_and_manual(
                 }
             )
 
-    # Sensitive/legal answers are never auto-filled: flag for review.
+    # Sensitive/legal answers are never auto-filled. Ones the
+    # candidate has NOT yet explicitly confirmed pause the run for
+    # review; an answer that is both verified and manually confirmed
+    # was already deliberately reviewed by the candidate (and the
+    # apply consent covers re-reviewing declarations), so it no
+    # longer blocks every run — it just stays out of the fill plan.
     for answer in answers:
-        if answer.requires_manual_confirmation:
+        if (
+            answer.requires_manual_confirmation
+            and not (answer.verified and answer.manually_confirmed)
+        ):
             manual_fields.append(
                 {
                     "field": answer.category,

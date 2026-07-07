@@ -554,6 +554,137 @@ def test_auto_never_resets_confirmed_reviewable_package(
     assert run.status == "paused_for_gate"
 
 
+def test_auto_builds_full_cv_lineage_from_uploaded_document(
+    db_session: Session,
+    account: Account,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    """With only an uploaded CV document on file (no versions at
+    all), one-click apply builds original -> parsed -> verified
+    master -> tailored CV automatically and proceeds."""
+    from app.models.cv_version import CVVersion
+    from app.models.document import Document
+    from app.models.skill import Skill
+    from datetime import datetime, timezone
+
+    monkeypatch.setenv(
+        "CAREERPILOT_GENERATED_CV_STORAGE_DIR",
+        str(tmp_path / "generated"),
+    )
+
+    profile = make_profile(db_session, account)
+    job = make_job(db_session)
+    add_match(db_session, job, profile)
+    for category in (
+        "work_authorization",
+        "availability",
+        "sponsorship",
+        "expected_salary",
+        "relocation",
+        "notice_period",
+    ):
+        add_answer(
+            db_session,
+            category,
+            candidate_profile_id=profile.id,
+        )
+    # A verified skill so the master CV has vault content.
+    db_session.add(
+        Skill(
+            candidate_profile_id=profile.id,
+            name="Python",
+            proficiency="advanced",
+            verified=True,
+        )
+    )
+    # The uploaded CV document — the only CV artifact on file.
+    db_session.add(
+        Document(
+            candidate_profile_id=profile.id,
+            original_filename="cv.pdf",
+            stored_filename="stored-cv.pdf",
+            file_extension=".pdf",
+            media_type="application/pdf",
+            size_bytes=100,
+            sha256_hash="a" * 64,
+            document_type="original_cv",
+            upload_status="validated",
+            is_primary=True,
+        )
+    )
+    db_session.commit()
+
+    now = datetime.now(timezone.utc)
+    assert now is not None  # keep import used for clarity
+
+    run = start_application_run(
+        job.id,
+        db_session,
+        account.profile_id,
+        driver="auto_submit",
+        acknowledged_gates=CONSENT,
+    )
+
+    types = {
+        version.version_type
+        for version in db_session.query(CVVersion).all()
+    }
+    assert {
+        "original",
+        "parsed",
+        "verified_master",
+        "tailored",
+    }.issubset(types)
+    assert run.status == "paused_for_gate"  # unsupported source
+    assert run.pause_reason == "submission_confirmation"
+
+    # The self-referential CV lineage (parent_version_id) prevents a
+    # clean drop_all teardown on SQLite; clear the rows explicitly,
+    # mirroring the Phase 6 suite's cleanup pattern.
+    from sqlalchemy import text
+
+    db_session.rollback()
+    db_session.execute(text("PRAGMA foreign_keys=OFF"))
+    for table_name in (
+        "application_runs",
+        "application_packages",
+        "job_tailored_cvs",
+        "cv_version_artifacts",
+        "cv_versions",
+        "documents",
+    ):
+        db_session.execute(text(f"DELETE FROM {table_name}"))
+    db_session.commit()
+    db_session.execute(text("PRAGMA foreign_keys=ON"))
+
+
+def test_auto_apply_without_uploaded_cv_gives_clear_error(
+    db_session: Session,
+    account: Account,
+) -> None:
+    profile = make_profile(db_session, account)
+    job = make_job(db_session)
+    add_match(db_session, job, profile)
+    for category in ("work_authorization", "availability"):
+        add_answer(
+            db_session,
+            category,
+            candidate_profile_id=profile.id,
+        )
+
+    with pytest.raises(ApplicationRunServiceError) as excinfo:
+        start_application_run(
+            job.id,
+            db_session,
+            account.profile_id,
+            driver="auto_submit",
+            acknowledged_gates=CONSENT,
+        )
+    assert excinfo.value.status_code == 409
+    assert "Upload your CV" in excinfo.value.safe_message
+
+
 def test_auto_prepares_missing_package(
     db_session: Session,
     account: Account,

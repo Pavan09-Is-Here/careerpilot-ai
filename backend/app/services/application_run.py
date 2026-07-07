@@ -34,8 +34,14 @@ from app.core.config import Settings
 from app.models.application_package import ApplicationPackage
 from app.models.application_run import ApplicationRun
 from app.models.candidate_profile import CandidateProfile
+from app.models.cv_version import CVVersion
+from app.models.document import Document
 from app.models.job import NormalizedJob
-from app.schemas.cv_version import CVMasterGenerationRequest
+from app.schemas.cv_version import (
+    CVMasterGenerationRequest,
+    CVVersionAdoptRequest,
+    CVVersionCreate,
+)
 from app.services.application_package import (
     ApplicationPackageServiceError,
     load_answers,
@@ -44,6 +50,12 @@ from app.services.application_package import (
     prepare_application_package,
 )
 from app.services.cv_tailoring import CVTailoringError, generate_tailored_cv
+from app.services.cv_version import (
+    CVVersionServiceError,
+    adopt_original_version_from_document,
+    create_cv_version,
+)
+from app.services.verified_master_cv import generate_verified_master_cv
 from app.services.job_match import JobMatchServiceError, analyze_job_match
 from app.services.notification import (
     create_notification,
@@ -360,6 +372,103 @@ def active_run_for_job(
     )
 
 
+def _ensure_verified_master_cv(
+    database: Session,
+    candidate_profile_id: int,
+) -> None:
+    """Build the missing CV lineage for one-click apply.
+
+    Tailored CVs are generated from a verified master CV, which must
+    trace back to a CV the candidate actually uploaded:
+    uploaded document -> original version -> parsed version ->
+    verified master. Each step uses the existing services and invents
+    nothing: the original is an exact adoption of the uploaded file
+    and the master is generated from verified vault records only.
+    Without an uploaded CV the run stops with a clear instruction.
+    """
+
+    def latest_ready(version_type: str) -> CVVersion | None:
+        return database.scalar(
+            select(CVVersion)
+            .where(
+                CVVersion.candidate_profile_id
+                == candidate_profile_id,
+                CVVersion.version_type == version_type,
+                CVVersion.status == "ready",
+            )
+            .order_by(
+                CVVersion.is_primary.desc(),
+                CVVersion.id.desc(),
+            )
+        )
+
+    if latest_ready("verified_master") is not None:
+        return
+
+    try:
+        parsed = latest_ready("parsed")
+        if parsed is None:
+            original = latest_ready("original")
+            if original is None:
+                document = database.scalar(
+                    select(Document)
+                    .where(
+                        Document.candidate_profile_id
+                        == candidate_profile_id,
+                        Document.document_type == "original_cv",
+                        Document.upload_status == "validated",
+                    )
+                    .order_by(
+                        Document.is_primary.desc(),
+                        Document.id.desc(),
+                    )
+                )
+                if document is None:
+                    raise ApplicationRunServiceError(
+                        "No CV is on file yet. Upload your CV on "
+                        "the Documents page first — it becomes the "
+                        "verified base every tailored CV is built "
+                        "from — then apply again.",
+                        status_code=409,
+                    )
+                original = adopt_original_version_from_document(
+                    document.id,
+                    CVVersionAdoptRequest(status="ready"),
+                    database,
+                    candidate_profile_id=candidate_profile_id,
+                )
+            parsed = create_cv_version(
+                CVVersionCreate(
+                    version_type="parsed",
+                    parent_version_id=original.id,
+                    status="ready",
+                    display_name="Parsed CV (auto)",
+                    description=(
+                        "Created automatically by one-click apply "
+                        "from your uploaded CV."
+                    ),
+                ),
+                database,
+                candidate_profile_id=candidate_profile_id,
+            )
+
+        generate_verified_master_cv(
+            parsed.id,
+            CVMasterGenerationRequest(
+                idempotency_key=(
+                    f"auto-master-profile-{candidate_profile_id}"
+                ),
+            ),
+            database,
+            candidate_profile_id=candidate_profile_id,
+        )
+    except CVVersionServiceError as exc:
+        raise ApplicationRunServiceError(
+            exc.safe_message,
+            status_code=exc.status_code,
+        ) from exc
+
+
 def _ensure_package_ready(
     job: NormalizedJob,
     database: Session,
@@ -388,6 +497,7 @@ def _ensure_package_ready(
             ) from exc
 
     if load_tailored_cv(job.id, database, candidate_profile_id) is None:
+        _ensure_verified_master_cv(database, candidate_profile_id)
         request = CVMasterGenerationRequest(
             idempotency_key=(
                 f"auto-apply-job-{job.id}-profile-{candidate_profile_id}"

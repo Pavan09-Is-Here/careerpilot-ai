@@ -451,7 +451,16 @@ export default function ApplicationPrepPage({
                         <p className="mt-2 text-sm text-slate-600">
                           The tailored CV is created for you
                           automatically when you click Apply
-                          automatically — nothing to do here.
+                          automatically. It&rsquo;s built from the CV
+                          you uploaded — if you haven&rsquo;t
+                          uploaded one yet, do that first on the{" "}
+                          <Link
+                            href="/documents"
+                            className="font-medium text-violet-700 hover:underline"
+                          >
+                            Documents page
+                          </Link>
+                          .
                         </p>
                       )}
                       {quickFixCategories.length > 0 && (

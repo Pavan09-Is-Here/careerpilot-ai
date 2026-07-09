@@ -2493,7 +2493,7 @@ alembic current               # Show database's current revision
 
 ### Phase 18 — Professional CV/Cover-Letter Design, Broader Search, Consistent Apply Chain
 
-**Milestone Status:** IN REVIEW — implemented and validated; awaiting commit.
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `5b325dd`)
 
 **Scope (all facts-only — no fabrication, no LLM-written candidate content):**
 - **CV document redesign** (`verified_master_cv.py` renderers): modern header block (large navy name, title, single inline contact line joined by middots — no "Contact" heading, no stacked "Email:" labels); navy section headings with divider rules; muted/italic meta lines for dates, locations, and technologies; refined typography and spacing. Applies to both DOCX and PDF; the extracted text (and therefore every content/order/exclusion guarantee) is unchanged in substance — only presentation improved. Verified via rendered-PDF inspection.

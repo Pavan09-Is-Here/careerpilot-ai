@@ -685,6 +685,98 @@ def test_auto_apply_without_uploaded_cv_gives_clear_error(
     assert "Upload your CV" in excinfo.value.safe_message
 
 
+def test_auto_apply_sets_tailored_cv_as_primary(
+    db_session: Session,
+    account: Account,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    """Every application follows the same process: the CV tailored for
+    the job becomes the candidate's primary tailored CV automatically."""
+    from app.models.cv_version import CVVersion
+    from app.models.document import Document
+    from app.models.skill import Skill
+
+    monkeypatch.setenv(
+        "CAREERPILOT_GENERATED_CV_STORAGE_DIR",
+        str(tmp_path / "generated"),
+    )
+
+    profile = make_profile(db_session, account)
+    job = make_job(db_session)
+    add_match(db_session, job, profile)
+    for category in (
+        "work_authorization",
+        "availability",
+        "sponsorship",
+        "expected_salary",
+        "relocation",
+        "notice_period",
+    ):
+        add_answer(
+            db_session,
+            category,
+            candidate_profile_id=profile.id,
+        )
+    db_session.add(
+        Skill(
+            candidate_profile_id=profile.id,
+            name="Python",
+            proficiency="advanced",
+            verified=True,
+        )
+    )
+    db_session.add(
+        Document(
+            candidate_profile_id=profile.id,
+            original_filename="cv.pdf",
+            stored_filename="stored-cv.pdf",
+            file_extension=".pdf",
+            media_type="application/pdf",
+            size_bytes=100,
+            sha256_hash="a" * 64,
+            document_type="original_cv",
+            upload_status="validated",
+            is_primary=True,
+        )
+    )
+    db_session.commit()
+
+    start_application_run(
+        job.id,
+        db_session,
+        account.profile_id,
+        driver="auto_submit",
+        acknowledged_gates=CONSENT,
+    )
+
+    tailored = (
+        db_session.query(CVVersion)
+        .filter(
+            CVVersion.candidate_profile_id == profile.id,
+            CVVersion.version_type == "tailored",
+        )
+        .one()
+    )
+    assert tailored.is_primary is True
+
+    from sqlalchemy import text
+
+    db_session.rollback()
+    db_session.execute(text("PRAGMA foreign_keys=OFF"))
+    for table_name in (
+        "application_runs",
+        "application_packages",
+        "job_tailored_cvs",
+        "cv_version_artifacts",
+        "cv_versions",
+        "documents",
+    ):
+        db_session.execute(text(f"DELETE FROM {table_name}"))
+    db_session.commit()
+    db_session.execute(text("PRAGMA foreign_keys=ON"))
+
+
 def test_auto_prepares_missing_package(
     db_session: Session,
     account: Account,

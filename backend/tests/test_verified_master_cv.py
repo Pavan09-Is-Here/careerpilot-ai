@@ -834,10 +834,9 @@ def test_generate_verified_master_cv_creates_safe_docx_and_pdf(
 
     docx_text, pdf_text = extracted_generated_texts(artifacts)
     expected_phrases = [
-        "Contact",
         "Pavan Test",
         "Senior Backend Engineer",
-        "Email: pavan@example.com",
+        "pavan@example.com",
         "Professional Summary",
         "Backend engineer focused on reliable APIs and data integrity.",
         "Work Experience",
@@ -877,7 +876,7 @@ def test_generate_verified_master_cv_creates_safe_docx_and_pdf(
     assert docx_text.index("Verified Labs") < docx_text.index("Older Co")
     assert pdf_text.index("Verified Labs") < pdf_text.index("Older Co")
     section_order = [
-        "Contact",
+        "Pavan Test",
         "Professional Summary",
         "Work Experience",
         "Education",
@@ -975,14 +974,14 @@ def test_empty_sections_are_omitted_without_changing_remaining_order(
     docx_text, pdf_text = extracted_generated_texts(artifacts)
 
     for text_value in (docx_text, pdf_text):
-        assert "Contact" in text_value
+        assert "Pavan Test" in text_value
         assert "Skills" in text_value
         assert "Professional Summary" not in text_value
         assert "Work Experience" not in text_value
         assert "Education" not in text_value
         assert "Projects" not in text_value
         assert "Certifications" not in text_value
-        assert_ordered(text_value, ["Contact", "Skills"])
+        assert_ordered(text_value, ["Pavan Test", "Skills"])
 
 
 def test_long_unicode_pdf_paginates_without_content_loss(
@@ -1085,7 +1084,7 @@ def test_long_single_paragraph_fields_paginate_without_clipping(
     assert_ordered(
         pdf_text,
         [
-            "Contact",
+            "Pavan Test",
             "Professional Summary",
             *summary_markers,
             "Projects",
@@ -1150,7 +1149,7 @@ def test_single_long_responsibility_bullet_paginates_with_indent(
     assert_ordered(
         pdf_text,
         [
-            "Contact",
+            "Pavan Test",
             "Work Experience",
             "Pagination Engineer, Verified Pagination Co",
             *bullet_markers,

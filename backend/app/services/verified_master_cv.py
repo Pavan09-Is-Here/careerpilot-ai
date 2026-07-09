@@ -211,23 +211,31 @@ def add_contact_section(
     lines: list[MasterCVLine],
     profile: CandidateProfile,
 ) -> None:
-    add_section_heading(lines, "Contact")
+    """Header block: name, title, and a single inline contact line.
+
+    Contact details are joined with a middot separator for a modern
+    look. Only fields the candidate actually provided are shown —
+    nothing is invented.
+    """
     add_line(lines, profile.full_name, style="name")
     add_line(lines, profile.professional_title, style="subtitle")
 
-    contact_lines = [
-        ("Email", profile.email),
-        ("Telephone", profile.phone),
-        ("Location", profile.location),
-        ("LinkedIn", profile.linkedin_url),
-        ("GitHub", profile.github_url),
-        ("Portfolio", profile.portfolio_url),
+    contact_values = [
+        normalize_whitespace(value)
+        for value in (
+            profile.email,
+            profile.phone,
+            profile.location,
+            profile.linkedin_url,
+            profile.github_url,
+            profile.portfolio_url,
+        )
     ]
-
-    for label, value in contact_lines:
-        normalized = normalize_whitespace(value)
-        if normalized:
-            lines.append(MasterCVLine(f"{label}: {normalized}", "contact"))
+    present = [value for value in contact_values if value]
+    if present:
+        lines.append(
+            MasterCVLine("  ·  ".join(present), "contact")
+        )
 
 
 def add_summary_section(
@@ -653,40 +661,70 @@ def validate_generation_parent(parent: CVVersion) -> None:
         )
 
 
+# Professional accent palette used across both renderers. Navy for
+# the name and section headings, slate grey for supporting text.
+CV_ACCENT_RGB = (0x1F, 0x3A, 0x5F)
+CV_MUTED_RGB = (0x55, 0x5F, 0x6B)
+
+
+def _set_docx_heading_rule(paragraph: object) -> None:
+    """Add a thin bottom border under a paragraph (section rule)."""
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    p_pr = paragraph._p.get_or_add_pPr()
+    borders = OxmlElement("w:pBdr")
+    bottom = OxmlElement("w:bottom")
+    bottom.set(qn("w:val"), "single")
+    bottom.set(qn("w:sz"), "6")
+    bottom.set(qn("w:space"), "2")
+    bottom.set(qn("w:color"), "1F3A5F")
+    borders.append(bottom)
+    p_pr.append(borders)
+
+
 def render_docx(
     document_data: MasterCVDocument,
     output_path: Path,
 ) -> int | None:
     from docx import Document as DocxDocument
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-    from docx.shared import Inches, Pt
+    from docx.shared import Inches, Pt, RGBColor
+
+    accent = RGBColor(*CV_ACCENT_RGB)
+    muted = RGBColor(*CV_MUTED_RGB)
 
     document = DocxDocument()
 
     for section in document.sections:
-        section.top_margin = Inches(0.75)
-        section.bottom_margin = Inches(0.75)
-        section.left_margin = Inches(0.8)
-        section.right_margin = Inches(0.8)
+        section.top_margin = Inches(0.7)
+        section.bottom_margin = Inches(0.7)
+        section.left_margin = Inches(0.85)
+        section.right_margin = Inches(0.85)
 
     normal_style = document.styles["Normal"]
     normal_style.font.name = "Calibri"
-    normal_style.font.size = Pt(11)
+    normal_style.font.size = Pt(10.5)
 
     for line in document_data.lines:
         if line.style == "spacer":
             continue
 
         if line.style == "section_heading":
-            paragraph = document.add_heading(line.text, level=1)
-            paragraph.paragraph_format.space_before = Pt(8)
-            paragraph.paragraph_format.space_after = Pt(4)
+            paragraph = document.add_paragraph()
+            paragraph.paragraph_format.space_before = Pt(10)
+            paragraph.paragraph_format.space_after = Pt(5)
+            run = paragraph.add_run(line.text)
+            run.bold = True
+            run.font.size = Pt(12)
+            run.font.color.rgb = accent
+            _set_docx_heading_rule(paragraph)
             continue
 
         if line.style == "bullet":
             paragraph = document.add_paragraph(style="List Bullet")
             paragraph.add_run(line.text)
-            paragraph.paragraph_format.space_after = Pt(1)
+            paragraph.paragraph_format.space_after = Pt(2)
             continue
 
         paragraph = document.add_paragraph()
@@ -694,16 +732,30 @@ def render_docx(
 
         if line.style == "name":
             paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            paragraph.paragraph_format.space_after = Pt(1)
             run = paragraph.add_run(line.text)
             run.bold = True
-            run.font.size = Pt(16)
+            run.font.size = Pt(22)
+            run.font.color.rgb = accent
         elif line.style == "subtitle":
             run = paragraph.add_run(line.text)
             run.italic = True
             run.font.size = Pt(12)
+            run.font.color.rgb = muted
+        elif line.style == "contact":
+            run = paragraph.add_run(line.text)
+            run.font.size = Pt(9.5)
+            run.font.color.rgb = muted
         elif line.style == "entry_heading":
             run = paragraph.add_run(line.text)
             run.bold = True
+            run.font.size = Pt(11)
+        elif line.style == "meta":
+            paragraph.paragraph_format.space_after = Pt(3)
+            run = paragraph.add_run(line.text)
+            run.italic = True
+            run.font.size = Pt(9.5)
+            run.font.color.rgb = muted
         else:
             paragraph.add_run(line.text)
 
@@ -827,7 +879,7 @@ def split_pdf_text_runs(text: str) -> list[PDFTextRun]:
 
 def pdf_text_width(
     runs: list[PDFTextRun],
-    font_size: int,
+    font_size: float,
 ) -> float:
     from reportlab.pdfbase.pdfmetrics import stringWidth
 
@@ -837,15 +889,30 @@ def pdf_text_width(
     )
 
 
+CV_ACCENT_PDF = (
+    CV_ACCENT_RGB[0] / 255,
+    CV_ACCENT_RGB[1] / 255,
+    CV_ACCENT_RGB[2] / 255,
+)
+CV_MUTED_PDF = (
+    CV_MUTED_RGB[0] / 255,
+    CV_MUTED_RGB[1] / 255,
+    CV_MUTED_RGB[2] / 255,
+)
+CV_BLACK_PDF = (0.0, 0.0, 0.0)
+
+
 def render_pdf_text_runs(
     pdf: object,
     runs: list[PDFTextRun],
     *,
     x: float,
     y: float,
-    font_size: int,
+    font_size: float,
+    color: tuple[float, float, float] = CV_BLACK_PDF,
 ) -> None:
     text = pdf.beginText(x, y)
+    text.setFillColorRGB(*color)
 
     for run in runs:
         text.setFont(run.font_name, font_size)
@@ -857,7 +924,7 @@ def render_pdf_text_runs(
 def wrap_pdf_text(
     text: str,
     *,
-    font_size: int,
+    font_size: float,
     max_width: float,
 ) -> list[list[PDFTextRun]]:
     def split_word(word: str) -> list[list[PDFTextRun]]:
@@ -981,11 +1048,13 @@ def render_pdf(
     def draw_wrapped(
         text: str,
         *,
-        font_size: int,
+        font_size: float,
         line_height: float,
         left: float,
         space_after: float,
         keep_with_next_height: float = 0,
+        color: tuple[float, float, float] = CV_BLACK_PDF,
+        rule: bool = False,
     ) -> None:
         nonlocal y
 
@@ -1027,8 +1096,16 @@ def render_pdf(
                 x=left,
                 y=y,
                 font_size=font_size,
+                color=color,
             )
             y -= line_height
+
+        if rule:
+            ensure_space(3)
+            pdf.setStrokeColorRGB(*CV_ACCENT_PDF)
+            pdf.setLineWidth(0.6)
+            pdf.line(margin, y + 3, width - margin, y + 3)
+            pdf.setStrokeColorRGB(*CV_BLACK_PDF)
 
         apply_spacing(space_after)
 
@@ -1040,27 +1117,40 @@ def render_pdf(
         if line.style == "section_heading":
             draw_wrapped(
                 line.text,
-                font_size=13,
+                font_size=12,
                 line_height=15,
                 left=margin,
-                space_after=3,
+                space_after=6,
                 keep_with_next_height=12,
+                color=CV_ACCENT_PDF,
+                rule=True,
             )
         elif line.style == "name":
             draw_wrapped(
                 line.text,
-                font_size=16,
-                line_height=18,
+                font_size=20,
+                line_height=23,
                 left=margin,
                 space_after=2,
+                color=CV_ACCENT_PDF,
             )
         elif line.style == "subtitle":
             draw_wrapped(
                 line.text,
-                font_size=11,
-                line_height=13,
+                font_size=11.5,
+                line_height=14,
                 left=margin,
                 space_after=2,
+                color=CV_MUTED_PDF,
+            )
+        elif line.style == "contact":
+            draw_wrapped(
+                line.text,
+                font_size=9.5,
+                line_height=12,
+                left=margin,
+                space_after=1,
+                color=CV_MUTED_PDF,
             )
         elif line.style == "entry_heading":
             draw_wrapped(
@@ -1071,19 +1161,28 @@ def render_pdf(
                 space_after=1,
                 keep_with_next_height=12,
             )
+        elif line.style == "meta":
+            draw_wrapped(
+                line.text,
+                font_size=9.5,
+                line_height=12,
+                left=margin,
+                space_after=3,
+                color=CV_MUTED_PDF,
+            )
         elif line.style == "bullet":
             draw_wrapped(
                 line.text,
                 font_size=10,
-                line_height=12,
+                line_height=12.5,
                 left=margin + 14,
-                space_after=1,
+                space_after=2,
             )
         else:
             draw_wrapped(
                 line.text,
                 font_size=10,
-                line_height=12,
+                line_height=12.5,
                 left=margin,
                 space_after=2,
             )

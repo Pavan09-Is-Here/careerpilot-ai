@@ -706,9 +706,25 @@ def list_normalized_jobs(
     evaluation_time = now or datetime.now(timezone.utc)
 
     if search is not None and search.strip():
-        pattern = f"%{search.strip().lower()}%"
+        # Escape LIKE wildcards in user input so a literal % or _
+        # matches itself, then match the term across the title,
+        # employer, and description — not the title alone.
+        cleaned = (
+            search.strip()
+            .lower()
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
+        pattern = f"%{cleaned}%"
         statement = statement.where(
-            func.lower(NormalizedJob.title).like(pattern)
+            func.lower(NormalizedJob.title).like(pattern, escape="\\")
+            | func.lower(NormalizedJob.employer_name).like(
+                pattern, escape="\\"
+            )
+            | func.lower(
+                func.coalesce(NormalizedJob.description_text, "")
+            ).like(pattern, escape="\\")
         )
 
     if source_id is not None:

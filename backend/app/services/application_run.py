@@ -54,6 +54,7 @@ from app.services.cv_version import (
     CVVersionServiceError,
     adopt_original_version_from_document,
     create_cv_version,
+    set_primary_cv_version,
 )
 from app.services.verified_master_cv import generate_verified_master_cv
 from app.services.job_match import JobMatchServiceError, analyze_job_match
@@ -504,7 +505,7 @@ def _ensure_package_ready(
             ),
         )
         try:
-            generate_tailored_cv(
+            tailored = generate_tailored_cv(
                 job.id,
                 request,
                 database,
@@ -515,6 +516,19 @@ def _ensure_package_ready(
                 exc.safe_message,
                 status_code=exc.status_code,
             ) from exc
+
+        # Every application follows the same process: the CV tailored
+        # for this job becomes the candidate's primary tailored CV
+        # automatically, so the latest application always reflects the
+        # most recent tailoring. Failures here never abort the run.
+        try:
+            set_primary_cv_version(
+                tailored.version.id,
+                database,
+                candidate_profile_id=candidate_profile_id,
+            )
+        except CVVersionServiceError:
+            database.rollback()
 
     package = database.scalar(
         select(ApplicationPackage).where(

@@ -248,38 +248,107 @@ def verified_company_interest_answer(
     return None
 
 
+def _current_role_phrase(
+    database: Session,
+    candidate_profile_id: int,
+) -> str | None:
+    """A short 'title at company' phrase from the most recent verified
+    experience, used to open the letter. Verified facts only."""
+    from app.models.experience import Experience
+
+    experience = database.scalar(
+        select(Experience)
+        .where(
+            Experience.candidate_profile_id == candidate_profile_id,
+            Experience.verified.is_(True),
+        )
+        .order_by(
+            Experience.is_current.desc(),
+            Experience.start_date.desc(),
+            Experience.id.desc(),
+        )
+    )
+    if experience is None:
+        return None
+
+    title = normalize_token_display(experience.job_title)
+    company = normalize_token_display(experience.company)
+    if title and company:
+        return f"{title} at {company}"
+    return title or company
+
+
+def normalize_token_display(value: str | None) -> str | None:
+    if not value or not value.strip():
+        return None
+    return value.strip()
+
+
 def build_cover_letter(
     profile: CandidateProfile,
     job: NormalizedJob,
     matched_skills: list[str],
     company_interest: ApplicationAnswer | None,
+    *,
+    database: Session | None = None,
+    candidate_profile_id: int | None = None,
 ) -> str | None:
-    """Deterministic cover letter assembled strictly from verified
-    content. Returns None when the profile is not verified."""
+    """A structured, professional cover letter assembled strictly from
+    verified content: a clear opening tied to the role, the candidate's
+    verified summary and current role, a targeted skills paragraph, an
+    optional company-interest paragraph, and a courteous close. Returns
+    None when the profile is not verified. Nothing is invented — every
+    sentence is built from fields the candidate has verified."""
     if not profile.facts_verified:
         return None
 
-    paragraphs: list[str] = [
-        f"Dear Hiring Team at {job.employer_name},",
-        (
-            f"I am writing to express my interest in the "
-            f"{job.title} position."
-        ),
-    ]
+    role_phrase: str | None = None
+    if database is not None and candidate_profile_id is not None:
+        role_phrase = _current_role_phrase(
+            database, candidate_profile_id
+        )
+
+    paragraphs: list[str] = [f"Dear {job.employer_name} Hiring Team,"]
+
+    opening = (
+        f"I am writing to apply for the {job.title} role at "
+        f"{job.employer_name}."
+    )
+    if role_phrase:
+        opening += (
+            f" I currently work as {role_phrase}, and I believe my "
+            "verified background is a strong match for what this "
+            "position requires."
+        )
+    paragraphs.append(opening)
 
     summary = (profile.professional_summary or "").strip()
     if summary:
         paragraphs.append(summary)
 
-    if company_interest is not None:
-        paragraphs.append(company_interest.answer_text.strip())
-
     if matched_skills:
         names = ", ".join(matched_skills)
-        paragraphs.append(
-            "My verified skills relevant to this role include: "
-            f"{names}."
-        )
+        if len(matched_skills) == 1:
+            paragraphs.append(
+                f"The role calls for {names}, which is one of my "
+                "verified skills."
+            )
+        else:
+            paragraphs.append(
+                "This role's requirements line up directly with my "
+                f"verified skills, including {names}."
+            )
+
+    if company_interest is not None:
+        interest = company_interest.answer_text.strip()
+        if interest:
+            paragraphs.append(interest)
+
+    paragraphs.append(
+        "I would welcome the opportunity to discuss how I can "
+        f"contribute to {job.employer_name}. Thank you for your "
+        "time and consideration."
+    )
 
     paragraphs.append("Sincerely,")
     paragraphs.append(profile.full_name)
@@ -502,6 +571,8 @@ def prepare_application_package(
         job,
         matched_skills,
         company_interest,
+        database=database,
+        candidate_profile_id=candidate_profile_id,
     )
 
     readiness, risks, missing = determine_readiness(

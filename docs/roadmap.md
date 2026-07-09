@@ -2491,6 +2491,20 @@ alembic current               # Show database's current revision
 
 ---
 
+### Phase 18 — Professional CV/Cover-Letter Design, Broader Search, Consistent Apply Chain
+
+**Milestone Status:** IN REVIEW — implemented and validated; awaiting commit.
+
+**Scope (all facts-only — no fabrication, no LLM-written candidate content):**
+- **CV document redesign** (`verified_master_cv.py` renderers): modern header block (large navy name, title, single inline contact line joined by middots — no "Contact" heading, no stacked "Email:" labels); navy section headings with divider rules; muted/italic meta lines for dates, locations, and technologies; refined typography and spacing. Applies to both DOCX and PDF; the extracted text (and therefore every content/order/exclusion guarantee) is unchanged in substance — only presentation improved. Verified via rendered-PDF inspection.
+- **Cover letter rewrite** (`build_cover_letter`): structured professional letter — role-specific opening that references the candidate's most recent *verified* current role, verified summary, a targeted skills paragraph matched to the posting, optional verified company-interest paragraph, and a courteous close. Every sentence is built from verified fields only.
+- **Broader job search**: the discovery keyword search now matches title, employer, and description (was title-only), with LIKE wildcards escaped so literal `%`/`_` match themselves. Filters remain correct and combinable.
+- **Consistent apply chain**: one-click apply now, for every job, tailors the CV → **sets that tailored CV as the candidate's primary tailored CV automatically** → prepares → runs. Set-primary failures never abort the run.
+
+**Validation:** master-CV, package, run, and search suites updated/green; full backend suite (34 files, 550+ passed); `compileall`, `tsc`, ESLint, 54 frontend tests pass; CV design confirmed by rendering a sample PDF.
+
+---
+
 ## Dependency Map
 
 ```

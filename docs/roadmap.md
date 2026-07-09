@@ -2476,7 +2476,7 @@ alembic current               # Show database's current revision
 
 ### Phase 17 — Free Job Source Catalog (Lever, Ashby, Remotive, Arbeitnow, Adzuna, Reed)
 
-**Milestone Status:** IN REVIEW — implemented and validated; awaiting commit.
+**Milestone Status:** ✓ COMPLETED (Committed — Git revision `d6c9401`)
 
 **Scope:** Six free job sources join Greenhouse through one shared, compliance-gated pipeline (`app/services/provider_catalog.py`):
 - **Lever** and **Ashby** — per-company ATS boards via public keyless JSON APIs, connected by board slug exactly like Greenhouse.

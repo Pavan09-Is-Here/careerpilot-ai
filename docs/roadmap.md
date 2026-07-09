@@ -2474,6 +2474,23 @@ alembic current               # Show database's current revision
 
 ---
 
+### Phase 17 — Free Job Source Catalog (Lever, Ashby, Remotive, Arbeitnow, Adzuna, Reed)
+
+**Milestone Status:** IN REVIEW — implemented and validated; awaiting commit.
+
+**Scope:** Six free job sources join Greenhouse through one shared, compliance-gated pipeline (`app/services/provider_catalog.py`):
+- **Lever** and **Ashby** — per-company ATS boards via public keyless JSON APIs, connected by board slug exactly like Greenhouse.
+- **Remotive** and **Arbeitnow** — free keyless remote-job feeds; one global source each, per-job employer names, remote_mode mapped from the feed.
+- **Adzuna** and **Reed** — aggregator APIs behind free API keys supplied only via environment settings (`CAREERPILOT_ADZUNA_APP_ID/APP_KEY`, `CAREERPILOT_REED_API_KEY`); connectors stay inert with a clear message until keys exist. Keys are attached at fetch time only — never stored on the source row, never logged, never echoed.
+
+**Safety model:** every source passes the same gates as Greenhouse before any fetch (enabled, allowlisted, fetch permission, approved terms/robots/commercial review, pinned base-URL regex per provider); payload size caps and JSON-only responses enforced; a tampered base URL or disabled source never fetches (tested). Adapters map only provider-supplied fields; compensation mapping deliberately deferred. Ingested jobs flow through the existing normalization/upsert, matching, tailoring, and apply pipeline unchanged.
+
+**Changes:** migration `b6c7d8e9f0a1` (constraint-only, reversible) extends `job_sources.provider_type` with remotive/arbeitnow/reed; `POST /api/job-sources/connect` (new route; Greenhouse route untouched); ingestion route dispatches by provider; settings gain the three key fields; render.yaml documents them; frontend Job Sources page gains a source selector with per-provider fields.
+
+**Validation:** 16 new tests (`tests/test_provider_catalog_phase17.py`) covering connect/ingest per provider, key gating, fetch-time-only credentials, basic-auth header, compliance-gate blocking, dispatch, API roundtrip, and auth; full backend suite green (33 files, 549+ passed); migration up/down/up validated; `compileall`, `tsc`, ESLint, 54 frontend tests pass.
+
+---
+
 ## Dependency Map
 
 ```

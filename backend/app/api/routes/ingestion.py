@@ -16,10 +16,11 @@ from app.services.ingestion import (
     list_ingestion_runs,
     list_run_snapshots,
 )
-from app.services.provider_greenhouse import (
-    GreenhouseAdapterError,
-    ingest_greenhouse_source,
+from app.services.provider_catalog import (
+    ProviderCatalogError,
+    ingest_job_source,
 )
+from app.services.provider_greenhouse import GreenhouseAdapterError
 
 
 router = APIRouter(
@@ -45,8 +46,8 @@ def trigger_source_ingestion(
     _user: User = Depends(get_current_user),
 ) -> IngestionRunResponse:
     try:
-        return ingest_greenhouse_source(source_id, database)
-    except GreenhouseAdapterError as exc:
+        return ingest_job_source(source_id, database)
+    except (GreenhouseAdapterError, ProviderCatalogError) as exc:
         raise HTTPException(
             status_code=exc.status_code,
             detail=exc.safe_message,

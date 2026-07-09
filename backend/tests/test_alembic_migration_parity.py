@@ -360,7 +360,7 @@ def test_alembic_head_matches_sqlalchemy_metadata(
     config.set_main_option("sqlalchemy.url", f"sqlite:///{migration_db}")
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["a5b6c7d8e9f0"]
+    assert script.get_heads() == ["b6c7d8e9f0a1"]
 
     command.upgrade(config, "head")
 

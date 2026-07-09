@@ -49,7 +49,7 @@ from tests.conftest import Account
 
 PHASE36_HEAD = "f6a7b8c9d0e1"
 PHASE37_HEAD = "a7b8c9d0e1f2"
-CURRENT_HEAD = "a5b6c7d8e9f0"
+CURRENT_HEAD = "b6c7d8e9f0a1"
 UNICODE_SAMPLE = "José Núñez – Łukasz Żółć 李雷"
 UNICODE_DETAIL = (
     f"{UNICODE_SAMPLE} • Candidate’s résumé – café naïve"

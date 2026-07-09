@@ -15,6 +15,11 @@ from app.schemas.job import (
     JobSourceResponse,
     NormalizedJobDetailResponse,
     NormalizedJobPageResponse,
+    ProviderConnectRequest,
+)
+from app.services.provider_catalog import (
+    ProviderCatalogError,
+    connect_provider_source,
 )
 from app.services.provider_greenhouse import (
     GreenhouseAdapterError,
@@ -107,6 +112,32 @@ def connect_greenhouse_job_board(
             database,
         )
     except GreenhouseAdapterError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.safe_message,
+        ) from exc
+
+
+@router.post(
+    "/job-sources/connect",
+    response_model=JobSourceResponse,
+    status_code=201,
+)
+def connect_catalog_job_source(
+    payload: ProviderConnectRequest,
+    database: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+) -> JobSourceResponse:
+    try:
+        return connect_provider_source(
+            payload.provider_type,
+            payload.display_name,
+            database,
+            board_token=payload.board_token,
+            country=payload.country,
+            search_query=payload.search_query,
+        )
+    except ProviderCatalogError as exc:
         raise HTTPException(
             status_code=exc.status_code,
             detail=exc.safe_message,

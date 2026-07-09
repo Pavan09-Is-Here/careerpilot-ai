@@ -49,6 +49,22 @@ export type GreenhouseBoardConnectInput = {
   display_name: string;
 };
 
+export type ConnectableProviderType =
+  | "lever"
+  | "ashby"
+  | "remotive"
+  | "arbeitnow"
+  | "adzuna"
+  | "reed";
+
+export type ProviderConnectInput = {
+  provider_type: ConnectableProviderType;
+  display_name: string;
+  board_token?: string;
+  country?: string;
+  search_query?: string;
+};
+
 export type IngestionRunResult = {
   id: number;
   job_source_id: number;

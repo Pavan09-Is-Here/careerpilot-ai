@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     # Auto-apply pipeline daily bound on how many jobs to prepare.
     auto_apply_target_recency_hours: int = 168
 
+    # Aggregator provider credentials (Phase 17). Free keys, supplied
+    # via the environment only — never stored in the database, never
+    # logged, never echoed in API responses. Without them the Adzuna
+    # and Reed connectors stay inert with a clear message.
+    adzuna_app_id: str | None = None
+    adzuna_app_key: str | None = None
+    reed_api_key: str | None = None
+
     # Deployment / infrastructure (Phase 14).
     # Deployment tier: "development", "staging", or "production".
     environment: str = "development"

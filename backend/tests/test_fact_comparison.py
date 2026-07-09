@@ -31,7 +31,7 @@ import pytest
 
 PREVIOUS_HEAD = "c4e7d9a1b2c3"
 NEW_HEAD = "e5f6a7b8c9d0"
-CURRENT_HEAD = "a5b6c7d8e9f0"
+CURRENT_HEAD = "b6c7d8e9f0a1"
 
 
 @pytest.fixture(autouse=True)

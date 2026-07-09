@@ -41,6 +41,15 @@ services:
         sync: false
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
+      # Aggregator job sources (optional, Phase 17). Free keys from
+      # developer.adzuna.com and reed.co.uk/developers. Without them
+      # the Adzuna/Reed connectors stay inert with a clear message.
+      - key: CAREERPILOT_ADZUNA_APP_ID
+        sync: false
+      - key: CAREERPILOT_ADZUNA_APP_KEY
+        sync: false
+      - key: CAREERPILOT_REED_API_KEY
+        sync: false
       # Email (optional). Without SMTP, notifications are recorded only.
       - key: CAREERPILOT_SMTP_HOST
         sync: false

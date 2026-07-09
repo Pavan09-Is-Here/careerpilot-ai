@@ -54,6 +54,7 @@ import type {
   JobDuplicateList,
   JobListFilters,
   JobSource,
+  ProviderConnectInput,
   JobSourcePage,
   NormalizedJobDetail,
   NormalizedJobPage,
@@ -1312,6 +1313,18 @@ export async function connectGreenhouseBoard(
 ): Promise<JobSource> {
   return requestJsonBody<JobSource>(
     "/api/job-sources/greenhouse",
+    "POST",
+    input,
+    signal,
+  );
+}
+
+export async function connectJobSourceProvider(
+  input: ProviderConnectInput,
+  signal?: AbortSignal,
+): Promise<JobSource> {
+  return requestJsonBody<JobSource>(
+    "/api/job-sources/connect",
     "POST",
     input,
     signal,

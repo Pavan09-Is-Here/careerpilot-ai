@@ -41,7 +41,7 @@ def _reset_auth_rate_limiter() -> None:
 
 PHASE37_HEAD = "a7b8c9d0e1f2"
 PHASE41_HEAD = "b8c9d0e1f2a3"
-CHAIN_HEAD = "a5b6c7d8e9f0"
+CHAIN_HEAD = "b6c7d8e9f0a1"
 
 
 def content_hash(seed: str | None = None) -> str:

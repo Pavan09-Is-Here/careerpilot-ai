@@ -20,6 +20,9 @@ JobSourceProviderType = Literal[
     "workable",
     "adzuna",
     "usajobs",
+    "remotive",
+    "arbeitnow",
+    "reed",
     "generic_api",
     "company_career_page",
     "manual",
@@ -127,6 +130,33 @@ class GreenhouseBoardConnectRequest(BaseModel):
 
     board_token: str = Field(min_length=1, max_length=100)
     display_name: str = Field(min_length=1, max_length=200)
+
+
+ConnectableProviderType = Literal[
+    "lever",
+    "ashby",
+    "remotive",
+    "arbeitnow",
+    "adzuna",
+    "reed",
+]
+
+
+class ProviderConnectRequest(BaseModel):
+    """Connect one of the free catalog providers (Phase 17).
+
+    ``board_token`` is the company board slug for lever/ashby;
+    ``country`` is the Adzuna country code (or the Reed location);
+    ``search_query`` narrows aggregator sources to a role.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider_type: ConnectableProviderType
+    display_name: str = Field(min_length=1, max_length=200)
+    board_token: str | None = Field(default=None, max_length=100)
+    country: str | None = Field(default=None, max_length=100)
+    search_query: str | None = Field(default=None, max_length=100)
 
 
 class JobSourceResponse(BaseModel):

@@ -85,8 +85,26 @@ CareerPilot AI is a personal career automation platform designed to help verifie
 **Phase 3 CV Document System:** COMPLETED
 **Phase 4 Job Discovery:** COMPLETED
 
-**Not Started:**
-- Phase 5–14: Analysis/matching/eligibility, CV tailoring, salary recommendations, application answers, application preparation, browser automation, tracking, background automation, authentication, production deployment
+- Phase 5: Job Analysis, Matching, and Eligibility ✓ (`9738ba8`)
+- Phase 6: Job-Specific CV Tailoring ✓ (`7697830`)
+- Phase 7: Salary Recommendation Engine ✓ (`d25210c`)
+- Phase 8: Verified Application Answer Vault ✓ (`ede11b9`)
+- Phase 9: Application Preparation ✓ (`793bac6`)
+- Phase 10: Browser-Assisted Applications ✓ (`47f1f3d`)
+- Phase 11: Application Tracking Dashboard ✓ (`e5f21d1`)
+- Phase 12: Background Automation ✓ (`f3da9a1`)
+- Phase 13: Authentication, Privacy, and Security ✓ (`693e5c6`)
+- Phase 16: One-Click Auto-Apply ✓ (`264c166`)
+- Phase 16.1: Security Hardening and Cleanup ✓ (`268c76f`)
+- Phase 16.2: Multi-Tenant Ownership, GDPR File Erasure, Per-User Workers ✓ (`87763e5`)
+- Phase 17: Free Job Source Catalog ✓ (`d6c9401`)
+- Phase 18: Professional CV/Cover-Letter Design, Broader Search, Consistent Apply Chain ✓ (`5b325dd`)
+
+**In Progress:**
+- Phase 14 — Production Database and Deployment: code-level groundwork committed (`fc72d03`); infrastructure provisioning, backups, and deployment hardening remain and require a real target environment.
+- Phase 15 — Multi-Tenant Accounts: 15A (users table, username+password login, per-account sessions) and 15B (all personal routes scoped to the authenticated user, cross-user isolation tests) are complete. 15C (frontend registration + username login) remains. The per-user background worker loop originally listed as a Phase 15 remainder was delivered in Phase 16.2.
+
+> This summary is maintained alongside **Current Project Position** near the end of this file, which carries the full validation record. If the two disagree, that section is authoritative.
 
 ---
 
@@ -2763,7 +2781,7 @@ Follow this workflow for every milestone:
 - Phase 4.5 `722c1cd95ef99c6ef5b3a9c8bbf7a911f9ddcd40`
 - Phase 4.6 — see final Phase 4 commit in `git log`
 
-**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code groundwork committed; deployed to Supabase + Render + Vercel). Phase 15 — Multi-tenant accounts IN PROGRESS: 15A (users table, username+password login, per-account sessions/profile) COMMITTED; 15B (all personal API routes scoped to the authenticated user's candidate profile; cross-user isolation tests) COMPLETE and validated (full suite green; upgrade/downgrade validated on SQLite and real PostgreSQL). 15C (frontend registration + username login) and per-user background workers (the auto-apply/matching pipeline still operates on a single candidate profile and must be looped over all profiles) remain. Phase 16 — One-Click Auto-Apply COMPLETED (Committed — Git revision `264c166caa14357e41b04ece234daf08fbb5b16c`; alembic head `f4a5b6c7d8e9`; full suite 526 passed) — see the Phase 16 milestone section.
+**Current Status:** Phases 1–13 COMPLETED; Phase 14 IN PROGRESS (code groundwork committed; deployed to Supabase + Render + Vercel). Phase 15 — Multi-tenant accounts IN PROGRESS: 15A (users table, username+password login, per-account sessions/profile) COMMITTED; 15B (all personal API routes scoped to the authenticated user's candidate profile; cross-user isolation tests) COMPLETE and validated (full suite green; upgrade/downgrade validated on SQLite and real PostgreSQL). 15C (frontend registration + username login) remains; the per-user background worker loop was subsequently delivered in Phase 16.2 (`job_analysis`, `application_preparation`, and `auto_apply_pipeline` now iterate every candidate profile). Phase 16 — One-Click Auto-Apply COMPLETED (Committed — Git revision `264c166caa14357e41b04ece234daf08fbb5b16c`; alembic head `f4a5b6c7d8e9`; full suite 526 passed) — see the Phase 16 milestone section.
 
 **First Not-Started Milestone:** Phase 14 infrastructure/deployment steps (provisioning, hosting, backups) — see `docs/deployment.md`.
 

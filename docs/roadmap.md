@@ -2675,7 +2675,7 @@ Follow this workflow for every milestone:
 
 2. **Check Git status:**
    ```bash
-   cd /Users/pavan/Desktop/careerpilot-ai
+   cd <path-to>/careerpilot-ai
    git status --short
    ```
 
